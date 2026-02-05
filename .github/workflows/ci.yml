@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches:
+      [
+        main,
+      ]
+  pull_request:
+    branches:
+      [
+        main,
+      ]
+
+jobs:
+  quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-suffix: "py3.11" # Cache key
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install Dependencies
+        run: uv sync --frozen # Fail if lockfile is out of sync
+
+      - name: Lint & Format (Ruff)
+        run:
+          |
+          uv run ruff format --check .
+          uv run ruff check .
+
+      - name: Type Check (Mypy)
+        run: uv run mypy .
+
+      - name: Check Dependencies (Deptry)
+        run: uv run deptry .
