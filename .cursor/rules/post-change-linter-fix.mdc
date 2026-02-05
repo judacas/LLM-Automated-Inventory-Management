@@ -1,0 +1,15 @@
+---
+description: After making code changes, call the linter-fixer subagent to fix all linter/LSP errors
+alwaysApply: true
+---
+
+# After code changes: run linter fixer
+
+When you have finished making code changes (edits, new files, or refactors), **invoke the linter-fixer subagent** so it can:
+
+- Run linting and see all LSP/linter errors (via the run-linting skill)
+- Fix mechanical issues (style, simple syntax, obvious imports/types)
+- Delegate to you any issues that need design or broader context
+- Report back with a concise summary of fixes and delegated items (no trial-and-error bloat)
+
+Do not skip this step. Let the subagent run, then handle any delegated issues it returns.

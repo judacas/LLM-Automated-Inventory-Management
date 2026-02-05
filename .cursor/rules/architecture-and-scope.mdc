@@ -1,0 +1,13 @@
+---
+description: Core architecture + scope guardrails for this project
+alwaysApply: true
+---
+
+# Architecture and scope (always apply)
+
+- Align user-side flow to `projectOverview.md` and `Flowchart.png`.
+- Only implement the **user-side** path: email intake -> onboarding -> user orchestrator -> quote/purchase/inventory.
+- Admin flow is intentionally excluded for now (no admin endpoints or agents).
+- Keep it simple: no DB, no real email provider, no auth/OAuth; stub where needed.
+- Use Azure services as the target platform (Azure OpenAI, Azure App Service).
+- Favor modular, readable structure over clever abstractions.
