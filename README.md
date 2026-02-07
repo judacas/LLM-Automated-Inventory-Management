@@ -1,4 +1,7 @@
 # LLM-Automated-Inventory-Management
+
+[![CI](https://github.com/judacas/LLM-Automated-Inventory-Management/actions/workflows/ci.yml/badge.svg)](https://github.com/judacas/LLM-Automated-Inventory-Management/actions/workflows/ci.yml)
+
 This is a group final project for 5 final semester computer engineers at USF working with Microsoft.
 
 ## Developer Setup
@@ -35,6 +38,7 @@ Pre-commit hooks run **automatically on every commit** to ensure code is properl
 
 **What runs locally:**
 - **Ruff** - Code formatting and linting
+- **MyPy** - Static type checking
 
 If the hooks find issues, the commit will be blocked until you fix them. Most issues can be auto-fixed by Ruff.
 
@@ -54,6 +58,9 @@ Additional checks run automatically on GitHub:
 - **On pull requests** to any branch except those starting with `dev`
 
 **What runs on GitHub:**
+- **Ruff** - Code formatting and linting
+- **MyPy** - Static type checking
+- **Pytest** - Unit tests with coverage reporting
 - **Deptry** - Checks for unused/missing dependencies
 - **Gitleaks** - Scans for API keys and secrets
 
@@ -68,8 +75,17 @@ To manually run checks:
 # Run pre-commit hooks manually
 uv run pre-commit run --all-files
 
+# Run tests
+uv run pytest
+
+# Run tests with coverage
+uv run pytest --cov
+
 # Run dependency check
 uv run deptry .
+
+# Run type checking
+uv run mypy src/
 ```
 
 Or fix formatting automatically:
@@ -84,3 +100,15 @@ uv run ruff check --fix .
 In addition to the required extensions (Python and Ruff), these are recommended but optional:
 - **Azure Account** (ms-azuretools.vscode-azure-account) - For Azure authentication
 - **GitHub Actions** (github.vscode-github-actions) - For viewing CI status in VS Code
+
+## Contributing
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development workflow, coding standards, and how to submit pull requests.
+
+## Code of Conduct
+
+This project follows a [Code of Conduct](CODE_OF_CONDUCT.md). Please read it to understand the expectations for all team members.
+
+## Repository Settings
+
+For GitHub repository configuration recommendations, see [GITHUB_SETTINGS.md](GITHUB_SETTINGS.md).
