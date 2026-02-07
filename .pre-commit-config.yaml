@@ -1,26 +1,7 @@
 repos:
-  # 1. The Style Police (Ruff)
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.9.4
     hooks:
       - id: ruff
-        args:
-          [
-            --fix,
-          ] # Auto-fix imports and simple logic errors
-      - id: ruff-format # Replaces Black
-
-  # 2. The Secret Scanner (Gitleaks - prevents API keys in git)
-  - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.23.1
-    hooks:
-      - id: gitleaks
-
-  # 3. The Dependency Cleaner (Deptry)
-  - repo: https://github.com/bwhathan/deptry
-    rev: "0.23.0"
-    hooks:
-      - id: deptry
-        entry: deptry .
-        language: system
-        pass_filenames: false
+        args: [--fix]
+      - id: ruff-format

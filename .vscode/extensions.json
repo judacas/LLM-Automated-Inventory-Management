@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "charliermarsh.ruff",
+    "ms-azuretools.vscode-azure-account",
+    "github.vscode-github-actions",
+    "ms-azureai.azure-ai",
+    "redhat.vscode-yaml",
+    "mikestead.dotenv",
+    "rangav.vscode-thunder-client",
+    "ms-vscode.azurecli",
+    "github.copilot",
+    "github.copilot-chat",
+    "ms-vscode.vscode-node-azure-pack"
+  ]
+}

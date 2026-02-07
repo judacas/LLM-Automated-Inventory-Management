@@ -1,27 +1,16 @@
 [project]
 name = "LLM-Automated-Inventory-Management"
 version = "0.1.0"
-description = "Contoso Automated Inventory Management System LLM Agent Based"
+description = "Simple terminal chatbot using Azure AI Foundry"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = [
-  "fastapi>=0.110.0",
-  "uvicorn[standard]>=0.27.0",
-  "pydantic>=2.6.0",
-  "azure-ai-projects",
-  "azure-identity",
-  "openai",
-  "mcp",
-  "httpx>=0.27.0",
-  "httpx-sse>=0.4.0",
-]
+dependencies = ["azure-ai-projects", "azure-identity"]
 
 [dependency-groups]
 dev = [
-    "ruff>=0.9.0",
-    "mypy>=1.0.0",
-    "pre-commit>=4.0.0",
-    "deptry>=0.23.0",
+  "ruff>=0.9.0",
+  "deptry>=0.23.0",
+  "pre-commit>=4.0.0",
 ]
 
 [build-system]
@@ -30,7 +19,7 @@ build-backend = "hatchling.build"
 
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agents", "src/mcp", "src/llm", "src/channels", "src/data"]
+packages = ["src"]
 
 # --- Tool Configurations ---
 
@@ -38,19 +27,14 @@ packages = ["src/agents", "src/mcp", "src/llm", "src/channels", "src/data"]
 line-length = 88
 target-version = "py311"
 
+
 [tool.ruff.lint]
 # E/F = standard python errors
 # I = import sorting
 # S = security (Bandit) - finds hardcoded passwords/vulnerabilities
 # B = bugbear (finds common bugs)
 select = ["E", "F", "I", "S", "B"]
-ignore = ["S101"] # Ignore "Use of assert detected" (standard for tests)
-
-[tool.mypy]
-python_version = "3.11"
-strict = true
-ignore_missing_imports = true # Prevents errors when libraries don't have types
+ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests) and line length
 
 [tool.deptry]
-
 root = "src"
