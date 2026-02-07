@@ -35,7 +35,7 @@ jobs:
           uv run ruff check .
 
       - name: Type Check (MyPy)
-        run: uv run mypy src/ --check-untyped-defs || true
+        run: uv run mypy src/
 
       - name: Check Dependencies (Deptry)
         run: uv run deptry .
