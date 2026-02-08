@@ -1,5 +1,5 @@
 [project]
-name = "LLM-Automated-Inventory-Management"
+name = "llm-automated-inventory-management"
 version = "0.1.0"
 description = "Simple terminal chatbot using Azure AI Foundry"
 readme = "README.md"
