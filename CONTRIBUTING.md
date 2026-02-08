@@ -6,7 +6,7 @@ Thank you for contributing to this project! This guide will help you get started
 
 ### 1. Setting Up Your Development Environment
 
-Follow the instructions in [README.md](README.md) to download the code and set up UV
+Follow the instructions in [README.md](README.md) to download the code and set up uv
 then run
 
 ```bash
