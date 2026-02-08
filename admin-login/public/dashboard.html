@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contoso Admin Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <h1 class="dashboard-title">Contoso Admin Dashboard</h1>
+    <p id="welcomeMessage" class="welcome-message"></p>
+
+    <!-- Row 1: Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <h3>Outstanding Quotes</h3>
+        <div id="outstandingCount">-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Outstanding Total</h3>
+        <div id="outstandingTotal">$-</div>
+      </div>
+      <div class="stat-card">
+        <h3>Unavailable Items Requested</h3>
+        <div id="unavailableItems">-</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Buttons -->
+    <div class="button-row">
+      <a href="#" class="nav-btn">View All Quotes</a>
+      <a href="#" class="nav-btn">View Inventory</a>
+    </div>
+
+    <!-- Logout -->
+    <div class="logout-container">
+      <button id="logoutBtn">Logout</button>
+    </div>
+  </div>
+
+  <script>
+    // Animate numbers
+    function animateValue(id, start, end, duration) {
+      let obj = document.getElementById(id);
+      let range = end - start;
+      let current = start;
+      let increment = range / (duration / 16); // ~60fps
+      const step = () => {
+        current += increment;
+        if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
+          obj.textContent = end;
+        } else {
+          obj.textContent = Math.floor(current);
+          requestAnimationFrame(step);
+        }
+      };
+      step();
+    }
+
+    async function fetchDashboardAnimated() {
+      try {
+        const res = await fetch('/admin/dashboard');
+        if (res.status === 401) {
+          window.location.href = '/';
+          return;
+        }
+        const data = await res.json();
+
+        // Welcome message fade in
+        const welcomeEl = document.getElementById('welcomeMessage');
+        welcomeEl.textContent = `Welcome back, ${data.message.replace('Welcome ', '')}`;
+        welcomeEl.style.opacity = 0;
+        welcomeEl.style.transition = 'opacity 1s ease';
+        setTimeout(() => welcomeEl.style.opacity = 1, 100);
+
+        // Animate stats
+        animateValue('outstandingCount', 0, data.outstandingCount, 1000);
+        animateValue('outstandingTotal', 0, data.outstandingTotal, 1000);
+        animateValue('unavailableItems', 0, data.unavailableItems, 1000);
+
+        // Fade in stat cards
+        document.querySelectorAll('.stat-card').forEach((card, i) => {
+          card.style.opacity = 0;
+          card.style.transition = `opacity 0.6s ease ${i * 0.2}s`;
+          setTimeout(() => card.style.opacity = 1, 100);
+        });
+
+        // Fade in buttons
+        document.querySelectorAll('.button-row .nav-btn').forEach((btn, i) => {
+          btn.style.opacity = 0;
+          btn.style.transition = `opacity 0.6s ease ${i * 0.2}s, transform 0.2s ease`;
+          setTimeout(() => btn.style.opacity = 1, 200);
+        });
+
+      } catch {
+        document.getElementById('welcomeMessage').textContent = 'Failed to load dashboard';
+      }
+    }
+
+    fetchDashboardAnimated();
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch('/auth/logout', { method: 'POST' });
+      window.location.href = '/';
+    });
+  </script>
+</body>
+</html>
