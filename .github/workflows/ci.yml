@@ -14,6 +14,8 @@ jobs:
   quality:
     name: Code Quality
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -34,8 +36,34 @@ jobs:
           uv run ruff format --check .
           uv run ruff check .
 
+      - name: Type Check (MyPy)
+        run: uv run mypy src/
+
       - name: Check Dependencies (Deptry)
         run: uv run deptry .
 
       - name: Secret Scanning (Gitleaks)
         uses: gitleaks/gitleaks-action@v2
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-suffix: "py3.11"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Install Dependencies
+        run: uv sync --frozen
+
+      - name: Run Tests
+        run: uv run pytest -v

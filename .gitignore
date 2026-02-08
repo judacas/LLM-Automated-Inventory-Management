@@ -37,20 +37,13 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
-htmlcov/
+# Unit test reports
 .tox/
 .nox/
-.coverage
-.coverage.*
 .cache
 nosetests.xml
-coverage.xml
-*.cover
-*.py.cover
 .hypothesis/
 .pytest_cache/
-cover/
 
 # Translations
 *.mo
