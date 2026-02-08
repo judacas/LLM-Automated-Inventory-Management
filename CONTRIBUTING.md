@@ -40,7 +40,7 @@ In addition to the required extensions, check [.vscode/extensions.json](.vscode/
    git checkout -b your-name/feature-name
    ```
 
-note that if you want rapid development not having to go through all of the checks then start your branch name with dev
+Note that if you want rapid development without having to run all of the checks, start your branch name with the `dev/` prefix.
 
 1. **Make your changes** following the coding standards below
 
