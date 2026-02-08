@@ -133,8 +133,7 @@ Additional checks run automatically on GitHub:
 - **MyPy** - Static type checking
 - **Pytest** - Unit tests
 - **Deptry** - Checks for unused/missing dependencies
-- **Gitleaks** - Scans for API keys and secrets
-- **GitHub Copilot** - Automated code review and suggestions
+- **GitHub Copilot** - Automated code review and suggestions (only on pull requests to main via github settings not actions)
 
 ### Why only check `main`?
 
