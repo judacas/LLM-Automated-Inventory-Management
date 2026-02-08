@@ -46,6 +46,7 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ARGS: detect --redact --report-format=sarif --report-path=results.sarif --log-level=debug --source .
 
   test:
     name: Tests
