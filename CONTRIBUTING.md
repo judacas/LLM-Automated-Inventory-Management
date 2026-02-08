@@ -6,7 +6,29 @@ Thank you for contributing to this project! This guide will help you get started
 
 ### 1. Setting Up Your Development Environment
 
-Follow the instructions in [README.md](README.md) to set up your environment with `uv` and pre-commit hooks.
+Follow the instructions in [README.md](README.md) to download the code and set up UV
+then run
+
+```bash
+uv sync
+uv run pre-commit install
+```
+
+then proceed with development. This installs pre-commit hooks that will automatically run checks before each commit.
+
+For development in VS Code, install the **required** extensions:
+
+- **Python** (ms-python.python) - Core Python support with Pylance
+- **Ruff** (charliermarsh.ruff) - Linting and formatting
+- **MyPy** (ms-python.mypy-type-checker) - Static type checking
+
+See [Recommended VS Code Extensions](#recommended-vs-code-extensions) below for a complete list of recommended optional extensions that can enhance your development experience.
+
+If you are still using older linters or are having trouble setting up VS Code, the easiest option is to create a new Python profile in VS Code. The profile comes with the basic settings preconfigured for you.
+
+## Recommended VS Code Extensions
+
+In addition to the required extensions, check [.vscode/extensions.json](.vscode/extensions.json) for a complete list of recommended optional extensions that can enhance your development experience.
 
 ### 2. Working on a Feature or Fix
 
@@ -36,6 +58,8 @@ note that if you want rapid development not having to go through all of the chec
    uv run mypy src/
    ```
 
+    For the full list of checks (including pre-commit and dependency checks), see "Running Checks Locally" below.
+
 3. **Commit your changes**:
 
    ```bash
@@ -44,6 +68,15 @@ note that if you want rapid development not having to go through all of the chec
    ```
 
    Note: Pre-commit hooks will automatically run. If they fail, fix the issues and commit again.
+
+    **Work-in-progress commits:**
+    If you need to commit unfinished work (e.g., to save progress or share with teammates), you can bypass the hooks:
+
+    ```bash
+    git commit -m "WIP: my unfinished feature" --no-verify
+    ```
+
+    ⚠️ **Note:** Only use `--no-verify` for temporary WIP commits to a branch that starts with dev. All code merged to anywhere else must pass the checks.
 
 4. **Push your branch**:
 
@@ -86,6 +119,51 @@ Tooling and exact settings are defined in the configuration files. Treat those a
 - [pyproject.toml](pyproject.toml) for tool configuration
 - [.pre-commit-config.yaml](.pre-commit-config.yaml) for local hook definitions
 - [.github/workflows/ci.yml](.github/workflows/ci.yml) for CI checks
+
+### GitHub Actions (CI)
+
+Additional checks run automatically on GitHub:
+
+- **On push** to any branch except those starting with `dev`
+- **On pull requests** to any branch except those starting with `dev`
+
+**What runs on GitHub:**
+
+- **Ruff** - Code formatting and linting
+- **MyPy** - Static type checking
+- **Pytest** - Unit tests
+- **Deptry** - Checks for unused/missing dependencies
+- **Gitleaks** - Scans for API keys and secrets
+- **GitHub Copilot** - Automated code review and suggestions
+
+### Why skip `dev` branches?
+
+Branches starting with `dev` (e.g., `dev/my-feature`, `dev-experiment`) skip CI checks to allow rapid iteration during development. Once you're ready to merge, create a PR to a non-dev branch and the checks will run.
+
+### Running Checks Locally
+
+To manually run checks:
+
+```bash
+# Run pre-commit hooks manually
+uv run pre-commit run --all-files
+
+# Run tests
+uv run pytest
+
+# Run dependency check
+uv run deptry .
+
+# Run type checking
+uv run mypy src/
+```
+
+Or fix formatting automatically:
+
+```bash
+uv run ruff format .
+uv run ruff check --fix .
+```
 
 ### Writing Tests
 
