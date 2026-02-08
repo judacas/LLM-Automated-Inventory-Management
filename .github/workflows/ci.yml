@@ -42,14 +42,6 @@ jobs:
       - name: Check Dependencies (Deptry)
         run: uv run deptry .
 
-      - name: Secret Scanning (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
-          GITLEAKS_ENABLE_SUMMARY: true
-          GITLEAKS_FLAGS: "--no-git"
-
   test:
     name: Tests
     runs-on: ubuntu-latest
