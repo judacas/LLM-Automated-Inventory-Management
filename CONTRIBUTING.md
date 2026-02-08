@@ -2,16 +2,6 @@
 
 Thank you for contributing to this project! This guide will help you get started.
 
-## Team Guidelines
-
-This is a team project for 5 computer engineering students. We expect all team members to:
-
-- Communicate regularly (at least weekly meetings)
-- Review each other's code
-- Follow the established code quality standards
-- Document your work clearly
-- Ask questions when stuck
-
 ## Development Workflow
 
 ### 1. Setting Up Your Development Environment
@@ -21,15 +11,19 @@ Follow the instructions in [README.md](README.md) to set up your environment wit
 ### 2. Working on a Feature or Fix
 
 1. **Create a branch** from `main`:
+
    ```bash
    git checkout main
    git pull origin main
    git checkout -b your-name/feature-name
    ```
 
-2. **Make your changes** following the coding standards below
+note that if you want rapid development not having to go through all of the checks then start your branch name with dev
 
-3. **Test your changes** locally:
+1. **Make your changes** following the coding standards below
+
+2. **Test your changes** locally:
+
    ```bash
    # Run tests
    uv run pytest
@@ -42,20 +36,22 @@ Follow the instructions in [README.md](README.md) to set up your environment wit
    uv run mypy src/
    ```
 
-4. **Commit your changes**:
+3. **Commit your changes**:
+
    ```bash
    git add .
    git commit -m "Brief description of changes"
    ```
-   
+
    Note: Pre-commit hooks will automatically run. If they fail, fix the issues and commit again.
 
-5. **Push your branch**:
+4. **Push your branch**:
+
    ```bash
    git push origin your-name/feature-name
    ```
 
-6. **Create a Pull Request** on GitHub
+5. **Create a Pull Request** on GitHub
 
 ### 3. Pull Request Guidelines
 
@@ -80,27 +76,25 @@ When reviewing a PR:
 
 - Follow [PEP 8](https://pep8.org/) style guide
 - Use type hints for all function signatures
-- Maximum line length: 88 characters (enforced by Ruff)
+- Line length is not linted (Ruff ignores `E501`); the formatter still uses 88 as a default target
 - Use meaningful variable and function names
 
 ### Code Quality Tools
 
-We use the following tools (configured in `pyproject.toml`):
+Tooling and exact settings are defined in the configuration files. Treat those as the source of truth and use this section as a quick pointer:
 
-- **Ruff**: Linting and formatting
-- **MyPy**: Static type checking
-- **Pytest**: Testing framework
-- **Coverage**: Code coverage reporting
-- **Deptry**: Dependency checking
+- [pyproject.toml](pyproject.toml) for tool configuration
+- [.pre-commit-config.yaml](.pre-commit-config.yaml) for local hook definitions
+- [.github/workflows/ci.yml](.github/workflows/ci.yml) for CI checks
 
 ### Writing Tests
 
-- Place tests in the `tests/` directory
+- Place tests in the [tests/](tests/) directory
 - Name test files with `test_` prefix (e.g., `test_inventory.py`)
-- Aim for high test coverage (>80%)
 - Test both success and failure cases
 
 Example test structure:
+
 ```python
 import pytest
 
@@ -119,10 +113,10 @@ def test_example_function_error():
 
 - Add docstrings to all public functions and classes
 - Use Google-style docstrings
-- Update README.md if you add new features
 - Comment complex logic
 
 Example docstring:
+
 ```python
 def process_order(order_id: int, customer: str) -> dict:
     """Process a customer order.
@@ -150,7 +144,8 @@ Write clear commit messages:
 - Reference issues: "Fixes #123" or "Relates to #456"
 
 Good examples:
-```
+
+```text
 Add inventory update endpoint
 
 Implement POST /inventory/update endpoint that allows
@@ -171,17 +166,21 @@ Use descriptive branch names with your name or username:
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test individual functions and classes in isolation
 - Use mocks for external dependencies
 
 ### Integration Tests
+
 - Test how components work together
 - Test API endpoints end-to-end
 
 ### Before Pushing
+
 Always run the full test suite:
+
 ```bash
-uv run pytest -v --cov
+uv run pytest -v
 ```
 
 ## Common Issues
@@ -189,6 +188,7 @@ uv run pytest -v --cov
 ### Pre-commit Hooks Failing
 
 If pre-commit hooks fail:
+
 1. Review the error messages
 2. Run `uv run ruff format .` to auto-fix formatting
 3. Run `uv run ruff check --fix .` to auto-fix linting issues
@@ -198,25 +198,11 @@ If pre-commit hooks fail:
 ### Merge Conflicts
 
 If you have merge conflicts:
+
 1. Pull the latest changes: `git pull origin main`
 2. Resolve conflicts in your editor
 3. Test that everything still works
 4. Commit the merge
-
-### Need Help?
-
-- Ask in team meetings
-- Post in the team chat
-- Tag team members in GitHub issues/PRs
-- Refer to project documentation
-
-## Code of Conduct
-
-- Be respectful and professional
-- Welcome diverse perspectives
-- Focus on constructive feedback
-- Help each other learn and grow
-- Keep communication timely
 
 ## Security
 

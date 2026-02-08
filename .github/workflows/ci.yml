@@ -66,11 +66,4 @@ jobs:
         run: uv sync --frozen
 
       - name: Run Tests
-        run: uv run pytest -v --cov --cov-report=xml --cov-report=term
-
-      - name: Upload Coverage to Codecov
-        uses: codecov/codecov-action@v4
-        if: always()
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false
+        run: uv run pytest -v

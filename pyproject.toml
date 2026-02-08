@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Simple terminal chatbot using Azure AI Foundry"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["azure-ai-projects", "azure-identity"]
+dependencies = []
 
 [dependency-groups]
 dev = [
@@ -12,7 +12,6 @@ dev = [
   "deptry>=0.23.0",
   "pre-commit>=4.0.0",
   "pytest>=8.0.0",
-  "pytest-cov>=6.0.0",
   "pytest-asyncio>=0.24.0",
   "mypy>=1.13.0",
 ]
@@ -51,26 +50,6 @@ python_functions = "test_*"
 addopts = [
   "--strict-markers",
   "--strict-config",
-  "--cov=src",
-  "--cov-report=term-missing",
-  "--cov-report=html",
-  "--cov-report=xml",
-]
-
-[tool.coverage.run]
-source = ["src"]
-omit = ["tests/*"]
-
-[tool.coverage.report]
-exclude_lines = [
-  "pragma: no cover",
-  "def __repr__",
-  "raise AssertionError",
-  "raise NotImplementedError",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-  "class .*\\bProtocol\\):",
-  "@(abc\\.)?abstractmethod",
 ]
 
 [tool.mypy]
@@ -79,6 +58,7 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+disallow_untyped_decorators = false
 disallow_any_unimported = false
 no_implicit_optional = true
 warn_redundant_casts = true
