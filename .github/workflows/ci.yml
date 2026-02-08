@@ -2,13 +2,7 @@ name: CI
 
 on:
   push:
-    branches-ignore:
-      - 'dev/**'
-      - 'dev*'
   pull_request:
-    branches-ignore:
-      - 'dev/**'
-      - 'dev*'
 
 jobs:
   quality:

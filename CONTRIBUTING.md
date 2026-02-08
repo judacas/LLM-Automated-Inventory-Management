@@ -40,7 +40,7 @@ In addition to the required extensions, check [.vscode/extensions.json](.vscode/
    git checkout -b your-name/feature-name
    ```
 
-Note that if you want rapid development without having to run all of the checks, start your branch name with the `dev/` prefix.
+Note that CI security checks run only on `main` and when merging into `main`, so you can keep feature and bugfix branches lightweight for faster iteration.
 
 1. **Make your changes** following the coding standards below
 
@@ -76,7 +76,7 @@ Note that if you want rapid development without having to run all of the checks,
     git commit -m "WIP: my unfinished feature" --no-verify
     ```
 
-    ⚠️ **Note:** Only use `--no-verify` for temporary WIP commits to a branch that starts with dev. All code merged to anywhere else must pass the checks.
+    ⚠️ **Note:** Only use `--no-verify` for temporary WIP commits. All code merged to `main` must pass the checks.
 
 4. **Push your branch**:
 
@@ -124,8 +124,8 @@ Tooling and exact settings are defined in the configuration files. Treat those a
 
 Additional checks run automatically on GitHub:
 
-- **On push** to any branch except those starting with `dev`
-- **On pull requests** to any branch except those starting with `dev`
+- **On push** to `main`
+- **On pull requests** targeting `main`
 
 **What runs on GitHub:**
 
@@ -133,12 +133,11 @@ Additional checks run automatically on GitHub:
 - **MyPy** - Static type checking
 - **Pytest** - Unit tests
 - **Deptry** - Checks for unused/missing dependencies
-- **Gitleaks** - Scans for API keys and secrets
-- **GitHub Copilot** - Automated code review and suggestions
+- **GitHub Copilot** - Automated code review and suggestions (only on pull requests to main via github settings not actions)
 
-### Why skip `dev` branches?
+### Why only check `main`?
 
-Branches starting with `dev` (e.g., `dev/my-feature`, `dev-experiment`) skip CI checks to allow rapid iteration during development. Once you're ready to merge, create a PR to a non-dev branch and the checks will run.
+We keep CI security checks scoped to `main` so feature and bugfix branches can iterate quickly. When you open a PR into `main`, the checks run and block merges until everything passes.
 
 ### Running Checks Locally
 
@@ -239,7 +238,7 @@ Use descriptive branch names with your name or username:
 - `yourname/feature-description` - For new features
 - `yourname/fix-description` - For bug fixes
 - `yourname/docs-description` - For documentation updates
-- `dev/experiment-name` - For experimental work (skips CI)
+- `dev/experiment-name` - For experimental work
 
 ## Testing Strategy
 
