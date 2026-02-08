@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Simple terminal chatbot using Azure AI Foundry"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["azure-ai-projects", "azure-identity"]
+dependencies = []
 
 [dependency-groups]
 dev = [
