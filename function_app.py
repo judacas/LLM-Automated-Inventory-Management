@@ -1,14 +1,24 @@
 import os
+import sys
 
 import azure.functions as func
+from azure.functions import AsgiMiddleware
 
-# Ensure src/ is importable (because your FastAPI code lives under src/)
-os.environ.setdefault("PYTHONPATH", "src")
+# Make src/ importable BEFORE importing your FastAPI app
+ROOT = os.path.dirname(__file__)
+sys.path.insert(0, os.path.join(ROOT, "src"))
 
-from tool_api.app import app as fastapi_app
+from tool_api.app import app as fastapi_app  # noqa: E402
 
-# This exposes your FastAPI app as an HTTP-triggered Azure Function under /api/*
-app = func.AsgiFunctionApp(
-    app=fastapi_app,
-    http_auth_level=func.AuthLevel.ANONYMOUS,
+app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
+
+
+@app.function_name(name="api")
+@app.route(
+    route="{*path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    auth_level=func.AuthLevel.ANONYMOUS,
 )
+def api(req: func.HttpRequest, context: func.Context) -> func.HttpResponse:
+    # Route all /api/* requests into FastAPI
+    return AsgiMiddleware(fastapi_app).handle(req, context)
