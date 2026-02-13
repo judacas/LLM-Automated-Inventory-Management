@@ -1,6 +1,6 @@
 from datetime import date
 
-from inventory_agent.models import InventoryItem
+from inventory_service.models import InventoryItem
 
 
 class InventoryRepository:
