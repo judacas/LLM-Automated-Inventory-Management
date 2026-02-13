@@ -2,8 +2,8 @@ import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 
-from inventory_agent.repository import InventoryRepository
-from inventory_agent.service import InventoryService
+from inventory_service.repository import InventoryRepository
+from inventory_service.service import InventoryService
 
 app = FastAPI(title="Contoso Inventory Tool API", version="0.1.0")
 

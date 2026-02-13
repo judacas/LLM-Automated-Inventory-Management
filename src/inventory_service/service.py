@@ -1,5 +1,5 @@
-from inventory_agent.models import InventoryItem
-from inventory_agent.repository import InventoryRepository
+from inventory_service.models import InventoryItem
+from inventory_service.repository import InventoryRepository
 
 
 class InventoryService:

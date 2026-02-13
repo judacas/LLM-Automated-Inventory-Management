@@ -1,6 +1,6 @@
 from admin_orchestrator_agent.classifier import AdminIntent, AdminIntentClassifier
-from inventory_agent.repository import InventoryRepository
-from inventory_agent.service import InventoryService
+from inventory_service.repository import InventoryRepository
+from inventory_service.service import InventoryService
 
 
 class AdminOrchestratorService:
