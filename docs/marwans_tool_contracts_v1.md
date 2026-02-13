@@ -1,4 +1,4 @@
-# Tool Contracts (v0)
+# Tool Contracts (v1)
 
 This document captures the current tool surface and orchestration intent contracts.
 These are the source-of-truth interfaces used for integration between agents/tools.
@@ -32,7 +32,7 @@ These are the source-of-truth interfaces used for integration between agents/too
   "name": "Test Item",
   "quantity": 10,
   "status": "in_stock",
-  "available_date": "2026-01-15"
+  "available_date": "2026-02-25"
 }
 ```
 - **Statuses (current):**
