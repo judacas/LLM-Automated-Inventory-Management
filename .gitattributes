@@ -1,0 +1,12 @@
+* text=auto eol=lf
+# Explicitly mark common binary patterns
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.exe binary
+*.dll binary
+*.so binary
