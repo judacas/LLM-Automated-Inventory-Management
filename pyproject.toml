@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Simple terminal chatbot using Azure AI Foundry"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "fastapi>=0.128.8",
+]
 
 [dependency-groups]
 dev = [
@@ -41,9 +43,11 @@ ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests
 
 [tool.deptry]
 root = "src"
+known_first_party = ["inventory_service", "admin_orchestrator_agent", "tool_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
@@ -66,6 +70,7 @@ warn_unused_ignores = true
 warn_no_return = true
 check_untyped_defs = true
 strict_equality = true
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"
