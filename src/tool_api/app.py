@@ -14,9 +14,23 @@ TOOL_API_KEY = os.getenv("TOOL_API_KEY")
 
 
 def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
-    # If TOOL_API_KEY isn't set, allow (useful for local dev)
-    if TOOL_API_KEY and x_api_key != TOOL_API_KEY:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    """
+    Require x-api-key header to match TOOL_API_KEY environment variable.
+
+    Fail-closed behavior:
+      - If TOOL_API_KEY is not set, we treat it as a server misconfiguration and return 500.
+      - If header missing or wrong, return 401.
+    """
+    expected = TOOL_API_KEY
+    if not expected:
+        # Misconfigured deployment should not silently expose write endpoints
+        raise HTTPException(
+            status_code=500,
+            detail=f"Server misconfigured: {TOOL_API_KEY} is not set.",
+        )
+
+    if x_api_key is None or x_api_key != expected:
+        raise HTTPException(status_code=401, detail="Invalid or missing API key.")
 
 
 @app.get("/health")
@@ -42,15 +56,25 @@ def get_item(
 
 @app.post("/inventory/reserve/{sku}/{qty}")
 def reserve_item(
-    sku: str, qty: int, _: None = Depends(require_api_key)
+    sku: str,
+    qty: int,
+    _: None = Depends(require_api_key),
 ) -> dict[str, str | int]:
-    inventory_service.reserve_item(sku, qty)
+    try:
+        inventory_service.reserve_item(sku, qty)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"status": "reserved", "sku": sku, "qty": qty}
 
 
 @app.post("/inventory/receive/{sku}/{qty}")
 def receive_item(
-    sku: str, qty: int, _: None = Depends(require_api_key)
+    sku: str,
+    qty: int,
+    _: None = Depends(require_api_key),
 ) -> dict[str, str | int]:
-    inventory_service.receive_shipment(sku, qty)
+    try:
+        inventory_service.receive_shipment(sku, qty)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {"status": "received", "sku": sku, "qty": qty}
