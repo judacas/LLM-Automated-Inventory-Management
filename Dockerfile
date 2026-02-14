@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # copy source
 COPY src ./src
 
-# allow imports like: from inventory_agent.service import ...
+# allow imports like: from inventory_service.service import ...
 ENV PYTHONPATH=/app/src
 
 EXPOSE 8000
