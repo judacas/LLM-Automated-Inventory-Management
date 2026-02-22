@@ -44,5 +44,5 @@ typing-inspection==0.4.2
     #   pydantic
 uvicorn==0.40.0
     # via llm-automated-inventory-management
-werkzeug==3.1.5
+werkzeug==3.1.6
     # via azure-functions
