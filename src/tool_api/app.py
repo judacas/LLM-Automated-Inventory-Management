@@ -4,7 +4,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 
 from inventory_service.factory import build_inventory_service
 
-app = FastAPI(title="Contoso Inventory Tool API", version="0.1.0")
+app = FastAPI(title="Contoso Inventory Tool API", version="0.2.0")
 
 # Build service instance at startup
 inventory_service = build_inventory_service()
@@ -25,7 +25,7 @@ def require_api_key(x_api_key: str | None = Header(default=None)) -> None:
         # Misconfigured deployment should not silently expose write endpoints
         raise HTTPException(
             status_code=500,
-            detail=f"Server misconfigured: {TOOL_API_KEY} is not set.",
+            detail="Server misconfigured: TOOL_API_KEY is not set.",
         )
 
     if x_api_key is None or x_api_key != expected:

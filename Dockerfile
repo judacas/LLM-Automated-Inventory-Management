@@ -1,22 +1,27 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
 # --- SQL Server ODBC Driver 18 for pyodbc ---
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    gnupg2 \
-    apt-transport-https \
-    ca-certificates \
-    unixodbc \
-    unixodbc-dev \
- && curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - \
- && curl https://packages.microsoft.com/config/debian/12/prod.list > /etc/apt/sources.list.d/mssql-release.list \
- && apt-get update \
- && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
- && apt-get clean \
- && rm -rf /var/lib/apt/lists/*
-
+# --- SQL Server ODBC Driver 18 for pyodbc (Debian slim) ---
+# --- SQL Server ODBC Driver 18 for pyodbc (Debian 12 / bookworm) ---
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        curl \
+        gnupg \
+        ca-certificates \
+        unixodbc \
+        unixodbc-dev; \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+      | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg; \
+    curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list \
+      | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://#g' \
+      > /etc/apt/sources.list.d/microsoft-prod.list; \
+    apt-get update; \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # install dependencies
 COPY requirements.txt .

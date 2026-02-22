@@ -3,9 +3,9 @@ from __future__ import annotations
 import os
 
 try:
-    import pyodbc  # type: ignore
+    import pyodbc
 except ImportError:  # pragma: no cover
-    pyodbc = None  # type: ignore
+    pyodbc = None
 
 from inventory_service.models import InventoryItem_v2
 from inventory_service.repository import InventoryRepository
