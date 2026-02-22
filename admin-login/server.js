@@ -60,15 +60,57 @@ app.post('/auth/logout', (req, res) => {
   res.json({ success: true });
 });
 
-// Protected dashboard
+// Protect dashboard.html itself (prevents direct access without cookie)
+app.get('/dashboard.html', authenticateToken, (req, res) => {
+  logger.info(`dashboard.html served to: ${req.user.username}`);
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Protected dashboard data endpoint
 app.get('/admin/dashboard', authenticateToken, (req, res) => {
-  logger.info(`Dashboard accessed by: ${req.user.username}`);
+  logger.info(`Dashboard data accessed by: ${req.user.username}`);
   res.json({
-    message: `Welcome back, ${req.user.username}!`,
+    message: `Welcome ${req.user.username}!`,
     outstandingCount: 5,
-    outstandingTotal: `$${1200}`,
+    outstandingTotal: '$1200',
     unavailableItems: 2
   });
+});
+
+// ===== Admin Chat Loop (Demo / Sponsor-ready) =====
+app.post('/admin/chat', authenticateToken, async (req, res) => {
+  const { message } = req.body;
+  logger.info(`Admin chat from ${req.user.username}: ${message}`);
+
+  const lower = (message || '').toLowerCase();
+
+  // Demo: simulate Foundry agent classification JSON
+  let out = { request_type: 'unknown', results: [] };
+
+  if (lower.includes('help') || lower.includes('what can you do')) {
+    out.request_type = 'help';
+  } else if (lower.includes('unavailable') || lower.includes('out of stock')) {
+    out.request_type = 'unavailable_items';
+  } else if (lower.includes('quote') || lower.includes('outstanding')) {
+    out.request_type = 'outstanding_quotes';
+  }
+
+  // Demo: backend "intercepts" request_type and fills mock results
+  // (Later replace these with DB MCP queries)
+  if (out.request_type === 'outstanding_quotes') {
+    out.results = [
+      { quote_id: 'Q-1002', total: 418.50 },
+      { quote_id: 'Q-1011', total: 92.00 }
+    ];
+  } else if (out.request_type === 'unavailable_items') {
+    out.results = [
+      { sku: 'SKU-009', requested_qty: 4, available_qty: 0 }
+    ];
+  } else if (out.request_type === 'help') {
+    out.results = [];
+  }
+
+  return res.json(out);
 });
 
 // Catch-all for frontend routing

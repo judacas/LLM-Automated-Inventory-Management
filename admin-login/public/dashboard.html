@@ -33,6 +33,17 @@
       <a href="#" class="nav-btn">View Inventory</a>
     </div>
 
+    <!-- Row 3: Admin Chat -->
+    <div class="chat-card">
+      <h3>Admin Chat</h3>
+      <div id="chatBox" class="chat-box"></div>
+
+      <div class="chat-input-row">
+        <input id="chatInput" type="text" placeholder="Try: show outstanding quotes" />
+        <button id="chatSendBtn" class="chat-send-btn">Send</button>
+      </div>
+    </div>
+
     <!-- Logout -->
     <div class="logout-container">
       <button id="logoutBtn">Logout</button>
@@ -40,12 +51,13 @@
   </div>
 
   <script>
-    // Animate numbers
+    // Animate numbers (for plain integers only)
     function animateValue(id, start, end, duration) {
       let obj = document.getElementById(id);
       let range = end - start;
       let current = start;
       let increment = range / (duration / 16); // ~60fps
+
       const step = () => {
         current += increment;
         if ((increment > 0 && current >= end) || (increment < 0 && current <= end)) {
@@ -69,15 +81,18 @@
 
         // Welcome message fade in
         const welcomeEl = document.getElementById('welcomeMessage');
-        welcomeEl.textContent = `Welcome back, ${data.message.replace('Welcome ', '')}`;
+        // data.message is like "Welcome admin!"
+        welcomeEl.textContent = data.message;
         welcomeEl.style.opacity = 0;
         welcomeEl.style.transition = 'opacity 1s ease';
         setTimeout(() => welcomeEl.style.opacity = 1, 100);
 
-        // Animate stats
-        animateValue('outstandingCount', 0, data.outstandingCount, 1000);
-        animateValue('outstandingTotal', 0, data.outstandingTotal, 1000);
-        animateValue('unavailableItems', 0, data.unavailableItems, 1000);
+        // Animate stats (integers)
+        animateValue('outstandingCount', 0, data.outstandingCount, 800);
+        animateValue('unavailableItems', 0, data.unavailableItems, 800);
+
+        // Do NOT animate currency string
+        document.getElementById('outstandingTotal').textContent = data.outstandingTotal;
 
         // Fade in stat cards
         document.querySelectorAll('.stat-card').forEach((card, i) => {
@@ -99,6 +114,37 @@
     }
 
     fetchDashboardAnimated();
+
+    // ===== Admin Chat =====
+    async function sendChat() {
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      if (!message) return;
+
+      const chat = document.getElementById('chatBox');
+      chat.innerHTML += `<div class="chat-line"><b>You:</b> ${message}</div>`;
+      input.value = '';
+
+      const res = await fetch('/admin/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+
+      const data = await res.json();
+      chat.innerHTML += `
+        <div class="chat-line">
+          <b>Agent:</b>
+          <pre class="chat-json">${JSON.stringify(data, null, 2)}</pre>
+        </div>
+      `;
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    document.getElementById('chatSendBtn').addEventListener('click', sendChat);
+    document.getElementById('chatInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') sendChat();
+    });
 
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', async () => {
