@@ -74,6 +74,8 @@ warn_no_return = true
 check_untyped_defs = true
 strict_equality = true
 ignore_missing_imports = true
+mypy_path = "src"
+explicit_package_bases = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"

@@ -1,4 +1,4 @@
-from typing import Any, Dict, cast
+from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -42,4 +42,4 @@ def get_business(domain: str) -> Dict[str, Any]:
     if business is None:
         raise HTTPException(status_code=404, detail="Business not found.")
 
-    return cast(Dict[str, Any], business)
+    return business
