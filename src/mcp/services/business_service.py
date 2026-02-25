@@ -58,25 +58,25 @@ def create_business_account(
         emails_json = json.dumps(authorized_emails)
 
         discount_flag = 1 if billing_method == "credit_card" else 0
-        
+
         # Insert into BusinessAccounts
         cursor.execute(
-    """
+            """
     INSERT INTO BusinessAccounts
     (company_name, address, business_type, billing_method, discount_percent, domain, authorized_emails)
     OUTPUT INSERTED.account_id
     VALUES (?, ?, ?, ?, ?, ?, ?)
     """,
-    (
-        company_name,
-        address,
-        business_type,
-        billing_method,
-        discount_flag,
-        domain,
-        emails_json,
-        ),
-    )
+            (
+                company_name,
+                address,
+                business_type,
+                billing_method,
+                discount_flag,
+                domain,
+                emails_json,
+            ),
+        )
 
         row = cursor.fetchone()
 
