@@ -1,7 +1,7 @@
-from dotenv import load_dotenv
 import os
-import pyodbc
 
+import pyodbc
+from dotenv import load_dotenv
 
 # Load environment variables from .env
 load_dotenv()
