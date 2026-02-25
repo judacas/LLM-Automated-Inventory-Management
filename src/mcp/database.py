@@ -28,4 +28,3 @@ def get_connection() -> pyodbc.Connection:
     """
 
     return pyodbc.connect(connection_string)
-
