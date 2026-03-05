@@ -1,0 +1,33 @@
+---
+description: Check official docs for A2A, MCP, and Azure Foundry when changing related code
+alwaysApply: false
+---
+
+# A2A, MCP, and Azure Foundry — Check Docs First
+
+When making changes to code that involves **A2A** (agent-to-agent), **MCP** (Model Context Protocol), or **Azure Foundry** (including any LLM calls), check the relevant documentation first so changes stay up to date.
+
+**All LLM calls in this project go through Azure Foundry.** Keep usage aligned with the current SDK and APIs.
+
+## When to check
+
+- Editing `src/a2a/`, `src/mcp/`, or `src/llm/`
+- Adding or changing agent message flows (A2A)
+- Adding or changing MCP tools, client, or server
+- Adding or changing LLM usage (chat, completions, models, API version)
+
+## Where to check
+
+| Area | What to check |
+| --- | --- |
+| **Azure Foundry / AI Projects** | [Azure AI Projects Python](https://learn.microsoft.com/en-us/python/api/overview/azure/ai-projects-readme), [Azure AI Foundry](https://learn.microsoft.com/en-us/azure/ai-foundry/). Confirm `AIProjectClient`, `get_openai_client()`, API version, and env vars (`AZURE_AI_*`). |
+| **MCP** | [MCP Python SDK](https://modelcontextprotocol.github.io/python-sdk/), [MCP docs](https://modelcontextprotocol.io/docs/sdk). Confirm `ClientSession`, transports (stdio, Streamable HTTP), and `FastMCP` server usage. |
+| **A2A** | Project design in `projectOverview.md` and `.cursor/rules/architecture-and-scope.mdc`. Our A2A is custom (`AgentBus`, `AgentMessage`/`AgentResponse`). |
+
+## Before you change code
+
+1. **Search or skim** the doc set above for the API or pattern you’re touching.
+2. **Confirm** package names, method signatures, and env/config (e.g. `AZURE_AI_API_VERSION`).
+3. **Prefer** the documented API over assumptions or old snippets.
+
+This keeps A2A, MCP, and Foundry usage correct and up to date.

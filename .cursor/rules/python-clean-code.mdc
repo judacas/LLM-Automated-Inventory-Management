@@ -1,0 +1,13 @@
+---
+description: Python cleanliness and modularity standards
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python code guidelines
+
+- Keep functions small and single-purpose.
+- Prefer explicit names over abbreviations; avoid cleverness.
+- Use type hints for public functions and key data structures.
+- Keep orchestration logic in `agents/`, shared state in `state.py`, and IO stubs in `channels/`.
+- No auth/security scaffolding unless explicitly requested.
