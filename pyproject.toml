@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.128.8",
+    "mcp>=1.26.0",
     "pyodbc>=5.3.0",
 ]
 
@@ -25,7 +26,14 @@ build-backend = "hatchling.build"
 
 
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
+# This repo uses a `src/` layout. Hatchling expects package *paths*, not the
+# literal directory name.
+packages = [
+  "src/admin_orchestrator_agent",
+  "src/inventory_mcp",
+  "src/inventory_service",
+  "src/tool_api",
+]
 
 # --- Tool Configurations ---
 
@@ -41,6 +49,10 @@ target-version = "py311"
 # B = bugbear (finds common bugs)
 select = ["E", "F", "I", "S", "B"]
 ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests) and line length
+
+[tool.ruff.lint.isort]
+# Tell Ruff/isort which modules are part of this repo (src/ layout).
+known-first-party = ["admin_orchestrator_agent", "inventory_mcp", "inventory_service", "tool_api"]
 
 [tool.deptry]
 root = "src"

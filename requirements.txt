@@ -22,6 +22,8 @@ idna==3.11
     # via anyio
 markupsafe==3.0.3
     # via werkzeug
+mcp==1.26.0
+    # via llm-automated-inventory-management
 packaging==26.0
     # via gunicorn
 pydantic==2.12.5

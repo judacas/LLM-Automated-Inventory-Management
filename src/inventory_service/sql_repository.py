@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 try:
     import pyodbc
 except ImportError:  # pragma: no cover
     pyodbc = None
+
+if TYPE_CHECKING:  # pragma: no cover
+    import pyodbc as pyodbc_types
 
 from inventory_service.models import InventoryItem_v2
 from inventory_service.repository import InventoryRepository
@@ -28,7 +32,7 @@ class AzureSqlInventoryRepository(InventoryRepository):
         cs = os.getenv(_CONNECTION_ENV, "")
         return AzureSqlInventoryRepository(cs)
 
-    def _connect(self) -> pyodbc.Connection:
+    def _connect(self) -> "pyodbc_types.Connection":
         if pyodbc is None:  # pragma: no cover
             raise RuntimeError(
                 "pyodbc is required to use AzureSqlInventoryRepository. "
