@@ -70,3 +70,41 @@ Recommended for a fast demo:
 
 Environment variables to set in Azure:
 - `AZURE_SQL_CONNECTION_STRING=<your connection string>` (optional for demo; required for DB-backed runs)
+
+---
+
+## Progress Update (2026-03-06)
+
+Demo readiness improvements:
+
+- Fixed MCP mounting so the MCP endpoint is reachable at `http://localhost:<port>/mcp`.
+- Improved the default mock `InventoryRepository` so inventory changes are visible across calls (reserve/receive affect subsequent reads) when `AZURE_SQL_CONNECTION_STRING` is not set.
+- Added an optional Python demo client (`scripts/mcp_demo_client.py`) as a fallback when Node tooling is unavailable.
+
+Quick demo steps (MCP Inspector UI):
+
+1) Start server (pick an open port if 8000 is busy):
+
+```bash
+uv sync
+PYTHONPATH=src uv run uvicorn inventory_mcp.app:app --reload --host 0.0.0.0 --port 8001
+```
+
+2) Verify health:
+- `http://localhost:8001/health`
+
+3) Start Inspector:
+
+```bash
+npx -y @modelcontextprotocol/inspector
+```
+
+4) Connect Inspector to:
+- `http://localhost:8001/mcp`
+
+5) In Inspector, demonstrate tool calls in sequence:
+- `get_inventory` with `product_id=1001` (quantity starts at 10)
+- `reserve_inventory` with `qty=3`
+- `get_inventory` again (quantity now 7)
+- `receive_inventory` with `qty=5`
+- `get_inventory` again (quantity now 12)

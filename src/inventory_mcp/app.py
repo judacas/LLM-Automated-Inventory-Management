@@ -34,7 +34,7 @@ async def lifespan(_app: Starlette) -> AsyncIterator[None]:
 app = Starlette(
     routes=[
         Route("/health", endpoint=_health, methods=["GET"]),
-        Mount("/mcp", app=mcp.streamable_http_app()),
+        Mount("/", app=mcp.streamable_http_app()),
     ],
     lifespan=lifespan,
 )

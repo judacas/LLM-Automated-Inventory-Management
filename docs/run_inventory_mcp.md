@@ -12,6 +12,11 @@ The Inventory MCP server is exposed as an ASGI app at:
 
 - `inventory_mcp.app:app`
 
+The HTTP endpoints exposed by that app:
+
+- Health probe: `GET /health`
+- MCP (Streamable HTTP): `/mcp`
+
 ## Run in WSL/Linux (recommended)
 
 From the repo root:
@@ -60,6 +65,47 @@ You should see:
 ```json
 {"status":"ok"}
 ```
+
+## Verify MCP tools (recommended for demos)
+
+The quickest way to *show the tools working* (list tools + invoke them) is the MCP Inspector UI.
+
+1) Start the server (instructions above)
+2) In a second terminal, run:
+
+```bash
+npx -y @modelcontextprotocol/inspector
+```
+
+3) In the Inspector UI, connect to:
+
+- `http://localhost:8000/mcp`
+
+If you started Uvicorn on a different port (for example, `8001`), use that instead:
+
+- `http://localhost:8001/mcp`
+
+You should be able to:
+
+- List tools: `get_inventory`, `reserve_inventory`, `receive_inventory`
+- Invoke a tool and see structured JSON results
+
+## Verify MCP tools (no Node required)
+
+If `npx` is unavailable (or your Node setup is acting up), you can demo the tools using the included Python client.
+
+With the server running, in a second terminal:
+
+```bash
+uv run python scripts/mcp_demo_client.py --url http://localhost:8000/mcp --product-id 1001 --qty 3
+```
+
+Expected behavior (using the default mock repository):
+
+- The script lists available tools
+- `get_inventory` returns quantity (starts at 10 for a new product_id)
+- `reserve_inventory` decreases quantity
+- `receive_inventory` increases quantity
 
 ## Notes
 
