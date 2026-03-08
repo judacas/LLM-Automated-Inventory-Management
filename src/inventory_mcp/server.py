@@ -1,7 +1,8 @@
 """Inventory MCP server definition (tools/resources/prompts live here).
 
 Key design choice:
-    HTTPS Tool API and the new MCP server share the same business logic.
+    The MCP server exposes deterministic inventory operations backed by the
+    existing InventoryService + repository layer.
 """
 
 from dataclasses import asdict

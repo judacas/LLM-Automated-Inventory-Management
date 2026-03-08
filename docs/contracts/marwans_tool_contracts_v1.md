@@ -5,7 +5,27 @@ These are the source-of-truth interfaces used for integration between agents/too
 
 ---
 
-## Inventory Tool API (v1)
+## Inventory Interfaces (v1)
+
+## Inventory MCP Server (v1)
+
+**Type:** MCP Server (Streamable HTTP)  \
+**Purpose:** Current integration boundary for inventory operations (calls `InventoryService` + repository directly).  \
+**MCP Path:** `/mcp`  \
+**Health endpoint:** `GET /health`
+
+### Local (dev)
+- Base URL: `http://localhost:<port>`
+- MCP endpoint: `http://localhost:<port>/mcp`
+
+### Tools
+- `get_inventory(product_id: int)`
+- `reserve_inventory(product_id: int, qty: int)`
+- `receive_inventory(product_id: int, qty: int)`
+
+---
+
+## Inventory Tool API (legacy, v1)
 
 **Type:** Deterministic HTTPS Tool (FastAPI)  
 **Base URL (dev):** `https://contoso-inventory-api-13847.azurewebsites.net`  
@@ -83,6 +103,4 @@ These are the source-of-truth interfaces used for integration between agents/too
 ---
 ## Notes / Planned Evolution
 - Inventory persistence will move from mock repository → Azure SQL repository (Phase 2)
-- MCP will be introduced later as the DB access boundary (team responsibility)
-- The inventory tool API should remain stable even as the presistence layer changes
-  - Inventory Service might become an MCP in future integrations depending on usefulness
+- Legacy HTTPS Tool API is retained for backward compatibility, but MCP is the intended interface going forward

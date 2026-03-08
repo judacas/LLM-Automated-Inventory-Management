@@ -4,7 +4,7 @@
 
 Replace the Inventory HTTPS Tool API as the integration boundary with an MCP server that talks directly to the database through the existing `InventoryService` + SQL repository layer.
 
-This phase is intentionally additive: the legacy FastAPI Tool API remains available while MCP is introduced and validated.
+This phase is intentionally additive: the legacy FastAPI Tool API is retained in the repo, but MCP is the intended tool interface going forward.
 
 ---
 

@@ -8,6 +8,8 @@ dependencies = [
     "fastapi>=0.128.8",
     "mcp>=1.26.0",
     "pyodbc>=5.3.0",
+    "starlette>=0.52.1",
+    "uvicorn>=0.40.0",
 ]
 
 [dependency-groups]
@@ -56,7 +58,7 @@ known-first-party = ["admin_orchestrator_agent", "inventory_mcp", "inventory_ser
 
 [tool.deptry]
 root = "src"
-known_first_party = ["inventory_service", "admin_orchestrator_agent", "tool_api"]
+known_first_party = ["inventory_service", "admin_orchestrator_agent", "inventory_mcp", "tool_api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
