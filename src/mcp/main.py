@@ -5,6 +5,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from fastapi import FastAPI
 
 from mcp.routes.business_routes import router as business_router
+from mcp.routes.purchase_routes import router as purchase_router
 from mcp.routes.quote_routes import router as quote_router
 from mcp.services.quote_service import expire_quotes
 
@@ -32,3 +33,4 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(business_router)
 app.include_router(quote_router)
+app.include_router(purchase_router)
