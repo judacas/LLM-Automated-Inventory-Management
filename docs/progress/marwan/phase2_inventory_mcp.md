@@ -108,3 +108,18 @@ npx -y @modelcontextprotocol/inspector
 - `get_inventory` again (quantity now 7)
 - `receive_inventory` with `qty=5`
 - `get_inventory` again (quantity now 12)
+
+---
+
+## Progress Update (2026-03-12)
+
+Inspector connectivity + MCP endpoint hardening:
+
+- Added CORS support to the ASGI wrapper so the browser-based MCP Inspector UI can call the MCP endpoint from a different localhost port.
+	- Configurable via `MCP_CORS_ORIGINS` (set to `*` for local demos).
+- Fixed the MCP HTTP transport mounting behavior:
+	- The MCP transport is mounted at `/`.
+	- The client-facing MCP endpoint remains `/mcp`.
+- Normalized the trailing-slash edge case so both `/mcp` and `/mcp/` are accepted.
+	- This prevents `307 -> 404` failures when tools/UI add or remove trailing slashes.
+- Updated the local runbook to explain the Inspector “proxy token” (token changes every time Inspector restarts).

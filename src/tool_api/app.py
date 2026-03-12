@@ -1,3 +1,17 @@
+"""Legacy REST Tool API (FastAPI).
+
+Why this still exists:
+- It provides a traditional HTTP interface for inventory operations (useful for comparison
+    and as a fallback during demos).
+
+What to use for the *new* direction:
+- The MCP server lives under `inventory_mcp/` and is served as an ASGI app via
+    `inventory_mcp.app:app` with the MCP endpoint mounted at `/mcp`.
+
+Security note:
+- This API is protected by an `x-api-key` header checked against the `TOOL_API_KEY` env var.
+"""
+
 import os
 
 from fastapi import Depends, FastAPI, Header, HTTPException

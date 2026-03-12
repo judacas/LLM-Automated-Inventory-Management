@@ -1,4 +1,4 @@
-# Run Inventory MCP (no containers)
+# Run Inventory MCP
 
 This project uses a `src/` layout, meaning Python packages like `inventory_mcp` live under `src/inventory_mcp`.
 
@@ -16,6 +16,9 @@ The HTTP endpoints exposed by that app:
 
 - Health probe: `GET /health`
 - MCP (Streamable HTTP): `/mcp`
+
+Implementation detail (helpful for debugging):
+- The ASGI wrapper mounts the MCP transport at `/` and the transport itself exposes `/mcp`.
 
 ## Run in WSL/Linux (recommended)
 
@@ -76,6 +79,26 @@ The quickest way to *show the tools working* (list tools + invoke them) is the M
 ```bash
 npx -y @modelcontextprotocol/inspector
 ```
+
+### Inspector “proxy token” (common connection error)
+
+When the Inspector starts, it prints a **proxy token** in the terminal.
+
+The browser UI uses that token to authenticate to the Inspector’s local proxy.
+If you restart the Inspector, the token changes.
+
+If you see an error like:
+
+> Connection Error - Check if your MCP server is running and proxy token is correct
+
+Do this:
+
+1) Make sure the `npx @modelcontextprotocol/inspector` terminal is still running.
+2) Copy the **latest** proxy token from that terminal output.
+3) Paste it into the Inspector UI’s “Proxy token” field.
+4) Try connecting again.
+
+If you had the Inspector UI open from a previous run, refresh the page and paste the new token.
 
 3) In the Inspector UI, connect to:
 
