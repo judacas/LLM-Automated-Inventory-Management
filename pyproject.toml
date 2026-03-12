@@ -50,6 +50,9 @@ ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests
 root = "src"
 known_first_party = ["inventory_service", "admin_orchestrator_agent", "tool_api", "mcp"]
 
+[tool.deptry.per_rule_ignores]
+DEP002 = ["uvicorn"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
