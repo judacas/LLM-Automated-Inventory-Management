@@ -62,6 +62,38 @@ def extract_text_from_message(message: Any) -> str:
     return ""
 
 
+def _extract_chunk_text(result: Any) -> str:
+    """Extract displayable text from any streaming response chunk variant."""
+    kind: Any = getattr(result, "kind", None)
+
+    if kind == "status-update":
+        status_obj: Any = getattr(result, "status", None)
+        if status_obj is not None:
+            msg_obj: Any = getattr(status_obj, "message", None)
+            if msg_obj is not None:
+                return extract_text_from_message(msg_obj)
+        return ""
+
+    if kind == "artifact-update":
+        artifact_obj: Any = getattr(result, "artifact", None)
+        if artifact_obj is not None:
+            parts_obj: Any = getattr(artifact_obj, "parts", [])
+            return extract_text_from_parts(parts_obj)
+        return ""
+
+    if kind == "message":
+        return extract_text_from_message(result)
+
+    # Final Task payload (no "kind", but carries .status)
+    status_obj = getattr(result, "status", None)
+    if status_obj is not None:
+        msg_obj = getattr(status_obj, "message", None)
+        if msg_obj is not None:
+            return extract_text_from_message(msg_obj)
+
+    return ""
+
+
 async def print_detailed_response(
     response: Any, logger: logging.Logger, response_type: str = "Response"
 ) -> None:
@@ -271,40 +303,11 @@ async def main() -> None:
                 full_streamed_text = ""
                 async for chunk in stream_response:
                     chunk_count += 1
-                    # Extract the inner result from the streaming response
-                    result_obj = chunk
-                    if hasattr(chunk, "root"):
-                        result_obj = chunk.root
-                    result = getattr(result_obj, "result", result_obj)
-
-                    chunk_text = ""
-                    # TaskStatusUpdateEvent
-                    if hasattr(result, "kind") and result.kind == "status-update":
-                        if result.status and result.status.message:
-                            chunk_text = extract_text_from_message(
-                                result.status.message
-                            )
-                        if chunk_text:
-                            # Each delta is a small piece - accumulate them
-                            full_streamed_text += chunk_text
-                    # TaskArtifactUpdateEvent
-                    elif hasattr(result, "kind") and result.kind == "artifact-update":
-                        chunk_text = extract_text_from_parts(result.artifact.parts)
-                        if chunk_text:
-                            full_streamed_text += chunk_text
-                    # Message
-                    elif hasattr(result, "kind") and result.kind == "message":
-                        chunk_text = extract_text_from_message(result)
-                        if chunk_text:
-                            full_streamed_text = chunk_text
-                    # Task (final)
-                    elif hasattr(result, "status"):
-                        if result.status and result.status.message:
-                            chunk_text = extract_text_from_message(
-                                result.status.message
-                            )
-                            if chunk_text:
-                                full_streamed_text = chunk_text
+                    result_obj: Any = getattr(chunk, "root", chunk)
+                    result: Any = getattr(result_obj, "result", result_obj)
+                    chunk_text = _extract_chunk_text(result)
+                    if chunk_text:
+                        full_streamed_text = chunk_text
 
                 logger.info(f"✅ Streaming completed ({chunk_count} chunks total)")
                 if full_streamed_text:

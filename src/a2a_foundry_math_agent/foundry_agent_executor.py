@@ -6,6 +6,7 @@ Responses/Conversations API.
 """
 
 import logging
+from uuid import uuid4
 
 from a2a.server.agent_execution import AgentExecutor
 from a2a.server.agent_execution.context import RequestContext
@@ -113,51 +114,76 @@ class FoundryAgentExecutor(AgentExecutor):
     @staticmethod
     def _convert_parts_to_text(parts: list[Part]) -> str:
         text_parts: list[str] = []
-        for part in parts:
-            part = part.root
-            if isinstance(part, TextPart):
-                text_parts.append(part.text)
-            elif isinstance(part, FilePart):
-                if isinstance(part.file, FileWithUri):
-                    text_parts.append(f"[File: {part.file.uri}]")
-                elif isinstance(part.file, FileWithBytes):
-                    text_parts.append(f"[File: {len(part.file.bytes)} bytes]")
+        for part_wrapper in parts:
+            inner = part_wrapper.root
+            if isinstance(inner, TextPart):
+                text_parts.append(inner.text)
+            elif isinstance(inner, FilePart):
+                if isinstance(inner.file, FileWithUri):
+                    text_parts.append(f"[File: {inner.file.uri}]")
+                elif isinstance(inner.file, FileWithBytes):
+                    text_parts.append(f"[File: {len(inner.file.bytes)} bytes]")
             else:
-                logger.warning("Unsupported part type: %s", type(part))
+                logger.warning("Unsupported part type: %s", type(inner))
         return " ".join(text_parts)
 
     # ------------------------------------------------------------------
     # A2A entry-points
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _normalize_ids(context: RequestContext) -> tuple[str, str]:
+        """Return non-optional task_id and context_id, generating fallbacks if needed."""
+        task_id = context.task_id
+        if task_id is None:
+            task_id = f"auto-task-{uuid4().hex}"
+            logger.warning(
+                "RequestContext.task_id was None; generated fallback: %s", task_id
+            )
+        context_id = context.context_id
+        if context_id is None:
+            context_id = f"auto-context-{uuid4().hex}"
+            logger.warning(
+                "RequestContext.context_id was None; generated fallback: %s", context_id
+            )
+        return task_id, context_id
+
     async def execute(
         self,
         context: RequestContext,
         event_queue: EventQueue,
     ) -> None:
-        logger.info("Executing request for context: %s", context.context_id)
+        task_id, context_id = self._normalize_ids(context)
+        logger.info("Executing request for context: %s", context_id)
 
-        updater = TaskUpdater(event_queue, context.task_id, context.context_id)
+        updater = TaskUpdater(event_queue, task_id, context_id)
 
         if not context.current_task:
             await updater.submit()
 
+        if context.message is None:
+            logger.error(
+                "RequestContext.message is None for context %s; cannot process.",
+                context_id,
+            )
+            await updater.failed(
+                message=new_agent_text_message(
+                    "No message provided.", context_id=context_id
+                )
+            )
+            return
+
         await updater.start_work()
-
-        await self._process_request(
-            context.message.parts,
-            context.context_id,
-            updater,
-        )
-
-        logger.debug("Foundry agent execution completed for %s", context.context_id)
+        await self._process_request(context.message.parts, context_id, updater)
+        logger.debug("Foundry agent execution completed for %s", context_id)
 
     async def cancel(self, context: RequestContext, event_queue: EventQueue) -> None:
-        logger.info("Cancelling execution for context: %s", context.context_id)
-        updater = TaskUpdater(event_queue, context.task_id, context.context_id)
+        task_id, context_id = self._normalize_ids(context)
+        logger.info("Cancelling execution for context: %s", context_id)
+        updater = TaskUpdater(event_queue, task_id, context_id)
         await updater.failed(
             message=new_agent_text_message(
-                "Task cancelled by user", context_id=context.context_id
+                "Task cancelled by user", context_id=context_id
             ),
         )
 

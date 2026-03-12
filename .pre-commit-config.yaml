@@ -5,15 +5,20 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
-  
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
-    hooks:
-      - id: mypy
-        additional_dependencies: [pytest>=8.0.0]
-        args: [--config-file=pyproject.toml]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.0
     hooks:
       - id: gitleaks
+
+  - repo: local
+  # switched to local to have it run with synced dependencies in the venv
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        args: [--config-file=pyproject.toml, src/]
+        pass_filenames: false
+        # note that this will always run on all files, regardless of the --all-files flag, because mypy needs to see all files to work correctly in case a type change in one file affects the types in another file. 

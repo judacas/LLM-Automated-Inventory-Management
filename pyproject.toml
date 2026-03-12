@@ -82,7 +82,6 @@ warn_no_return = true
 check_untyped_defs = true
 strict_equality = true
 ignore_missing_imports = true
-mypy_path = "stubs"
 
 [[tool.mypy.overrides]]
 module = "tests.*"
