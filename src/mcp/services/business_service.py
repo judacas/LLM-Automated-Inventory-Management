@@ -1,7 +1,17 @@
 import json
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TypedDict
 
 from mcp.database import get_connection
+
+
+class BusinessAccount(TypedDict):
+    account_id: int
+    company_name: str
+    address: str
+    business_type: str
+    billing_method: str
+    discount_percent: int
+    authorized_emails: List[str]
 
 
 def get_business_by_domain(domain: str) -> Optional[Dict[str, Any]]:

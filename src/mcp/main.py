@@ -1,15 +1,19 @@
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from typing import Any, AsyncIterator
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
 
-from mcp.routes.business_routes import router as business_router
-from mcp.routes.purchase_routes import router as purchase_router
-from mcp.routes.quote_routes import router as quote_router
 from mcp.services.quote_service import expire_quotes
+from mcp.tools.registry import registry
 
 scheduler = BackgroundScheduler()
+
+
+class MCPRequest(BaseModel):
+    tool: str
+    arguments: dict[str, Any] = {}
 
 
 @asynccontextmanager
@@ -31,6 +35,42 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(lifespan=lifespan)
 
-app.include_router(business_router)
-app.include_router(quote_router)
-app.include_router(purchase_router)
+
+@app.post("/mcp")
+async def handle_mcp(body: MCPRequest) -> Any:
+    """
+    MCP tool execution endpoint.
+
+    Example request:
+    {
+        "tool": "confirm_quote",
+        "arguments": {...}
+    }
+    """
+
+    tool_name = body.tool
+    arguments = body.arguments
+
+    if not tool_name:
+        raise HTTPException(status_code=400, detail="Tool name missing")
+
+    try:
+        tool = registry.get(tool_name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    try:
+        result = tool(arguments)
+        return {"result": result}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/mcp/tools")
+def list_mcp_tools() -> dict[str, list[str]]:
+    return {"tools": registry.list_tools()}
