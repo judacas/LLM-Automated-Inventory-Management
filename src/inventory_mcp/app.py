@@ -8,6 +8,7 @@ This module mounts the MCP server into a Starlette app and adds a simple `/healt
 endpoint so we can validate the deployment quickly in Azure.
 """
 
+import asyncio
 import contextlib
 import os
 from collections.abc import AsyncIterator
@@ -35,12 +36,61 @@ from inventory_mcp.server import mcp
 # This wrapper normalizes that edge case so both `/mcp` and `/mcp/` behave.
 _mcp_http_app = mcp.streamable_http_app()
 
+# --- Session manager startup (important for Azure Functions) ---
+#
+# The MCP StreamableHTTP transport requires `mcp.session_manager.run()` to be active.
+# Normally an ASGI server like Uvicorn triggers ASGI lifespan events so our `lifespan`
+# context manager below can start it.
+#
+# However, some hosts/middleware (notably Azure Functions ASGI adapters) may NOT run
+# lifespan events. In that case, MCP requests can fail with errors like:
+# - "Task group is not initialized. Make sure to use run()."
+# - "Session terminated"
+#
+# To make demos/deployments resilient, we lazily start the session manager the
+# first time we receive an HTTP request, and keep it running in the background.
+_session_manager_ready = asyncio.Event()
+_session_manager_lock = asyncio.Lock()
+_session_manager_task: asyncio.Task[None] | None = None
+
+
+async def _ensure_session_manager_running() -> None:
+    """Ensure `mcp.session_manager.run()` has been entered.
+
+    Safe to call on every request; it will only start once.
+    """
+
+    global _session_manager_task
+    if _session_manager_ready.is_set():
+        return
+
+    async with _session_manager_lock:
+        if _session_manager_ready.is_set():
+            return
+
+        # If a task was created but hasn't marked ready yet, just wait.
+        if _session_manager_task is None:
+
+            async def _runner() -> None:
+                async with mcp.session_manager.run():
+                    _session_manager_ready.set()
+                    # Keep the context open for the lifetime of the process.
+                    await asyncio.Event().wait()
+
+            _session_manager_task = asyncio.create_task(_runner())
+
+    await _session_manager_ready.wait()
+
 
 async def _mcp_http_app_with_normalized_path(
     scope: dict[str, Any],
     receive: Callable[[], Awaitable[dict[str, Any]]],
     send: Callable[[dict[str, Any]], Awaitable[None]],
 ) -> None:
+    # Make sure the MCP session manager is running before we delegate to the
+    # underlying Streamable HTTP ASGI app.
+    await _ensure_session_manager_running()
+
     if scope.get("type") == "http":
         path = scope.get("path", "")
 
@@ -64,6 +114,8 @@ def _health(_request: Request) -> JSONResponse:
 async def lifespan(_app: Starlette) -> AsyncIterator[None]:
     """Start/stop the MCP session manager with the ASGI app lifecycle."""
     async with mcp.session_manager.run():
+        # Mark ready so request-path startup doesn't try to start it again.
+        _session_manager_ready.set()
         yield
 
 
