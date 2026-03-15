@@ -2,8 +2,15 @@ import azure.functions as func
 import json
 import logging
 import os
-import requests
 import pyodbc
+from dotenv import load_dotenv
+from azure.ai.projects import AIProjectClient
+from azure.identity import DefaultAzureCredential
+
+# Load .env only when running locally (not in Azure)
+if "WEBSITE_HOSTNAME" not in os.environ:
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
+
 
 app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 
@@ -11,26 +18,18 @@ app = func.FunctionApp(http_auth_level=func.AuthLevel.ANONYMOUS)
 # ── DB helpers ────────────────────────────────────────────────────────────────
 
 def get_db_connection():
-    server   = os.environ["SQL_SERVER"]
-    database = os.environ["SQL_DATABASE"]
-    username = os.environ["SQL_USERNAME"]
-    password = os.environ["SQL_PASSWORD"]
-
     conn_str = (
         f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-        f"SERVER={server};"
-        f"DATABASE={database};"
-        f"UID={username};"
-        f"PWD={password};"
+        f"SERVER={os.environ['DB_SERVER']};"
+        f"DATABASE={os.environ['DB_NAME']};"
+        f"UID={os.environ['DB_USER']};"
+        f"PWD={os.environ['DB_PASSWORD']};"
         f"Encrypt=yes;"
         f"TrustServerCertificate=no;"
         f"Connection Timeout=30;"
     )
     return pyodbc.connect(conn_str)
 
-
-def get_domain(email: str) -> str:
-    return email.split("@")[-1].lower() if "@" in email else ""
 
 def check_domain_onboarded(domain: str) -> dict | None:
     try:
@@ -74,22 +73,24 @@ def check_domain_onboarded(domain: str) -> dict | None:
     except Exception as e:
         logging.error(f"DB check failed: {e}")
         raise
-    
+
 
 # ── Agent helpers ─────────────────────────────────────────────────────────────
 
 def call_onboarding_agent(sender_email: str, subject: str, body: str) -> None:
     """
-    Fires the onboarding agent with customer context.
-    The agent handles the rest autonomously via its MCP tool:
-      onboarding agent → MCP send_onboarding_email tool → email agent → customer
-    No return value needed.
+    Fires the onboarding agent using AIProjectClient with DefaultAzureCredential.
+    Requires Azure AI User IAM role granted to the Function App managed identity.
     """
-    onboarding_agent_url = os.environ["ONBOARDING_AGENT_URL"]
-    onboarding_agent_key = os.environ["ONBOARDING_AGENT_KEY"]
+    project = AIProjectClient(
+        endpoint=os.environ["ONBOARDING_AGENT_ENDPOINT"],
+        credential=DefaultAzureCredential(),
+    )
 
-    payload = {
-        "messages": [
+    openai_client = project.get_openai_client()
+
+    response = openai_client.responses.create(
+        input=[
             {
                 "role": "user",
                 "content": (
@@ -102,16 +103,19 @@ def call_onboarding_agent(sender_email: str, subject: str, body: str) -> None:
                     f"and preferred billing method (credit card or mailed invoice)."
                 )
             }
-        ]
-    }
+        ],
+        extra_body={
+            "agent_reference": {
+                "name":    os.environ["ONBOARDING_AGENT_NAME"],
+                "version": os.environ["ONBOARDING_AGENT_VERSION"],
+                "type":    "agent_reference"
+            }
+        },
 
-    headers = {
-        "Content-Type": "application/json",
-        "api-key": onboarding_agent_key
-    }
+    )
 
-    response = requests.post(onboarding_agent_url, json=payload, headers=headers, timeout=30)
-    response.raise_for_status()
+
+    logging.info(f"Onboarding agent response: {response.output_text}")
 
 
 # ── Main route ────────────────────────────────────────────────────────────────
@@ -125,41 +129,32 @@ def email_receiver_router(req: func.HttpRequest) -> func.HttpResponse:
     except ValueError:
         return func.HttpResponse("Invalid JSON body", status_code=400)
 
-    # Extract email fields
     sender          = data.get("from", "")
     recipient       = data.get("to", "")
     subject         = data.get("subject", "")
     body            = data.get("body", "")
     has_attachments = data.get("hasAttachments", False)
 
-    # Validate sender
-    domain = get_domain(sender)
-    if not domain:
-        return func.HttpResponse(
-            json.dumps({"error": "Could not parse sender email domain."}),
-            status_code=400,
-            mimetype="application/json"
-        )
-
     # ── Onboarding check ──────────────────────────────────────────────────────
     try:
-        is_onboarded = check_domain_onboarded(domain)
-    except Exception:
+        is_onboarded = check_domain_onboarded(sender)
+    except Exception as e:
+        logging.error(f"Database error during onboarding check: {e}")
         return func.HttpResponse(
-            json.dumps({"error": "Database error during onboarding check."}),
+            json.dumps({"error": "Database error during onboarding check.", "details": str(e)}),
             status_code=500,
             mimetype="application/json"
         )
 
     if not is_onboarded:
-        logging.info(f"Domain '{domain}' not onboarded. Calling onboarding agent.")
+        logging.info(f"'{sender}' not onboarded. Calling onboarding agent.")
 
         try:
             call_onboarding_agent(sender, subject, body)
         except Exception as e:
             logging.error(f"Onboarding agent call failed: {e}")
             return func.HttpResponse(
-                json.dumps({"error": "Onboarding agent unavailable. Please try again later."}),
+                json.dumps({"error": "Onboarding agent unavailable. Please try again later.", "details": str(e)}),
                 status_code=502,
                 mimetype="application/json"
             )
@@ -174,7 +169,7 @@ def email_receiver_router(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     # ── Domain is onboarded — route to quote agent ────────────────────────────
-    logging.info(f"Domain '{domain}' is onboarded. Routing email.")
+    logging.info(f"'{sender}' is onboarded. Routing email.")
 
     return func.HttpResponse(
         json.dumps({

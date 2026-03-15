@@ -1,0 +1,4 @@
+flask
+pymssql
+python-dotenv
+mcp[cli]
