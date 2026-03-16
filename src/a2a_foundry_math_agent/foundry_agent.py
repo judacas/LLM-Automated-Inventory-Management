@@ -7,9 +7,7 @@ Uses the **async** SDK (``azure.ai.projects.aio``) so that network I/O
 never blocks the asyncio event-loop that powers the A2A server.
 """
 
-import asyncio
 import logging
-import os
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -208,42 +206,3 @@ async def create_foundry_agent_backend(
     agent = FoundryAgentBackend(endpoint=endpoint, agent_name=agent_name)
     await agent.initialize()
     return agent
-
-
-# Backward-compatible aliases for older imports.
-FoundryMathAgent = FoundryAgentBackend
-
-
-async def create_foundry_math_agent() -> FoundryAgentBackend:
-    endpoint = os.environ.get("AZURE_AI_PROJECT_ENDPOINT")
-    agent_name = os.environ.get("AZURE_AI_AGENT_NAME")
-    if not endpoint or not agent_name:
-        raise RuntimeError(
-            "create_foundry_math_agent() requires AZURE_AI_PROJECT_ENDPOINT and "
-            "AZURE_AI_AGENT_NAME to be set."
-        )
-    return await create_foundry_agent_backend(
-        endpoint=endpoint,
-        agent_name=agent_name,
-    )
-
-
-# ── quick manual test ────────────────────────────────────────────────
-async def _demo() -> None:
-    agent = await create_foundry_math_agent()
-    try:
-        cid = await agent.create_conversation()
-        for msg in [
-            "What is 1247 * 893?",
-            "Now divide that result by 7.",
-            "What are the first 10 prime numbers?",
-        ]:
-            print(f"\nUser: {msg}")
-            reply = await agent.run_conversation(cid, msg)
-            print(f"Agent: {reply}")
-    finally:
-        await agent.cleanup()
-
-
-if __name__ == "__main__":
-    asyncio.run(_demo())

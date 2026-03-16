@@ -104,7 +104,7 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
 
     foundry = document.get("foundry")
     if not isinstance(foundry, dict):
-        foundry = {}
+        raise ValueError("Agent config must define a `[foundry]` section")
 
     skills_table = document.get("skills", [])
     if not isinstance(skills_table, list) or not skills_table:
@@ -116,15 +116,7 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
     if not isinstance(smoke_tests, dict):
         raise ValueError("`[smoke_tests]` must be a table if provided")
 
-    foundry_agent_name = (
-        foundry.get("agent_name")
-        if isinstance(foundry.get("agent_name"), str)
-        else os.getenv("AZURE_AI_AGENT_NAME", "").strip()
-    )
-    if not foundry_agent_name:
-        raise ValueError(
-            "Agent config must define `foundry.agent_name` or set AZURE_AI_AGENT_NAME."
-        )
+    foundry_agent_name = _read_required_string(foundry, "agent_name", "foundry")
 
     skills: list[AgentSkill] = []
     for index, skill_data in enumerate(skills_table, start=1):
