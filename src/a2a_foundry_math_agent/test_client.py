@@ -1,3 +1,4 @@
+import argparse
 import logging  # Import the logging module
 from typing import Any
 from uuid import uuid4
@@ -14,12 +15,12 @@ from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
     EXTENDED_AGENT_CARD_PATH,
 )
-from agent_definition import load_agent_definition
+from agent_definition import AgentDefinition, load_agent_definitions
 from dotenv import load_dotenv
-from settings import load_server_settings
+from settings import ServerSettings, load_server_settings
 
 
-async def test_agent_health(
+async def check_agent_health(
     base_url: str, httpx_client: httpx.AsyncClient, logger: logging.Logger
 ) -> bool:
     """Test if the agent server is healthy and responsive."""
@@ -141,50 +142,35 @@ async def print_detailed_response(
         logger.debug(f"Could not parse response details: {e}")
 
 
-async def main() -> None:
-    """
-    Generic smoke-test client for a config-driven single-agent A2A server.
-    """
-    # Load environment variables
-    load_dotenv()
-
-    # Configure logging to show INFO level messages
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(name)s  - %(message)s"
-    )
-    logger = logging.getLogger(__name__)  # Get a logger instance
-
-    definition = load_agent_definition()
-    settings = load_server_settings(require_project_endpoint=False)
-    base_url = settings.agent_card_base_url
+async def smoke_test_agent(
+    definition: AgentDefinition,
+    settings: ServerSettings,
+    logger: logging.Logger,
+) -> None:
+    base_url = settings.agent_base_url_for(definition.slug)
 
     logger.info("Connecting to A2A agent at: %s", base_url)
     logger.info("Loaded smoke-test config from: %s", definition.source_path)
 
     async with httpx.AsyncClient(timeout=120) as httpx_client:
-        # First, test agent health
-        if not await test_agent_health(base_url, httpx_client, logger):
+        if not await check_agent_health(base_url, httpx_client, logger):
             logger.error(
                 "❌ Agent server appears to be unhealthy. Please check the server."
             )
             return
-        # Initialize A2ACardResolver
+
         resolver = A2ACardResolver(
             httpx_client=httpx_client,
             base_url=base_url,
-            # agent_card_path uses default, extended_agent_card_path also uses default
         )
 
-        # Fetch Public Agent Card and Initialize Client
         final_agent_card_to_use: AgentCard | None = None
 
         try:
             logger.info(
                 f"🔍 Attempting to fetch public agent card from: {base_url}{AGENT_CARD_WELL_KNOWN_PATH}"
             )
-            _public_card = (
-                await resolver.get_agent_card()
-            )  # Fetches from default public path
+            _public_card = await resolver.get_agent_card()
             logger.info("✅ Successfully fetched public agent card:")
             logger.info(f"   Agent Name: {_public_card.name}")
             logger.info(f"   Description: {_public_card.description}")
@@ -216,9 +202,7 @@ async def main() -> None:
                     logger.info(
                         f"   Additional Capabilities: {_extended_card.capabilities}"
                     )
-                    final_agent_card_to_use = (
-                        _extended_card  # Update to use the extended card
-                    )
+                    final_agent_card_to_use = _extended_card
                     logger.info(
                         "\n🔐 Using AUTHENTICATED EXTENDED agent card for client initialization."
                     )
@@ -226,7 +210,7 @@ async def main() -> None:
                     logger.warning(
                         f"⚠️  Failed to fetch extended agent card: {e_extended}. Will proceed with public card."
                     )
-            elif _public_card:  # supports_authenticated_extended_card is False or None
+            elif _public_card:
                 logger.info(
                     "\n📖 Public card does not indicate support for an extended card. Using public card."
                 )
@@ -239,7 +223,6 @@ async def main() -> None:
                 "Failed to fetch the public agent card. Cannot continue."
             ) from e
 
-        # Initialize A2A Client
         client = A2AClient(
             httpx_client=httpx_client, agent_card=final_agent_card_to_use
         )
@@ -270,7 +253,6 @@ async def main() -> None:
             }
 
             try:
-                # Test regular message sending
                 request = SendMessageRequest(
                     id=str(uuid4()),
                     params=MessageSendParams(**send_message_payload),
@@ -282,7 +264,6 @@ async def main() -> None:
                     response, logger, "Regular Message Response"
                 )
 
-                # Test streaming message sending
                 logger.info("🌊 Testing streaming response...")
                 streaming_request = SendStreamingMessageRequest(
                     id=str(uuid4()),
@@ -317,13 +298,61 @@ async def main() -> None:
         logger.info("   - Both regular and streaming messaging tested")
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Smoke test one or more A2A agents from the configured agents directory."
+    )
+    parser.add_argument(
+        "--agent-slug",
+        dest="agent_slug",
+        default=None,
+        help="Run smoke tests for only one agent slug.",
+    )
+    parser.add_argument(
+        "--agent-config-dir",
+        dest="agent_config_dir",
+        default=None,
+        help="Directory containing `*_agent.toml` files.",
+    )
+    return parser.parse_args()
+
+
+async def main() -> None:
+    load_dotenv()
+    args = _parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(name)s  - %(message)s"
+    )
+    logger = logging.getLogger(__name__)
+
+    definitions = load_agent_definitions(args.agent_config_dir)
+    settings = load_server_settings(require_project_endpoint=False)
+    selected_definitions = definitions
+    if args.agent_slug:
+        selected_definitions = tuple(
+            definition
+            for definition in definitions
+            if definition.slug == args.agent_slug.strip().lower()
+        )
+        if not selected_definitions:
+            raise ValueError(f"No agent with slug `{args.agent_slug}` was found.")
+
+    logger.info("Loaded %s agent definitions for smoke testing.", len(definitions))
+    logger.info("Running smoke tests for %s agent(s).", len(selected_definitions))
+
+    for definition in selected_definitions:
+        logger.info("\n=== Smoke testing slug `%s` ===", definition.slug)
+        await smoke_test_agent(definition, settings, logger)
+
+
 if __name__ == "__main__":
     import asyncio
 
     print("A2A Agent Smoke Test Client")
     print("=" * 50)
-    print("This client tests the configured A2A server")
-    print("using prompts from the active agent definition.")
+    print("This client tests one or more configured A2A agents")
+    print("using prompts from the discovered agent definitions.")
     print("Make sure the agent server is running first!")
     print("=" * 50)
 
@@ -336,5 +365,5 @@ if __name__ == "__main__":
         print("\n💡 Troubleshooting tips:")
         print("1. Ensure the A2A agent server is running")
         print("2. Check your .env configuration")
-        print("3. Check your agent.toml or A2A_AGENT_DEFINITION")
+        print("3. Check your agents directory configuration")
         print("4. Check logs for detailed error information")

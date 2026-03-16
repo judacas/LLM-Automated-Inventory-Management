@@ -14,7 +14,7 @@ class ServerSettings:
     project_endpoint: str | None = None
 
     @property
-    def agent_card_base_url(self) -> str:
+    def public_base_url(self) -> str:
         if self.url_mode == "forwarded":
             if not self.forwarded_base_url:
                 raise ValueError(
@@ -24,9 +24,11 @@ class ServerSettings:
 
         return f"http://{self.host}:{self.port}"
 
-    @property
-    def agent_card_url(self) -> str:
-        return f"{self.agent_card_base_url}/"
+    def agent_base_url_for(self, slug: str) -> str:
+        return f"{self.public_base_url}/{slug.strip('/')}"
+
+    def agent_card_url_for(self, slug: str) -> str:
+        return f"{self.agent_base_url_for(slug)}/"
 
 
 def load_server_settings(

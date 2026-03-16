@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 import os
+import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
 from a2a.types import AgentSkill
 
+DEFAULT_AGENT_CONFIG_DIR = Path(__file__).resolve().parent / "agents"
+AGENT_CONFIG_GLOB = "*_agent.toml"
+
 
 @dataclass(frozen=True)
 class AgentDefinition:
+    slug: str
     source_path: Path
     public_name: str
     description: str
@@ -44,19 +49,50 @@ def _read_string_list(
     return tuple(item.strip() for item in value)
 
 
-def resolve_agent_definition_path(config_path: str | None = None) -> Path:
-    raw_path = (
-        config_path or os.getenv("A2A_AGENT_DEFINITION") or "agent.toml"
-    ).strip()
-    return Path(raw_path).expanduser()
+def _normalize_agent_slug(raw_slug: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", raw_slug.strip().lower()).strip("-")
+    if not slug:
+        raise ValueError("Agent slug must contain at least one letter or number")
+    return slug
 
 
-def load_agent_definition(config_path: str | None = None) -> AgentDefinition:
-    path = resolve_agent_definition_path(config_path)
+def _derive_agent_slug(path: Path) -> str:
+    stem = path.stem
+    for suffix in ("_agent", "-agent"):
+        if stem.lower().endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    return _normalize_agent_slug(stem)
+
+
+def resolve_agent_config_dir(config_dir: str | None = None) -> Path:
+    raw_path = (config_dir or os.getenv("A2A_AGENT_CONFIG_DIR") or "").strip()
+    if raw_path:
+        return Path(raw_path).expanduser()
+    return DEFAULT_AGENT_CONFIG_DIR
+
+
+def discover_agent_definition_paths(config_dir: str | None = None) -> tuple[Path, ...]:
+    directory = resolve_agent_config_dir(config_dir)
+    if not directory.exists():
+        raise FileNotFoundError(f"Agent config directory not found: {directory}")
+    if not directory.is_dir():
+        raise NotADirectoryError(f"Agent config path is not a directory: {directory}")
+
+    paths = tuple(sorted(path.resolve() for path in directory.glob(AGENT_CONFIG_GLOB)))
+    if not paths:
+        raise FileNotFoundError(
+            f"No agent config files matching `{AGENT_CONFIG_GLOB}` found in {directory}"
+        )
+    return paths
+
+
+def load_agent_definition(config_path: str | Path) -> AgentDefinition:
+    path = Path(config_path).expanduser().resolve()
     if not path.exists():
         raise FileNotFoundError(
             f"Agent config file not found: {path}. "
-            "Create one from `agent.template.toml` or set A2A_AGENT_DEFINITION."
+            "Create one from `agents/agent.template.toml`."
         )
 
     with path.open("rb") as handle:
@@ -110,7 +146,18 @@ def load_agent_definition(config_path: str | None = None) -> AgentDefinition:
     if not isinstance(streaming_value, bool):
         raise ValueError("`a2a.streaming` must be a boolean")
 
+    slug_value = a2a.get("slug")
+    if slug_value is not None and not isinstance(slug_value, str):
+        raise ValueError("`a2a.slug` must be a string if provided")
+
+    slug = (
+        _normalize_agent_slug(slug_value)
+        if isinstance(slug_value, str) and slug_value.strip()
+        else _derive_agent_slug(path)
+    )
+
     return AgentDefinition(
+        slug=slug,
         source_path=path,
         public_name=_read_required_string(a2a, "name", "a2a"),
         description=_read_required_string(a2a, "description", "a2a"),
@@ -127,3 +174,42 @@ def load_agent_definition(config_path: str | None = None) -> AgentDefinition:
         smoke_test_prompts=_read_string_list(smoke_tests, "prompts"),
         supports_streaming=streaming_value,
     )
+
+
+def load_agent_definitions(
+    config_dir: str | None = None,
+) -> tuple[AgentDefinition, ...]:
+    definitions = tuple(
+        load_agent_definition(path)
+        for path in discover_agent_definition_paths(config_dir)
+    )
+
+    seen_slugs: dict[str, Path] = {}
+    seen_foundry_names: dict[str, Path] = {}
+    seen_paths: set[Path] = set()
+
+    for definition in definitions:
+        if definition.source_path in seen_paths:
+            raise ValueError(
+                f"Duplicate agent config path detected: {definition.source_path}"
+            )
+        seen_paths.add(definition.source_path)
+
+        previous_slug_path = seen_slugs.get(definition.slug)
+        if previous_slug_path is not None:
+            raise ValueError(
+                "Duplicate agent slug "
+                f"`{definition.slug}` in {previous_slug_path} and {definition.source_path}"
+            )
+        seen_slugs[definition.slug] = definition.source_path
+
+        previous_foundry_path = seen_foundry_names.get(definition.foundry_agent_name)
+        if previous_foundry_path is not None:
+            raise ValueError(
+                "Duplicate Foundry agent name "
+                f"`{definition.foundry_agent_name}` in "
+                f"{previous_foundry_path} and {definition.source_path}"
+            )
+        seen_foundry_names[definition.foundry_agent_name] = definition.source_path
+
+    return definitions
