@@ -1,5 +1,4 @@
 from fastapi import APIRouter, HTTPException
-
 from mcp.services.quote_service import (
     # Contracts
     ConfirmQuoteRequest,

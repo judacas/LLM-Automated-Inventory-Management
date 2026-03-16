@@ -1,12 +1,11 @@
 from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-
 from mcp.services.business_service import (
     create_business_account,
     get_business_by_domain,
 )
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/business", tags=["Business"])
 
