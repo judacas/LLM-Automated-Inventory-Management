@@ -73,7 +73,9 @@ async def run_demo(url: str, product_id: int, qty: int) -> None:
         # or the server isn't actually serving MCP Streamable HTTP at that endpoint.
         print(f"MCP ERROR: {exc}")
         print("\nTroubleshooting:")
-        print("1) Confirm the MCP ASGI app is running (not the legacy tool_api app).")
+        print(
+            "1) Confirm the MCP ASGI app is running (not the legacy REST API under legacy/)."
+        )
         print(
             "   Start command: uv run uvicorn inventory_mcp.app:app --reload --port 8000"
         )

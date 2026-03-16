@@ -13,6 +13,10 @@ Implementation notes:
 - `host.json` sets `routePrefix` to `""`, so routes are **not** prefixed with `/api`.
 - `InventoryMcpProxy/` is the Azure Functions trigger folder.
 
+Best-practice note:
+- For brand-new production apps, Azure guidance generally prefers **Flex Consumption (FC1)** for Functions.
+- For a time-boxed demo, an existing **Consumption/Y1** Function App is fine.
+
 ## Prerequisites
 
 - Azure CLI installed (`az`)
@@ -21,11 +25,55 @@ Implementation notes:
   - Function App name (example: `my-inventory-func`)
   - Resource group name (example: `rg-inventory-demo`)
 
+Optional (recommended) for a quick local smoke test:
+- Python venv at `.venv` and `pip install -r requirements.txt`
+
 ## 1) Login and select subscription
 
 ```bash
 az login
 az account set --subscription <SUBSCRIPTION_ID_OR_NAME>
+```
+
+## 1.5) If you do NOT have a Function App yet (create one)
+
+Skip this section if you already have a working Function App to publish to.
+
+Choose names (must be globally unique where noted):
+- `<RESOURCE_GROUP>`: e.g. `rg-inventory-demo`
+- `<LOCATION>`: e.g. `eastus`
+- `<STORAGE_ACCOUNT>` (globally unique, lowercase letters/numbers only)
+- `<FUNCTION_APP_NAME>` (globally unique)
+
+### Bash/WSL
+
+```bash
+az group create -n <RESOURCE_GROUP> -l <LOCATION>
+
+az storage account create \
+  -n <STORAGE_ACCOUNT> \
+  -g <RESOURCE_GROUP> \
+  -l <LOCATION> \
+  --sku Standard_LRS
+
+# Creates a Linux Consumption (Y1) Function App for Python.
+az functionapp create \
+  -g <RESOURCE_GROUP> \
+  -n <FUNCTION_APP_NAME> \
+  --storage-account <STORAGE_ACCOUNT> \
+  --consumption-plan-location <LOCATION> \
+  --functions-version 4 \
+  --runtime python \
+  --runtime-version 3.11 \
+  --os-type Linux
+```
+
+### PowerShell (no line continuations)
+
+```powershell
+az group create -n <RESOURCE_GROUP> -l <LOCATION>
+az storage account create -n <STORAGE_ACCOUNT> -g <RESOURCE_GROUP> -l <LOCATION> --sku Standard_LRS
+az functionapp create -g <RESOURCE_GROUP> -n <FUNCTION_APP_NAME> --storage-account <STORAGE_ACCOUNT> --consumption-plan-location <LOCATION> --functions-version 4 --runtime python --runtime-version 3.11 --os-type Linux
 ```
 
 ## 2) (Recommended) Configure demo-friendly app settings
@@ -51,6 +99,17 @@ az functionapp config appsettings set \
   --name <FUNCTION_APP_NAME> \
   --resource-group <RESOURCE_GROUP> \
   --settings MCP_CORS_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"
+```
+
+### Remote build (recommended if dependency install fails)
+
+If publish fails because dependencies are missing on Azure, ensure remote build is enabled:
+
+```bash
+az functionapp config appsettings set \
+  --name <FUNCTION_APP_NAME> \
+  --resource-group <RESOURCE_GROUP> \
+  --settings SCM_DO_BUILD_DURING_DEPLOYMENT=1 ENABLE_ORYX_BUILD=1
 ```
 
 ## 3) Publish the code
@@ -80,6 +139,10 @@ curl -i https://<FUNCTION_APP_NAME>.azurewebsites.net/mcp
 curl -i https://<FUNCTION_APP_NAME>.azurewebsites.net/mcp/
 ```
 
+Expected:
+- `/health` returns `200` with `{ "status": "ok" }`
+- `/mcp` should *not* 404. (It may return a non-200 to `GET` since MCP is typically `POST`-driven, but it should be reachable.)
+
 ## 5) Demo with MCP Inspector
 
 1) Start the Inspector locally:
@@ -96,7 +159,7 @@ npx -y @modelcontextprotocol/inspector
 ## Troubleshooting
 
 - If `/health` works but `/mcp` fails:
-  - Confirm you deployed the MCP Function App code (not the legacy `tool_api`).
+  - Confirm you deployed the MCP Function App code (not the legacy REST API archived under `legacy/`).
   - Check Function App logs:
 
 ```bash

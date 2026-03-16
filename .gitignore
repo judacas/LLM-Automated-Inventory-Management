@@ -37,6 +37,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Local install artifacts (keep repo clean)
+*.deb
+
 # Unit test reports
 .tox/
 .nox/

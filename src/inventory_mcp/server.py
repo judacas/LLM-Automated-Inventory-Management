@@ -10,7 +10,14 @@ from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from inventory_service.factory import build_inventory_service
+from inventory_service.admin_models import (
+    InventoryAdminSummary,
+    UnavailableRequestedItem,
+)
+from inventory_service.factory import (
+    build_inventory_admin_service,
+    build_inventory_service,
+)
 from inventory_service.models import InventoryItem_v2
 
 # `FastMCP` is a high-level server helper from the MCP Python SDK.
@@ -38,6 +45,7 @@ mcp = FastMCP(
 # or the in-memory/mock repository based on environment variables.
 # That means your server behavior is controlled by env like `AZURE_SQL_CONNECTION_STRING`.
 _inventory_service = build_inventory_service()
+_inventory_admin_service = build_inventory_admin_service()
 
 
 def _item_to_dict(item: InventoryItem_v2) -> dict[str, Any]:
@@ -49,6 +57,18 @@ def _item_to_dict(item: InventoryItem_v2) -> dict[str, Any]:
     payload = asdict(item)
     if item.available_date is not None:
         payload["available_date"] = item.available_date.isoformat()
+    return payload
+
+
+def _admin_summary_to_dict(summary: InventoryAdminSummary) -> dict[str, Any]:
+    payload = asdict(summary)
+    return payload
+
+
+def _unavailable_item_to_dict(item: UnavailableRequestedItem) -> dict[str, Any]:
+    payload = asdict(item)
+    if item.next_available_date is not None:
+        payload["next_available_date"] = item.next_available_date.isoformat()
     return payload
 
 
@@ -82,3 +102,42 @@ def receive_inventory(product_id: int, qty: int) -> dict[str, Any]:
     """Receive (increase) inventory for a `product_id` (side-effect)."""
     _inventory_service.receive_shipment_by_product_id(product_id, qty)
     return {"status": "received", "product_id": product_id, "qty": qty}
+
+
+@mcp.tool()
+def inventory_admin_summary(low_stock_threshold: int = 5) -> dict[str, Any]:
+    """Admin-facing inventory rollup metrics.
+
+    This supports the admin chat/orchestrator requirement:
+    - "All general information about the current state of the system / inventory"
+    """
+
+    summary = _inventory_admin_service.get_summary(
+        low_stock_threshold=low_stock_threshold
+    )
+    return _admin_summary_to_dict(summary)
+
+
+@mcp.tool()
+def inventory_unavailable_requested_items(
+    quote_status: str = "Pending",
+    top_n: int = 20,
+) -> dict[str, Any]:
+    """List items requested by customers that are currently not fulfillable from stock.
+
+    Inventory-relevant definition (based on provided schema):
+    - Aggregate QuoteItems for Quotes with the given `quote_status` (default: Pending)
+    - Compare requested quantity to Inventory.quantity_in_stock
+    - Return products where requested_qty > in_stock_qty
+
+    Output is shaped as a dict containing an `items` array.
+    """
+
+    items = _inventory_admin_service.get_unavailable_requested_items(
+        quote_status=quote_status,
+        top_n=top_n,
+    )
+    return {
+        "quote_status": quote_status,
+        "items": [_unavailable_item_to_dict(i) for i in items],
+    }

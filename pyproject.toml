@@ -34,7 +34,6 @@ packages = [
   "src/admin_orchestrator_agent",
   "src/inventory_mcp",
   "src/inventory_service",
-  "src/tool_api",
 ]
 
 # --- Tool Configurations ---
@@ -54,11 +53,11 @@ ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests
 
 [tool.ruff.lint.isort]
 # Tell Ruff/isort which modules are part of this repo (src/ layout).
-known-first-party = ["admin_orchestrator_agent", "inventory_mcp", "inventory_service", "tool_api"]
+known-first-party = ["admin_orchestrator_agent", "inventory_mcp", "inventory_service"]
 
 [tool.deptry]
 root = "src"
-known_first_party = ["inventory_service", "admin_orchestrator_agent", "inventory_mcp", "tool_api"]
+known_first_party = ["inventory_service", "admin_orchestrator_agent", "inventory_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

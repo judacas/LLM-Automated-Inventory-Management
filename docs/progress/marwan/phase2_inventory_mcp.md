@@ -123,3 +123,29 @@ Inspector connectivity + MCP endpoint hardening:
 - Normalized the trailing-slash edge case so both `/mcp` and `/mcp/` are accepted.
 	- This prevents `307 -> 404` failures when tools/UI add or remove trailing slashes.
 - Updated the local runbook to explain the Inspector “proxy token” (token changes every time Inspector restarts).
+
+---
+
+## Progress Update (2026-03-16)
+
+Finished end-to-end local validation (mock mode + real Azure SQL mode) and extended the MCP surface area to support admin inventory requirements.
+
+MCP tools (inventory + admin inventory):
+- Existing inventory tools confirmed working: `get_inventory`, `reserve_inventory`, `receive_inventory`.
+- Added admin inventory tools:
+	- `inventory_admin_summary(low_stock_threshold=5)` for “general inventory system status”.
+	- `inventory_unavailable_requested_items(quote_status="Pending", top_n=20)` for “unavailable items being requested”.
+
+Admin orchestrator integration:
+- Added an MCP client wrapper used by the admin orchestrator to call inventory tools over Streamable HTTP.
+- Added a safe in-process fallback mode for unit tests/local dev when the MCP endpoint is unavailable.
+	- Controlled via `INVENTORY_MCP_FALLBACK_IN_PROCESS` (set to `0` to force real MCP HTTP).
+	- Endpoint configured via `INVENTORY_MCP_URL`.
+
+Azure SQL local readiness:
+- Verified real Azure SQL responses (real `Products.name` and live inventory quantities) through the MCP endpoint.
+- Resolved WSL ODBC driver dependency for `pyodbc` by installing/registering the SQL ODBC driver.
+
+Docs + contracts:
+- Added an inventory MCP tool contract doc for teammate integration.
+- Added an orchestrator→inventory integration doc describing env vars and call patterns.
