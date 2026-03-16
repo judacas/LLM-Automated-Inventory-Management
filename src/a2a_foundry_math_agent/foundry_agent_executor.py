@@ -1,11 +1,13 @@
-"""AI Foundry Agent Executor for the A2A framework.
+"""Generic Foundry-backed AgentExecutor for the A2A framework.
 
-Bridges the portal-managed Foundry agent (FoundryMathAgent) with the
+Bridges a portal-managed Foundry backend with the
 A2A server, translating between A2A message parts and the
 Responses/Conversations API.
 """
 
 import logging
+from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Protocol
 from uuid import uuid4
 
 from a2a.server.agent_execution import AgentExecutor
@@ -22,7 +24,17 @@ from a2a.types import (
     TextPart,
 )
 from a2a.utils.message import new_agent_text_message
-from foundry_agent import FoundryMathAgent
+
+
+class StreamingConversationBackend(Protocol):
+    async def create_conversation(self) -> str: ...
+
+    def run_conversation_streaming(
+        self, conversation_id: str, user_message: str
+    ) -> AsyncIterator[str]: ...
+
+    async def cleanup(self) -> None: ...
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -31,20 +43,23 @@ logger.setLevel(logging.DEBUG)
 class FoundryAgentExecutor(AgentExecutor):
     """An AgentExecutor that drives a portal-managed Azure AI Foundry agent."""
 
-    def __init__(self, card: AgentCard):
+    def __init__(
+        self,
+        card: AgentCard,
+        backend_factory: Callable[[], Awaitable[StreamingConversationBackend]],
+    ):
         self._card = card
-        self._agent: FoundryMathAgent | None = None
+        self._backend_factory = backend_factory
+        self._agent: StreamingConversationBackend | None = None
         self._active_conversations: dict[str, str] = {}  # context_id → conversation_id
 
     # ------------------------------------------------------------------
     # Lazy initialisation helpers
     # ------------------------------------------------------------------
 
-    async def _get_or_create_agent(self) -> FoundryMathAgent:
+    async def _get_or_create_agent(self) -> StreamingConversationBackend:
         if self._agent is None:
-            from foundry_agent import create_foundry_math_agent
-
-            self._agent = await create_foundry_math_agent()
+            self._agent = await self._backend_factory()
         return self._agent
 
     async def _get_or_create_conversation(self, context_id: str) -> str:
@@ -195,6 +210,9 @@ class FoundryAgentExecutor(AgentExecutor):
         logger.info("Foundry agent executor cleaned up")
 
 
-def create_foundry_agent_executor(card: AgentCard) -> FoundryAgentExecutor:
+def create_foundry_agent_executor(
+    card: AgentCard,
+    backend_factory: Callable[[], Awaitable[StreamingConversationBackend]],
+) -> FoundryAgentExecutor:
     """Factory function to create a Foundry agent executor."""
-    return FoundryAgentExecutor(card)
+    return FoundryAgentExecutor(card, backend_factory)

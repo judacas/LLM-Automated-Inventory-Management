@@ -1,8 +1,7 @@
-"""AI Foundry Agent implementation using the azure-ai-projects SDK.
+"""Reusable Azure AI Foundry backend using the azure-ai-projects SDK.
 
 Uses the Responses/Conversations API to interact with a portal-managed
-agent (e.g. "Math-Agent" with Code Interpreter) rather than creating
-agents in code.
+agent rather than creating agents in code.
 
 Uses the **async** SDK (``azure.ai.projects.aio``) so that network I/O
 never blocks the asyncio event-loop that powers the A2A server.
@@ -20,7 +19,7 @@ from azure.identity.aio import DefaultAzureCredential
 logger = logging.getLogger(__name__)
 
 
-class FoundryMathAgent:
+class FoundryAgentBackend:
     """Wrapper around a portal-managed Azure AI Foundry agent.
 
     The agent (and its tools, such as Code Interpreter) are configured
@@ -28,9 +27,9 @@ class FoundryMathAgent:
     name and drives conversations through the Responses API.
     """
 
-    def __init__(self) -> None:
-        self.endpoint: str = os.environ["AZURE_AI_PROJECT_ENDPOINT"]
-        self.agent_name: str = os.environ["AZURE_AI_AGENT_NAME"]
+    def __init__(self, *, endpoint: str, agent_name: str) -> None:
+        self.endpoint = endpoint
+        self.agent_name = agent_name
         self.credential = DefaultAzureCredential()
 
         # Clients – initialised lazily in ``initialize``
@@ -199,14 +198,34 @@ class FoundryMathAgent:
             except Exception:
                 logger.exception("Error closing credential")
         self.credential = DefaultAzureCredential()
-        logger.info("FoundryMathAgent cleaned up")
+        logger.info("FoundryAgentBackend cleaned up")
 
 
-async def create_foundry_math_agent() -> FoundryMathAgent:
-    """Factory: create, initialise, and return a ``FoundryMathAgent``."""
-    agent = FoundryMathAgent()
+async def create_foundry_agent_backend(
+    *, endpoint: str, agent_name: str
+) -> FoundryAgentBackend:
+    """Factory: create, initialise, and return a ``FoundryAgentBackend``."""
+    agent = FoundryAgentBackend(endpoint=endpoint, agent_name=agent_name)
     await agent.initialize()
     return agent
+
+
+# Backward-compatible aliases for older imports.
+FoundryMathAgent = FoundryAgentBackend
+
+
+async def create_foundry_math_agent() -> FoundryAgentBackend:
+    endpoint = os.environ.get("AZURE_AI_PROJECT_ENDPOINT")
+    agent_name = os.environ.get("AZURE_AI_AGENT_NAME")
+    if not endpoint or not agent_name:
+        raise RuntimeError(
+            "create_foundry_math_agent() requires AZURE_AI_PROJECT_ENDPOINT and "
+            "AZURE_AI_AGENT_NAME to be set."
+        )
+    return await create_foundry_agent_backend(
+        endpoint=endpoint,
+        agent_name=agent_name,
+    )
 
 
 # ── quick manual test ────────────────────────────────────────────────

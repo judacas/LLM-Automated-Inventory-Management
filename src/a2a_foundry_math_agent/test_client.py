@@ -1,5 +1,4 @@
 import logging  # Import the logging module
-import os
 from typing import Any
 from uuid import uuid4
 
@@ -15,7 +14,9 @@ from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
     EXTENDED_AGENT_CARD_PATH,
 )
+from agent_definition import load_agent_definition
 from dotenv import load_dotenv
+from settings import load_server_settings
 
 
 async def test_agent_health(
@@ -142,8 +143,7 @@ async def print_detailed_response(
 
 async def main() -> None:
     """
-    Test client for AI Foundry Math Agent A2A demo.
-    Tests both public and extended agent card functionality.
+    Generic smoke-test client for a config-driven single-agent A2A server.
     """
     # Load environment variables
     load_dotenv()
@@ -154,22 +154,12 @@ async def main() -> None:
     )
     logger = logging.getLogger(__name__)  # Get a logger instance
 
-    # Determine base URL based on A2A_URL_MODE (same logic as the server)
-    url_mode = (os.getenv("A2A_URL_MODE") or "local").strip().lower()
+    definition = load_agent_definition()
+    settings = load_server_settings(require_project_endpoint=False)
+    base_url = settings.agent_card_base_url
 
-    if url_mode == "forwarded":
-        forwarded_url = (os.getenv("A2A_FORWARDED_BASE_URL") or "").strip()
-        if not forwarded_url:
-            raise ValueError(
-                "A2A_URL_MODE=forwarded requires A2A_FORWARDED_BASE_URL to be set"
-            )
-        base_url = forwarded_url.rstrip("/")
-    else:
-        host = os.getenv("A2A_HOST", "localhost")
-        port = os.getenv("A2A_PORT", "10007")
-        base_url = f"http://{host}:{port}"
-
-    logger.info(f"🔗 Connecting to AI Foundry Math Agent at: {base_url}")
+    logger.info("Connecting to A2A agent at: %s", base_url)
+    logger.info("Loaded smoke-test config from: %s", definition.source_path)
 
     async with httpx.AsyncClient(timeout=120) as httpx_client:
         # First, test agent health
@@ -243,7 +233,7 @@ async def main() -> None:
 
         except Exception as e:
             logger.error(f"❌ Critical error fetching public agent card: {e}")
-            logger.info("💡 Make sure the AI Foundry Math Agent server is running:")
+            logger.info("💡 Make sure the A2A server is running:")
             logger.info("   uv run .")
             raise RuntimeError(
                 "Failed to fetch the public agent card. Cannot continue."
@@ -255,19 +245,20 @@ async def main() -> None:
         )
         logger.info("✅ A2AClient initialized.")
 
-        # Test math-specific queries
-        math_test_messages = [
-            "What is 1247 multiplied by 893?",
-            "Calculate the square root of 144 and explain the process",
-            "Solve for x: 2x + 5 = 17",
-            "What is the factorial of 20?",
-            "Compute the first 10 Fibonacci numbers",
-        ]
+        smoke_test_messages = list(definition.smoke_test_prompts)
+        if not smoke_test_messages:
+            smoke_test_messages = [
+                "Tell me what you can help with and give one example request."
+            ]
 
-        logger.info(f"\n🧪 Testing {len(math_test_messages)} math-related queries:")
+        logger.info(
+            "\n🧪 Testing %s smoke-test prompts for %s:",
+            len(smoke_test_messages),
+            definition.public_name,
+        )
 
-        for i, test_message in enumerate(math_test_messages, 1):
-            logger.info(f"\n--- Test {i}/{len(math_test_messages)} ---")
+        for i, test_message in enumerate(smoke_test_messages, 1):
+            logger.info(f"\n--- Test {i}/{len(smoke_test_messages)} ---")
             logger.info(f"💬 User: {test_message}")
 
             send_message_payload: dict[str, Any] = {
@@ -318,21 +309,21 @@ async def main() -> None:
             except Exception as e:
                 logger.error(f"❌ Error testing message '{test_message[:30]}...': {e}")
 
-        logger.info("\n🎉 Math agent testing completed!")
+        logger.info("\n🎉 Agent smoke testing completed!")
         logger.info("📊 Test Summary:")
         logger.info(f"   - Agent: {final_agent_card_to_use.name}")
         logger.info(f"   - Base URL: {base_url}")
-        logger.info(f"   - Test Messages: {len(math_test_messages)}")
+        logger.info(f"   - Test Messages: {len(smoke_test_messages)}")
         logger.info("   - Both regular and streaming messaging tested")
 
 
 if __name__ == "__main__":
     import asyncio
 
-    print("🤖 AI Foundry Math Agent - A2A Test Client")
+    print("A2A Agent Smoke Test Client")
     print("=" * 50)
-    print("This client tests the Agent-to-Agent communication")
-    print("with our AI Foundry Math Agent.")
+    print("This client tests the configured A2A server")
+    print("using prompts from the active agent definition.")
     print("Make sure the agent server is running first!")
     print("=" * 50)
 
@@ -343,7 +334,7 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"\n❌ Test client failed: {e}")
         print("\n💡 Troubleshooting tips:")
-        print("1. Ensure the AI Foundry agent server is running")
+        print("1. Ensure the A2A agent server is running")
         print("2. Check your .env configuration")
-        print("3. Verify network connectivity")
+        print("3. Check your agent.toml or A2A_AGENT_DEFINITION")
         print("4. Check logs for detailed error information")

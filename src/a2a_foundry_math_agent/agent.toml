@@ -1,0 +1,53 @@
+[a2a]
+name = "AI Foundry Math Agent"
+description = "An intelligent math agent powered by Azure AI Foundry with Code Interpreter. It solves math problems deterministically by running Python code, explains concepts, and analyses numerical data."
+version = "2.0.0"
+health_message = "AI Foundry Math Agent is running!"
+default_input_modes = ["text"]
+default_output_modes = ["text"]
+streaming = true
+
+[foundry]
+agent_name = "Math-Agent"
+
+[smoke_tests]
+prompts = [
+    "What is 1247 multiplied by 893?",
+    "Calculate the square root of 144 and explain the process",
+    "Solve for x: 2x + 5 = 17",
+    "What is the factorial of 20?",
+    "Compute the first 10 Fibonacci numbers",
+]
+
+[[skills]]
+id = "math_computation"
+name = "Math Computation"
+description = "Solve math problems deterministically using Code Interpreter to run Python code."
+tags = ["math", "computation", "code-interpreter"]
+examples = [
+    "What is 1247 * 893?",
+    "Calculate the derivative of x^3 + 2x",
+    "What is the integral of sin(x) from 0 to pi?",
+]
+
+[[skills]]
+id = "math_explanation"
+name = "Math Explanation"
+description = "Explain mathematical concepts and show step-by-step work."
+tags = ["math", "education", "explanation"]
+examples = [
+    "Explain how to solve quadratic equations",
+    "Walk me through long division of 1000 by 37",
+    "Why does 0! equal 1?",
+]
+
+[[skills]]
+id = "data_analysis"
+name = "Data Analysis"
+description = "Analyse numerical data, compute statistics, and generate plots."
+tags = ["math", "statistics", "data"]
+examples = [
+    "What's the standard deviation of [4, 8, 15, 16, 23, 42]?",
+    "Plot y = x^2 from -10 to 10",
+    "Compute the first 10 Fibonacci numbers",
+]
