@@ -1,3 +1,5 @@
+"""Unit tests for admin-facing inventory service queries."""
+
 from inventory_service.admin_repository import MockInventoryAdminRepository
 from inventory_service.admin_service import InventoryAdminService
 

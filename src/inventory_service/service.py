@@ -1,3 +1,18 @@
+"""Inventory domain service (business logic).
+
+This layer is intentionally small and deterministic:
+- It performs input validation.
+- It delegates persistence to an `InventoryRepository` implementation.
+
+The repository implementation is chosen by `inventory_service.factory`:
+- Default: in-memory mock repository (fast local dev + tests)
+- When `AZURE_SQL_CONNECTION_STRING` is set: Azure SQL repositories
+
+This service supports two APIs:
+- v2 (preferred): product_id-based methods used by the MCP server.
+- v1 (legacy): sku-based methods kept for backward compatibility.
+"""
+
 from inventory_service.models import InventoryItem, InventoryItem_v2
 from inventory_service.repository import InventoryRepository
 

@@ -1,3 +1,11 @@
+"""Admin-facing inventory service.
+
+This module provides higher-level queries used by the admin conversational
+interface, such as summary rollups and "what requested items are unavailable".
+
+The data access is delegated to an `InventoryAdminRepository`.
+"""
+
 from __future__ import annotations
 
 from inventory_service.admin_models import (

@@ -1,3 +1,15 @@
+"""Admin message orchestrator.
+
+This module implements the "admin conversational interface" requirement in a
+minimal way:
+- classify an admin message into an intent
+- call the correct Inventory MCP tool(s)
+- return a human-friendly string response
+
+In the full system this would likely be replaced by an LLM-powered agent, but
+keeping it deterministic makes it easy to test and demo.
+"""
+
 from admin_orchestrator_agent.classifier import AdminIntent, AdminIntentClassifier
 from admin_orchestrator_agent.inventory_mcp_client import (
     InventoryMcpClient,
@@ -15,10 +27,12 @@ class AdminOrchestratorService:
     """
 
     def __init__(self) -> None:
+        """Create classifier + MCP client dependencies."""
         self.classifier = AdminIntentClassifier()
         self.inventory_client = InventoryMcpClient()
 
     def handle_message(self, message: str) -> str:
+        """Handle one admin message and return a response string."""
         intent = self.classifier.classify(message)
 
         if intent == AdminIntent.CHECK_INVENTORY:

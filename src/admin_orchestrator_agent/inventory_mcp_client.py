@@ -1,3 +1,14 @@
+"""Client wrapper for talking to the Inventory MCP server.
+
+This module is used by the admin orchestrator to call MCP tools over Streamable
+HTTP.
+
+Key behaviors:
+- Endpoint is configured via `INVENTORY_MCP_URL` (defaults to localhost).
+- Optional in-process fallback enables unit tests and local dev even if the MCP
+    server isn't running.
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -137,6 +148,11 @@ class InventoryMcpClient:
             return self._call_tool_in_process(name, arguments)
 
     def call_tool_sync(self, name: str, arguments: dict[str, Any]) -> Any:
+        """Synchronous helper for simple scripts/tests.
+
+        Note: this uses `asyncio.run(...)`, which cannot be called from inside an
+        already-running event loop (e.g., inside an async web framework).
+        """
         return asyncio.run(self.call_tool(name, arguments))
 
 

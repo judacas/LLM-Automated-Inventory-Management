@@ -1,3 +1,5 @@
+"""Unit tests for the admin orchestrator routing logic."""
+
 from admin_orchestrator_agent.service import AdminOrchestratorService
 
 

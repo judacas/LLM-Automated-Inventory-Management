@@ -1,3 +1,5 @@
+"""Tests for environment-driven wiring in `inventory_service.factory`."""
+
 import os
 
 from inventory_service.factory import build_inventory_service

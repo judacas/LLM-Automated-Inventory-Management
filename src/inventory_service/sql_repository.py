@@ -1,3 +1,12 @@
+"""Azure SQL-backed inventory repository.
+
+This repository is activated when `AZURE_SQL_CONNECTION_STRING` is set.
+
+Dependencies:
+- Uses `pyodbc` and requires an appropriate ODBC driver installed on the host.
+- For local development without SQL, prefer the in-memory `InventoryRepository`.
+"""
+
 from __future__ import annotations
 
 import os

@@ -1,3 +1,5 @@
+"""Unit tests for `InventoryService` product_id-based API (v2)."""
+
 from datetime import date
 
 from inventory_service.models import InventoryItem_v2

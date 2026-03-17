@@ -1,3 +1,10 @@
+"""Admin-facing repository interfaces and mock implementations.
+
+These queries are intentionally read-only and optimized for answering questions
+admins ask (summary metrics, unavailable requested items), rather than doing
+inventory writes.
+"""
+
 from __future__ import annotations
 
 from datetime import date
