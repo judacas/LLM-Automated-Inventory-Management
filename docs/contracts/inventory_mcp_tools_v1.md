@@ -1,6 +1,6 @@
 # Inventory MCP Tool Contract (v1)
 
-This document defines the **inventory** MCP server tool surface so teammates can integrate without reading implementation code.
+This document defines the **inventory** MCP server tool surface so other components can integrate without reading implementation code.
 
 ## Server identity
 

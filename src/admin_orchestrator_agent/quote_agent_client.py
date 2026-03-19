@@ -2,8 +2,7 @@
 
 Why this module exists:
 - The admin orchestrator must answer admin questions about outstanding quotes.
-- The quote agent is owned by a different teammate and will be integrated via
-  A2A (agent-to-agent) later.
+- The quote agent will be integrated via A2A (agent-to-agent) later.
 
 To avoid rewriting `AdminOrchestratorService` when the A2A details arrive, we
 introduce a small interface here and default it to a safe stub.
@@ -36,7 +35,7 @@ class NullQuoteAgentClient:
     """
 
     def handle_admin_query(self, _message: str) -> str:
-        return "Delegating to Quote Agent (not implemented in my module)."
+        return "Quote agent integration is not configured yet."
 
     def admin_summary(self) -> str:
         return "Quote summary: unavailable (quote agent not configured yet)."

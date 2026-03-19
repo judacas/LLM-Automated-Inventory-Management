@@ -12,7 +12,7 @@ def test_inventory_intent() -> None:
 def test_quote_intent() -> None:
     svc = AdminOrchestratorService()
     resp = svc.handle_message("How many quotes do we have?")
-    assert "Quote Agent" in resp
+    assert "Quote agent" in resp
 
 
 def test_system_summary_includes_quote_stub_summary() -> None:

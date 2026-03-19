@@ -14,17 +14,19 @@ Legacy: FastAPI → InventoryService → Repository
 
 Current: MCP (FastMCP, Streamable HTTP) → InventoryService → Repository
 
-Current repository is mocked.
-Phase 2 will replace it with Azure SQL.
+Repository selection is environment-driven:
+- If `AZURE_SQL_CONNECTION_STRING` is set, the SQL-backed repository is used.
+- Otherwise, a mock/in-memory repository is used for local dev and unit tests.
 
 ---
 
 ## Run Locally
 
 See the current runbook:
-- `docs/run_inventory_mcp.md`
+- `docs/inventory/run_inventory_mcp.md`
 
 ## Endpoints
 See:
-`docs/contracts/marwans_tool_contracts_v1.md`
+`docs/contracts/tool_contracts_v1.md`
+
 

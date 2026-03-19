@@ -198,6 +198,9 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Local-only notes / chat transcripts (never commit)
+.local/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/

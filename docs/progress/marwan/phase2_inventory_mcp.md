@@ -149,3 +149,22 @@ Azure SQL local readiness:
 Docs + contracts:
 - Added an inventory MCP tool contract doc for teammate integration.
 - Added an orchestrator→inventory integration doc describing env vars and call patterns.
+
+---
+
+## Progress Update (2026-03-19)
+
+Real SQL validation (WSL):
+
+- Confirmed Inventory MCP tools work end-to-end against the real Azure SQL database once the correct Azure-provided connection string is used.
+- Documented `HYT00 / Login timeout expired` troubleshooting and clarified best practices for copying the ODBC connection string from Azure Portal.
+
+Admin Orchestrator integration readiness:
+
+- Exposed the admin orchestrator as a small HTTP API (`/health`, `/chat`) suitable for UI integration.
+- Added a quote-agent integration seam (stub mode) to avoid refactors later when A2A/quote integration details are available.
+
+Docs organization + merge friendliness:
+
+- Added a docs landing page at `docs/README.md` and added per-area landing pages under `docs/admin/`, `docs/inventory/`, and `docs/deploy/`.
+- Added `.local/` to `.gitignore` for local-only chat transcripts/notes that should never be committed.

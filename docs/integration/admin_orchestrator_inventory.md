@@ -47,7 +47,7 @@ uv run uvicorn inventory_mcp.app:app --reload --port 8000
 
 2) Run your orchestrator tests or a small script that calls `AdminOrchestratorService.handle_message()`.
 
-## Notes for teammates
+## Notes
 
 - The inventory MCP server supports mock mode when `AZURE_SQL_CONNECTION_STRING` is not set.
 - The tool contract (names/args/outputs) is in `docs/contracts/inventory_mcp_tools_v1.md`.

@@ -1,6 +1,6 @@
 """ASGI app for the Admin Orchestrator.
 
-This app is the bridge between your teammate's admin UI and the orchestrator logic.
+This app is the bridge between the admin UI and the orchestrator logic.
 
 Design goals (MVP):
 - Provide a simple HTTP surface (`/health`, `/chat`) the frontend can call.
