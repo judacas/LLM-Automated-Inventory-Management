@@ -21,4 +21,11 @@ repos:
         types: [python]
         args: [--config-file=pyproject.toml, src/]
         pass_filenames: false
-        # note that this will always run on all files, regardless of the --all-files flag, because mypy needs to see all files to work correctly in case a type change in one file affects the types in another file. 
+        # when this hook runs, mypy checks the whole src/ tree (pass_filenames=false + src/ arg);
+        # pre-commit may still skip running the hook when no matching Python files are selected.
+      - id: deptry
+        name: deptry
+        entry: uv run deptry .
+        language: system
+        pass_filenames: false
+        always_run: true

@@ -15,9 +15,10 @@ from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
     EXTENDED_AGENT_CARD_PATH,
 )
-from agent_definition import AgentDefinition, load_agent_definitions
 from dotenv import load_dotenv
-from settings import ServerSettings, load_server_settings
+
+from a2a_servers.agent_definition import AgentDefinition, load_agent_definitions
+from a2a_servers.settings import ServerSettings, load_server_settings
 
 
 async def check_agent_health(
