@@ -69,10 +69,10 @@ class FoundryAgentBackend:
         """Create a new conversation and return its id."""
         assert self._openai_client is not None  # noqa: S101
         conversation = await self._openai_client.conversations.create()
-        self._conversations[conversation.id] = False
-        logger.info("Created conversation %s", conversation.id)
         if not conversation.id:
             raise ValueError("Failed to create conversation: no ID returned")
+        self._conversations[conversation.id] = False
+        logger.info("Created conversation %s", conversation.id)
         return str(conversation.id)
 
     # ------------------------------------------------------------------
