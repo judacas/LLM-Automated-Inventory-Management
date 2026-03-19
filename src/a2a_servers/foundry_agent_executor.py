@@ -50,6 +50,9 @@ class FoundryAgentExecutor(AgentExecutor):
         self._card = card
         self._backend_factory = backend_factory
         self._agent: StreamingConversationBackend | None = None
+        # TODO: _active_conversations grows unboundedly (one entry per context_id, never evicted).
+        # This is acceptable for now, but will be replaced once the service is backed by a
+        # persistent database, at which point conversation state will be stored there instead.
         self._active_conversations: dict[str, str] = {}  # context_id → conversation_id
 
     # ------------------------------------------------------------------
