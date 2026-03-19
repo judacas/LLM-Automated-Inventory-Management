@@ -50,6 +50,11 @@ class FoundryAgentExecutor(AgentExecutor):
         self._card = card
         self._backend_factory = backend_factory
         self._agent: StreamingConversationBackend | None = None
+        # TODO: _active_conversations grows unboundedly (one entry per unique context_id)
+        # and leaves Foundry conversations open until process shutdown. Once this is
+        # wired up to a database, conversation tracking can be moved there and entries
+        # can be expired/deleted automatically. For now, conversations are cleaned up
+        # on executor shutdown (see cleanup()).
         self._active_conversations: dict[str, str] = {}  # context_id → conversation_id
 
     # ------------------------------------------------------------------
