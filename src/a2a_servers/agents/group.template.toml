@@ -1,0 +1,28 @@
+[a2a]
+name = "Your Group Endpoint Name"
+description = "Routes requests to one of several individual agents based on the [target:AGENT_SLUG] marker in the message."
+version = "1.0.0"
+health_message = "Your group endpoint is running!"
+default_input_modes = ["text"]
+default_output_modes = ["text"]
+
+# List the slugs of the individual agents this group is allowed to route to.
+# Each slug must match the slug of an existing *_agent.toml definition.
+[group]
+agents = ["agent-one", "agent-two"]
+
+[smoke_tests]
+prompts = [
+    "[target:agent-one] Replace this with a realistic prompt for agent-one.",
+    "[target:agent-two] Replace this with a realistic prompt for agent-two.",
+]
+
+[[skills]]
+id = "route_to_agent"
+name = "Route to Agent"
+description = "Route a request to the correct sub-agent by including [target:AGENT_SLUG] in the message."
+tags = ["routing", "multi-agent"]
+examples = [
+    "[target:agent-one] Example request for agent-one.",
+    "[target:agent-two] Example request for agent-two.",
+]

@@ -138,3 +138,63 @@ Before merging a new agent definition, check:
 - skills metadata reads clearly to another team
 - smoke tests represent the real use case
 - the agent appears correctly in `GET /`
+
+---
+
+## Grouped Endpoint Definitions
+
+Grouped endpoints are defined in files matching:
+
+```text
+agents/*_group.toml
+```
+
+They act as A2A routers that forward requests to individual agent endpoints.
+Groups are **optional**; the server starts normally if no `*_group.toml` files exist.
+
+### Required sections
+
+- `[a2a]` — same required keys as individual agents (`name`, `description`, `version`, `health_message`)
+- `[group]` — with a required `agents` key listing the slugs of allowed member agents
+- at least one `[[skills]]` entry
+
+### `[group]` Section
+
+Required key:
+
+- `agents` — a non-empty list of agent slugs (strings).  Each slug must match
+  the slug of an existing `*_agent.toml` definition; the server will reject an
+  unknown slug at startup.
+
+Example:
+
+```toml
+[group]
+agents = ["quote", "purchase-order", "email"]
+```
+
+### Slug derivation
+
+Group slugs follow the same rules as agent slugs, but the `_group` / `-group`
+suffix is stripped instead of `_agent` / `-agent`.
+
+Examples:
+
+- `inventory_group.toml` → `inventory`
+- `ops-group.toml` → `ops`
+
+### Startup validation
+
+Startup fails if:
+
+- a group member slug does not match any loaded individual agent slug
+- a group slug collides with an individual agent slug
+- there are duplicate group slugs
+
+### Input format for grouped endpoints
+
+See [grouped-endpoint-input-contract.md](grouped-endpoint-input-contract.md).
+
+### Template
+
+See `agents/group.template.toml` for a ready-to-copy skeleton.

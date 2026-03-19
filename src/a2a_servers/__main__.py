@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 from a2a_servers.agent_definition import load_agent_definitions
 from a2a_servers.app_factory import MountedAgent, create_app
+from a2a_servers.group_definition import GroupDefinition, load_group_definitions
 from a2a_servers.settings import ServerSettings, load_server_settings
 
 load_dotenv()
@@ -45,7 +46,8 @@ def main(
     )
 
     definitions = load_agent_definitions(agent_config_dir)
-    app, mounted_agents = create_app(definitions, settings)
+    group_definitions = load_group_definitions(agent_config_dir)
+    app, mounted_agents = create_app(definitions, settings, group_definitions)
 
     log_level_name = settings.log_level_name
     log_level = getattr(logging, log_level_name, logging.INFO)
@@ -54,7 +56,11 @@ def main(
     logger.info(
         "Starting multi-agent A2A server on %s:%s", settings.host, settings.port
     )
-    logger.info("Loaded %s agent definitions", len(mounted_agents))
+    logger.info(
+        "Loaded %s individual agent definition(s), %s group definition(s)",
+        len(definitions),
+        len(group_definitions),
+    )
     logger.info("Agent card URL mode: %s", settings.url_mode)
     logger.info("Root index available at: %s/", settings.public_base_url)
 
@@ -67,11 +73,14 @@ def main(
 def _log_agent_startup(mounted_agent: MountedAgent, settings: ServerSettings) -> None:
     definition = mounted_agent.definition
     logger.info("Agent slug: %s", definition.slug)
-    logger.info("Loaded agent config from %s", definition.source_path)
-    logger.info("Foundry agent name: %s", definition.foundry_agent_name)
+    logger.info("Loaded config from %s", definition.source_path)
     logger.info("Agent card: %s", mounted_agent.agent_card.name)
     logger.info("Agent card URL: %s", mounted_agent.agent_card.url)
-    logger.info("Skills: %s", [skill.name for skill in definition.skills])
+    if isinstance(definition, GroupDefinition):
+        logger.info("Group members: %s", sorted(definition.member_slugs))
+    else:
+        logger.info("Foundry agent name: %s", definition.foundry_agent_name)
+        logger.info("Skills: %s", [skill.name for skill in definition.skills])
     logger.info(
         "Health check available at: %s/health",
         settings.agent_base_url_for(definition.slug),

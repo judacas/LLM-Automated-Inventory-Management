@@ -30,6 +30,14 @@ class ServerSettings:
     def agent_card_url_for(self, slug: str) -> str:
         return f"{self.agent_base_url_for(slug)}/"
 
+    def local_agent_base_url_for(self, slug: str) -> str:
+        """Return the local (non-forwarded) base URL for an agent.
+
+        Group router executors use this so outbound A2A self-calls always
+        target the local server directly, regardless of the forwarded URL mode.
+        """
+        return f"http://{self.host}:{self.port}/{slug.strip('/')}"
+
 
 def load_server_settings(
     *,
