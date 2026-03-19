@@ -176,6 +176,8 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
     Always accepts quote and provides fulfillment information.
     """
 
+    expire_quotes()
+
     if not request["items"]:
         raise ValueError("Quote must contain at least one item.")
 
@@ -190,7 +192,6 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
         cursor = conn.cursor()
 
         try:
-            # Resolve account
             cursor.execute(
                 """
                 SELECT account_id, discount_percent
@@ -207,7 +208,6 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
             account_id: int = account_row.account_id
             discount_flag: int = account_row.discount_percent
 
-            # Enforce 5 active quote limit
             cursor.execute(
                 """
                 SELECT COUNT(*)
@@ -229,7 +229,6 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
             quote_items: list[tuple[int, int, float]] = []
             fulfillment_info: list[FulfillmentItem] = []
 
-            # Retrieve product data (no locking)
             for item in request["items"]:
                 cursor.execute(
                     """
@@ -284,7 +283,6 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
             total_amount = round(subtotal - discount_amount, 2)
             valid_until = add_business_days(date.today(), 5)
 
-            # Insert Quote
             cursor.execute(
                 """
                 INSERT INTO Quotes (
@@ -306,7 +304,6 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
 
             quote_id = int(quote_row[0])
 
-            # Insert QuoteItems (no inventory update)
             for product_id, quantity, unit_price in quote_items:
                 cursor.execute(
                     """
@@ -376,6 +373,8 @@ def expire_quotes() -> None:
 
 
 def get_active_quotes_by_domain(domain: str) -> list[UserQuoteSummary]:
+    expire_quotes()
+
     normalized_domain = domain.strip().lower()
 
     with get_connection() as conn:
@@ -422,6 +421,8 @@ def get_active_quotes_by_domain(domain: str) -> list[UserQuoteSummary]:
 
 # Quote Agent - Admin methods
 def get_dashboard_metrics() -> DashboardMetricsResponse:
+    expire_quotes()
+
     with get_connection() as conn:
         cursor = conn.cursor()
 
@@ -460,6 +461,8 @@ def get_dashboard_metrics() -> DashboardMetricsResponse:
 
 
 def get_outstanding_quotes() -> list[QuoteSummary]:
+    expire_quotes()
+
     with get_connection() as conn:
         cursor = conn.cursor()
 

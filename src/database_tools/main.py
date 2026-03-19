@@ -214,6 +214,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         scheduler.start()
 
+        # Run quote expiration once on startup so expired quotes are cleaned up
+        # even if the app was asleep at the scheduled time.
+        await asyncio.to_thread(expire_quotes)
+
         try:
             yield
         finally:

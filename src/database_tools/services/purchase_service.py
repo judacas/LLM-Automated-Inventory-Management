@@ -2,6 +2,8 @@ from decimal import Decimal
 
 from typing_extensions import TypedDict
 
+from database_tools.services.quote_service import expire_quotes
+
 from ..database import get_connection
 
 
@@ -36,6 +38,8 @@ class PurchaseOrderSummary(TypedDict):
 
 
 def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult:
+    expire_quotes()
+
     quote_id = data["quote_id"]
     domain = data["domain"]
     normalized_domain = domain.strip().lower() if domain is not None else None
