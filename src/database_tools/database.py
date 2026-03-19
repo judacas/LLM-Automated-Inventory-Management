@@ -17,7 +17,7 @@ def get_connection() -> pyodbc.Connection:
         raise ValueError("One or more Azure SQL environment variables are missing.")
 
     connection_string = f"""
-    DRIVER={{ODBC Driver 17 for SQL Server}};
+    DRIVER={{ODBC Driver 18 for SQL Server}};
     SERVER={server};
     DATABASE={database};
     UID={username};

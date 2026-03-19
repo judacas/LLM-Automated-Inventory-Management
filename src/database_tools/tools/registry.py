@@ -4,6 +4,22 @@ from database_tools.tools.business_tools import (
     tool_create_business_account,
     tool_get_business_by_domain,
 )
+from database_tools.tools.purchase_tools import (
+    tool_create_purchase_order,
+    tool_get_purchase_orders,
+)
+from database_tools.tools.quote_tools import (
+    tool_confirm_quote,
+    tool_confirm_quote_by_product_name,
+    tool_get_active_quotes,
+    tool_get_all_inventory,
+    tool_get_dashboard_metrics,
+    tool_get_inventory_status,
+    tool_get_out_of_stock_items,
+    tool_get_outstanding_quotes,
+    tool_get_product_id_by_name,
+    tool_get_quote_by_id,
+)
 
 
 class MCPToolRegistry:
@@ -26,3 +42,17 @@ registry = MCPToolRegistry()
 
 registry.register("create_business_account", tool_create_business_account)
 registry.register("get_business_by_domain", tool_get_business_by_domain)
+
+registry.register("get_product_id_by_name", tool_get_product_id_by_name)
+registry.register("confirm_quote_by_product_name", tool_confirm_quote_by_product_name)
+registry.register("confirm_quote", tool_confirm_quote)
+registry.register("get_active_quotes", tool_get_active_quotes)
+registry.register("get_dashboard_metrics", tool_get_dashboard_metrics)
+registry.register("get_outstanding_quotes", tool_get_outstanding_quotes)
+registry.register("get_quote_by_id", tool_get_quote_by_id)
+registry.register("get_out_of_stock_items", tool_get_out_of_stock_items)
+registry.register("get_all_inventory", tool_get_all_inventory)
+registry.register("get_inventory_status", tool_get_inventory_status)
+
+registry.register("create_purchase_order", tool_create_purchase_order)
+registry.register("get_purchase_orders", tool_get_purchase_orders)

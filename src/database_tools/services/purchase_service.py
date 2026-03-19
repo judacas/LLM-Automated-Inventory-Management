@@ -1,5 +1,6 @@
 from decimal import Decimal
-from typing import TypedDict
+
+from typing_extensions import TypedDict
 
 from ..database import get_connection
 
@@ -14,7 +15,7 @@ class PurchaseOrderItemResult(TypedDict):
     quantity_requested: int
     quantity_fulfilled: int
     quantity_pending: int
-    price_at_time: Decimal
+    price_at_time: float
 
 
 class PurchaseOrderResult(TypedDict):
@@ -22,7 +23,7 @@ class PurchaseOrderResult(TypedDict):
     quote_id: int
     account_id: int
     status: str
-    total_amount: Decimal
+    total_amount: float
     items: list[PurchaseOrderItemResult]
 
 
@@ -35,20 +36,9 @@ class PurchaseOrderSummary(TypedDict):
 
 
 def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult:
-    """
-    Converts an active quote into a purchase order.
-
-    Rules:
-    - Quote must exist
-    - Quote must be active
-    - Quote can only be converted once
-    - Inventory deducted only here
-    - Partial fulfillment allowed
-    - Orders never rejected due to insufficient inventory
-    """
-
     quote_id = data["quote_id"]
     domain = data["domain"]
+    normalized_domain = domain.strip().lower() if domain is not None else None
 
     with get_connection() as conn:
         conn.autocommit = False
@@ -78,14 +68,14 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
                 raise ValueError("Quote is not active and cannot be converted")
 
             # Optional Domain Validation
-            if domain is not None:
+            if normalized_domain is not None:
                 cursor.execute(
                     """
                     SELECT account_id
                     FROM BusinessAccounts
-                    WHERE domain = ?
+                    WHERE LOWER(LTRIM(RTRIM(domain))) = ?
                     """,
-                    (domain,),
+                    (normalized_domain,),
                 )
 
                 domain_row = cursor.fetchone()
@@ -133,8 +123,8 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
             # Inventory Processing
             for item in quote_items:
                 product_id = item.product_id
-                quantity_requested = item.quantity
-                price = item.price_at_time
+                quantity_requested = int(item.quantity)
+                price = float(item.price_at_time)
 
                 total_requested += quantity_requested
 
@@ -153,7 +143,7 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
                 if inventory_row is None:
                     raise ValueError(f"Inventory missing for product {product_id}")
 
-                quantity_available = inventory_row.quantity_in_stock
+                quantity_available = int(inventory_row.quantity_in_stock)
 
                 quantity_fulfilled = min(quantity_requested, quantity_available)
                 quantity_pending = quantity_requested - quantity_fulfilled
@@ -210,7 +200,7 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
             if po_row is None:
                 raise RuntimeError("Failed to retrieve purchase_order_id after insert")
 
-            purchase_order_id = po_row.purchase_order_id
+            purchase_order_id = int(po_row.purchase_order_id)
 
             # Insert Purchase Order Items
             for item in order_items:
@@ -253,7 +243,7 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
                 "quote_id": quote_id,
                 "account_id": account_id,
                 "status": order_status,
-                "total_amount": quote_total_amount,
+                "total_amount": float(quote_total_amount),
                 "items": order_items,
             }
 
@@ -263,6 +253,8 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
 
 
 def get_purchase_orders_by_domain(domain: str) -> list[PurchaseOrderSummary]:
+    normalized_domain = domain.strip().lower()
+
     with get_connection() as conn:
         cursor = conn.cursor()
 
@@ -271,9 +263,9 @@ def get_purchase_orders_by_domain(domain: str) -> list[PurchaseOrderSummary]:
             """
             SELECT account_id
             FROM BusinessAccounts
-            WHERE domain = ?
+            WHERE LOWER(LTRIM(RTRIM(domain))) = ?
             """,
-            (domain,),
+            (normalized_domain,),
         )
 
         row = cursor.fetchone()

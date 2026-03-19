@@ -1,74 +1,64 @@
-from typing import Any, TypedDict
-
-from mcp.services.quote_service import (
+from database_tools.services.quote_service import (
+    ConfirmQuoteByNameRequest,
     ConfirmQuoteRequest,
+    ConfirmQuoteResponse,
+    DashboardMetricsResponse,
+    InventoryItem,
+    InventoryStatusResponse,
+    OutOfStockItem,
+    QuoteDetailResponse,
+    QuoteSummary,
+    UserQuoteSummary,
     confirm_quote,
+    confirm_quote_by_product_name,
     get_active_quotes_by_domain,
     get_all_inventory,
     get_dashboard_metrics,
     get_inventory_status_by_name,
     get_out_of_stock_items,
     get_outstanding_quotes,
+    get_product_id_by_name,
     get_quote_by_id,
-    get_quotes_by_email,
 )
 
 
-class DomainArgs(TypedDict):
-    domain: str
+def tool_get_product_id_by_name(name: str) -> int:
+    return get_product_id_by_name(name)
 
 
-class EmailArgs(TypedDict):
-    email: str
+def tool_confirm_quote_by_product_name(
+    request: ConfirmQuoteByNameRequest,
+) -> ConfirmQuoteResponse:
+    return confirm_quote_by_product_name(request)
 
 
-class QuoteIdArgs(TypedDict):
-    quote_id: int
+def tool_confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
+    return confirm_quote(request)
 
 
-class ProductNameArgs(TypedDict):
-    name: str
+def tool_get_active_quotes(domain: str) -> list[UserQuoteSummary]:
+    return get_active_quotes_by_domain(domain=domain)
 
 
-def tool_confirm_quote(arguments: ConfirmQuoteRequest) -> Any:
-    return confirm_quote(arguments)
-
-
-def tool_get_active_quotes(arguments: DomainArgs) -> Any:
-    return get_active_quotes_by_domain(
-        domain=arguments["domain"],
-    )
-
-
-def tool_get_dashboard_metrics(arguments: dict[str, object]) -> Any:
+def tool_get_dashboard_metrics() -> DashboardMetricsResponse:
     return get_dashboard_metrics()
 
 
-def tool_get_outstanding_quotes(arguments: dict[str, object]) -> Any:
+def tool_get_outstanding_quotes() -> list[QuoteSummary]:
     return get_outstanding_quotes()
 
 
-def tool_get_quotes_by_email(arguments: EmailArgs) -> Any:
-    return get_quotes_by_email(
-        email=arguments["email"],
-    )
+def tool_get_quote_by_id(quote_id: int) -> QuoteDetailResponse:
+    return get_quote_by_id(quote_id=quote_id)
 
 
-def tool_get_quote_by_id(arguments: QuoteIdArgs) -> Any:
-    return get_quote_by_id(
-        quote_id=arguments["quote_id"],
-    )
-
-
-def tool_get_out_of_stock_items(arguments: dict[str, object]) -> Any:
+def tool_get_out_of_stock_items() -> list[OutOfStockItem]:
     return get_out_of_stock_items()
 
 
-def tool_get_all_inventory(arguments: dict[str, object]) -> Any:
+def tool_get_all_inventory() -> list[InventoryItem]:
     return get_all_inventory()
 
 
-def tool_get_inventory_status(arguments: ProductNameArgs) -> Any:
-    return get_inventory_status_by_name(
-        name=arguments["name"],
-    )
+def tool_get_inventory_status(name: str) -> InventoryStatusResponse:
+    return get_inventory_status_by_name(name=name)

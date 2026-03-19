@@ -1,5 +1,6 @@
 import json
-from typing import TypedDict
+
+from typing_extensions import TypedDict
 
 from database_tools.database import get_connection
 
@@ -14,11 +15,34 @@ class BusinessAccount(TypedDict):
     authorized_emails: list[str]
 
 
+def get_business_domains(limit: int = 10) -> list[str]:
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT TOP (?) domain
+            FROM BusinessAccounts
+            WHERE domain IS NOT NULL
+            ORDER BY account_id
+            """,
+            (limit,),
+        )
+
+        rows = cursor.fetchall()
+        return [str(row.domain) for row in rows]
+    finally:
+        conn.close()
+
+
 def get_business_by_domain(domain: str) -> BusinessAccount | None:
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
+        normalized_domain = domain.strip().lower()
+
         cursor.execute(
             """
             SELECT account_id,
@@ -29,9 +53,9 @@ def get_business_by_domain(domain: str) -> BusinessAccount | None:
                    discount_percent,
                    authorized_emails
             FROM BusinessAccounts
-            WHERE domain = ?
+            WHERE LOWER(LTRIM(RTRIM(domain))) = ?
             """,
-            (domain,),
+            (normalized_domain,),
         )
 
         row = cursor.fetchone()

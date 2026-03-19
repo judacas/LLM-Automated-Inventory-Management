@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from datetime import date, timedelta
-from typing import TypedDict
 
-from mcp.database import get_connection
+from typing_extensions import TypedDict
+
+from database_tools.database import get_connection
 
 
 # Typed Contracts
@@ -93,7 +94,17 @@ class OutOfStockItem(TypedDict):
     quantity_in_stock: int
 
 
-# Qoute Agent - User methods
+class QuoteItemByNameInput(TypedDict):
+    name: str
+    quantity: int
+
+
+class ConfirmQuoteByNameRequest(TypedDict):
+    domain: str
+    items: list[QuoteItemByNameInput]
+
+
+# Quote Agent - User methods
 # Helper: Add Business Days
 def add_business_days(start: date, days: int) -> date:
     current = start
@@ -107,10 +118,61 @@ def add_business_days(start: date, days: int) -> date:
     return current
 
 
+def get_product_id_by_name(name: str) -> int:
+    normalized_name = name.strip().lower()
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT product_id
+            FROM Products
+            WHERE LOWER(LTRIM(RTRIM(name))) = ?
+            """,
+            (normalized_name,),
+        )
+
+        row = cursor.fetchone()
+        if row is None:
+            raise ValueError(f"Product '{name}' not found.")
+
+        return int(row.product_id)
+
+
+def confirm_quote_by_product_name(
+    request: ConfirmQuoteByNameRequest,
+) -> ConfirmQuoteResponse:
+    if not request["items"]:
+        raise ValueError("Quote must contain at least one item.")
+
+    resolved_items: list[QuoteItemInput] = []
+
+    for item in request["items"]:
+        if item["quantity"] <= 0:
+            raise ValueError("Quantity must be greater than zero.")
+
+        product_id = get_product_id_by_name(item["name"])
+
+        resolved_items.append(
+            {
+                "product_id": product_id,
+                "quantity": item["quantity"],
+            }
+        )
+
+    resolved_request: ConfirmQuoteRequest = {
+        "domain": request["domain"],
+        "items": resolved_items,
+    }
+
+    return confirm_quote(resolved_request)
+
+
 def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
     """
     Create a quote transactionally.
-    Does NOT reserve or deduct inventory.
+    Does not reserve or deduct inventory.
     Always accepts quote and provides fulfillment information.
     """
 
@@ -121,23 +183,21 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
         if item["quantity"] <= 0:
             raise ValueError("Quantity must be greater than zero.")
 
-    domain = request["domain"]
+    normalized_domain = request["domain"].strip().lower()
 
     with get_connection() as conn:
         conn.autocommit = False
         cursor = conn.cursor()
 
         try:
-            # -------------------------
             # Resolve account
-            # -------------------------
             cursor.execute(
                 """
                 SELECT account_id, discount_percent
                 FROM BusinessAccounts
-                WHERE domain = ?
+                WHERE LOWER(LTRIM(RTRIM(domain))) = ?
                 """,
-                (domain,),
+                (normalized_domain,),
             )
             account_row = cursor.fetchone()
 
@@ -147,9 +207,7 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
             account_id: int = account_row.account_id
             discount_flag: int = account_row.discount_percent
 
-            # -------------------------
             # Enforce 5 active quote limit
-            # -------------------------
             cursor.execute(
                 """
                 SELECT COUNT(*)
@@ -171,9 +229,7 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
             quote_items: list[tuple[int, int, float]] = []
             fulfillment_info: list[FulfillmentItem] = []
 
-            # -------------------------
-            # Retrieve product data (NO locking)
-            # -------------------------
+            # Retrieve product data (no locking)
             for item in request["items"]:
                 cursor.execute(
                     """
@@ -199,7 +255,6 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
                 subtotal += unit_price * quantity_requested
                 quote_items.append((row.product_id, quantity_requested, unit_price))
 
-                # Determine fulfillment status
                 if quantity_available >= quantity_requested:
                     status = "fully_available"
                 elif quantity_available > 0:
@@ -222,20 +277,14 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
                     }
                 )
 
-            # -------------------------
-            # Apply 5% discount
-            # -------------------------
             discount_amount = 0.0
             if discount_flag == 1:
                 discount_amount = round(subtotal * 0.05, 2)
 
             total_amount = round(subtotal - discount_amount, 2)
-
-            # -------------------------
-            # Insert Quote
-            # -------------------------
             valid_until = add_business_days(date.today(), 5)
 
+            # Insert Quote
             cursor.execute(
                 """
                 INSERT INTO Quotes (
@@ -255,11 +304,9 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
             if quote_row is None:
                 raise RuntimeError("Failed to retrieve inserted quote ID.")
 
-            quote_id = quote_row[0]
+            quote_id = int(quote_row[0])
 
-            # -------------------------
-            # Insert QuoteItems (NO inventory update)
-            # -------------------------
+            # Insert QuoteItems (no inventory update)
             for product_id, quantity, unit_price in quote_items:
                 cursor.execute(
                     """
@@ -274,7 +321,6 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
                     (quote_id, product_id, quantity, unit_price),
                 )
 
-            # Insert discount line if applicable
             if discount_amount > 0:
                 cursor.execute(
                     """
@@ -307,86 +353,41 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
 def expire_quotes() -> None:
     """
     Expires all active quotes past valid_until.
-    Restores inventory for expired quotes.
     Runs silently.
     """
-
-    # today = date.today()
 
     with get_connection() as conn:
         conn.autocommit = False
         cursor = conn.cursor()
 
-        # Find expired active quotes
-        cursor.execute(
-            """
-            SELECT quote_id
-            FROM Quotes
-            WHERE status = 'active'
-            AND valid_until < SYSDATETIME()
-            """
-        )
-
-        expired_rows = cursor.fetchall()
-
-        for row in expired_rows:
-            quote_id = row.quote_id
-
-            try:
-                # Get product line items only
-                cursor.execute(
-                    """
-                    SELECT product_id, quantity
-                    FROM QuoteItems
-                    WHERE quote_id = ?
-                    AND product_id IS NOT NULL
-                    """,
-                    (quote_id,),
-                )
-
-                items = cursor.fetchall()
-
-                # Restore inventory
-                for item in items:
-                    cursor.execute(
-                        """
-                        UPDATE Inventory
-                        SET quantity_in_stock = quantity_in_stock + ?,
-                            last_updated = SYSDATETIME()
-                        WHERE product_id = ?
-                        """,
-                        (item.quantity, item.product_id),
-                    )
-
-                # Update quote status
-                cursor.execute(
-                    """
-                    UPDATE Quotes
-                    SET status = 'expired'
-                    WHERE quote_id = ?
-                    """,
-                    (quote_id,),
-                )
-
-                conn.commit()
-
-            except Exception:
-                conn.rollback()
-                raise
+        try:
+            cursor.execute(
+                """
+                UPDATE Quotes
+                SET status = 'expired'
+                WHERE status = 'active'
+                AND valid_until < SYSDATETIME()
+                """
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
 
 def get_active_quotes_by_domain(domain: str) -> list[UserQuoteSummary]:
+    normalized_domain = domain.strip().lower()
+
     with get_connection() as conn:
         cursor = conn.cursor()
 
-        # Resolve account_id
         cursor.execute(
             """
             SELECT account_id
             FROM BusinessAccounts
-            WHERE domain = ?
+            WHERE LOWER(LTRIM(RTRIM(domain))) = ?
             """,
-            (domain,),
+            (normalized_domain,),
         )
 
         account_row = cursor.fetchone()
@@ -435,7 +436,7 @@ def get_dashboard_metrics() -> DashboardMetricsResponse:
         if row is None:
             raise RuntimeError("Failed to fetch dashboard metrics.")
 
-        outstanding_count = row[0]
+        outstanding_count = int(row[0])
         outstanding_total = float(row[1])
 
         cursor.execute(
@@ -449,7 +450,7 @@ def get_dashboard_metrics() -> DashboardMetricsResponse:
         if row2 is None:
             raise RuntimeError("Failed to fetch out-of-stock count.")
 
-        out_of_stock = row2[0]
+        out_of_stock = int(row2[0])
 
         return {
             "outstanding_quotes_count": outstanding_count,
@@ -467,59 +468,23 @@ def get_outstanding_quotes() -> list[QuoteSummary]:
             SELECT quote_id, account_id, status, created_at, valid_until, total_amount
             FROM Quotes
             WHERE status = 'active'
+            ORDER BY created_at DESC
             """
         )
 
         rows = cursor.fetchall()
-        results: list[QuoteSummary] = []
 
-        for row in rows:
-            results.append(
-                {
-                    "quote_id": row.quote_id,
-                    "account_id": row.account_id,
-                    "status": row.status,
-                    "created_at": str(row.created_at),
-                    "valid_until": str(row.valid_until),
-                    "total_amount": float(row.total_amount),
-                }
-            )
-
-        return results
-
-
-def get_quotes_by_email(email: str) -> list[QuoteSummary]:
-    with get_connection() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT q.quote_id, q.account_id, q.status,
-                   q.created_at, q.valid_until, q.total_amount
-            FROM Quotes q
-            INNER JOIN BusinessAccounts b
-                ON q.account_id = b.account_id
-            WHERE b.authorized_emails LIKE ?
-            """,
-            (f"%{email}%",),
-        )
-
-        rows = cursor.fetchall()
-        results: list[QuoteSummary] = []
-
-        for row in rows:
-            results.append(
-                {
-                    "quote_id": row.quote_id,
-                    "account_id": row.account_id,
-                    "status": row.status,
-                    "created_at": str(row.created_at),
-                    "valid_until": str(row.valid_until),
-                    "total_amount": float(row.total_amount),
-                }
-            )
-
-        return results
+        return [
+            {
+                "quote_id": row.quote_id,
+                "account_id": row.account_id,
+                "status": row.status,
+                "created_at": str(row.created_at),
+                "valid_until": str(row.valid_until),
+                "total_amount": float(row.total_amount),
+            }
+            for row in rows
+        ]
 
 
 def get_quote_by_id(quote_id: int) -> QuoteDetailResponse:
@@ -554,18 +519,17 @@ def get_quote_by_id(quote_id: int) -> QuoteDetailResponse:
         )
 
         items = cursor.fetchall()
-        line_items: list[QuoteLineItem] = []
 
-        for item in items:
-            line_items.append(
-                {
-                    "product_id": item.product_id,
-                    "name": item.name,
-                    "quantity": item.quantity,
-                    "price_at_time": float(item.price_at_time),
-                    "quantity_in_stock": item.quantity_in_stock,
-                }
-            )
+        line_items: list[QuoteLineItem] = [
+            {
+                "product_id": item.product_id,
+                "name": item.name,
+                "quantity": int(item.quantity),
+                "price_at_time": float(item.price_at_time),
+                "quantity_in_stock": item.quantity_in_stock,
+            }
+            for item in items
+        ]
 
         return {
             "quote_id": quote.quote_id,
@@ -589,6 +553,7 @@ def get_out_of_stock_items() -> list[OutOfStockItem]:
             INNER JOIN Products p
                 ON i.product_id = p.product_id
             WHERE i.quantity_in_stock = 0
+            ORDER BY p.name
             """
         )
 
@@ -598,7 +563,7 @@ def get_out_of_stock_items() -> list[OutOfStockItem]:
             {
                 "product_id": row.product_id,
                 "product_name": row.name,
-                "quantity_in_stock": row.quantity_in_stock,
+                "quantity_in_stock": int(row.quantity_in_stock),
             }
             for row in rows
         ]
@@ -614,6 +579,7 @@ def get_all_inventory() -> list[InventoryItem]:
             FROM Inventory i
             INNER JOIN Products p
                 ON i.product_id = p.product_id
+            ORDER BY p.name
             """
         )
 
@@ -623,13 +589,15 @@ def get_all_inventory() -> list[InventoryItem]:
             {
                 "product_id": row.product_id,
                 "name": row.name,
-                "quantity_in_stock": row.quantity_in_stock,
+                "quantity_in_stock": int(row.quantity_in_stock),
             }
             for row in rows
         ]
 
 
 def get_inventory_status_by_name(name: str) -> InventoryStatusResponse:
+    normalized_name = name.strip().lower()
+
     with get_connection() as conn:
         cursor = conn.cursor()
 
@@ -639,16 +607,16 @@ def get_inventory_status_by_name(name: str) -> InventoryStatusResponse:
             FROM Products p
             INNER JOIN Inventory i
                 ON p.product_id = i.product_id
-            WHERE LOWER(p.name) = LOWER(?)
+            WHERE LOWER(LTRIM(RTRIM(p.name))) = ?
             """,
-            (name,),
+            (normalized_name,),
         )
 
         row = cursor.fetchone()
         if row is None:
             raise ValueError("Product not found.")
 
-        quantity = row.quantity_in_stock
+        quantity = int(row.quantity_in_stock)
 
         if quantity > 0:
             status = "In Stock"
