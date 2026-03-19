@@ -1,4 +1,6 @@
 // server.js
+require('dotenv').config();
+
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
@@ -6,8 +8,10 @@ const path = require('path');
 const logger = require('./utils/logger');
 
 const app = express();
-const PORT = 3000;
-const JWT_SECRET = 'your_jwt_secret_here'; // in production, move to .env
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET;
+const MCP_BASE_URL = process.env.MCP_BASE_URL;
+const MCP_API_KEY = process.env.MCP_API_KEY;
 
 // Hard-coded admin credentials
 const ADMIN_USERNAME = 'admin';
@@ -53,7 +57,7 @@ app.post('/auth/login', (req, res) => {
   }
 });
 
-// Logout
+// Logout8
 app.post('/auth/logout', (req, res) => {
   res.clearCookie('token');
   logger.info('User logged out');
@@ -66,51 +70,243 @@ app.get('/dashboard.html', authenticateToken, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 
-// Protected dashboard data endpoint
-app.get('/admin/dashboard', authenticateToken, (req, res) => {
-  logger.info(`Dashboard data accessed by: ${req.user.username}`);
-  res.json({
-    message: `Welcome ${req.user.username}!`,
-    outstandingCount: 5,
-    outstandingTotal: '$1200',
-    unavailableItems: 2
-  });
+app.get('/admin/dashboard', authenticateToken, async (req, res) => {
+  try {
+    logger.info(`Dashboard data accessed by: ${req.user.username}`);
+
+    const mcpBase = process.env.MCP_BASE_URL;
+    const apiKey = process.env.MCP_API_KEY || '';
+
+    const metricsResp = await fetch(`${mcpBase}/quotes/admin/dashboard`, {
+      headers: apiKey ? { 'x-api-key': apiKey } : {}
+    });
+
+    if (!metricsResp.ok) {
+      const txt = await metricsResp.text();
+      return res.status(502).json({ error: `MCP dashboard failed: ${metricsResp.status} ${txt}` });
+    }
+
+    const metrics = await metricsResp.json();
+
+    const outResp = await fetch(`${mcpBase}/quotes/admin/out-of-stock`, {
+      headers: apiKey ? { 'x-api-key': apiKey } : {}
+    });
+
+    if (!outResp.ok) {
+      const txt = await outResp.text();
+      return res.status(502).json({ error: `MCP out-of-stock failed: ${outResp.status} ${txt}` });
+    }
+
+    const out = await outResp.json();
+    const unavailableItems = Array.isArray(out) ? out.length : 0;
+
+    return res.json({
+      message: `Welcome ${req.user.username}!`,
+      outstandingCount: metrics.outstanding_quotes_count ?? 0,
+      outstandingTotal: `$${Number(metrics.outstanding_total_amount ?? 0).toFixed(2)}`,
+      unavailableItems
+    });
+  } catch (err) {
+    logger.error(`Dashboard fetch error: ${err?.message || err}`);
+    return res.status(500).json({
+      message: `Welcome ${req.user.username}!`,
+      outstandingCount: 0,
+      outstandingTotal: '$0.00',
+      unavailableItems: 0
+    });
+  }
 });
 
-// ===== Admin Chat Loop (Demo / Sponsor-ready) =====
 app.post('/admin/chat', authenticateToken, async (req, res) => {
   const { message } = req.body;
   logger.info(`Admin chat from ${req.user.username}: ${message}`);
 
   const lower = (message || '').toLowerCase();
+  const mcpBase = process.env.MCP_BASE_URL;
+  const toolApiBase = process.env.TOOL_API_BASE_URL;
+  const mcpApiKey = process.env.MCP_API_KEY || '';
+  const toolApiKey = process.env.TOOL_API_KEY || process.env.MCP_API_KEY || '';
 
-  // Demo: simulate Foundry agent classification JSON
-  let out = { request_type: 'unknown', results: [] };
+  try {
+    // Help / capability prompt
+    if (
+      lower.includes('help') ||
+      lower.includes('what can you do') ||
+      lower.includes('commands')
+    ) {
+      return res.json({
+        request_type: 'help',
+        results: [
+          { command: 'show outstanding quotes' },
+          { command: 'show out of stock items' },
+          { command: 'show dashboard metrics' },
+          { command: 'show inventory' },
+          { command: 'check inventory for SKU-1' },
+          { command: 'show quote 1' }
+        ]
+      });
+    }
 
-  if (lower.includes('help') || lower.includes('what can you do')) {
-    out.request_type = 'help';
-  } else if (lower.includes('unavailable') || lower.includes('out of stock')) {
-    out.request_type = 'unavailable_items';
-  } else if (lower.includes('quote') || lower.includes('outstanding')) {
-    out.request_type = 'outstanding_quotes';
+    // Specific quote detail: "show quote 12"
+    const quoteMatch = lower.match(/\bquote\s+(\d+)\b/);
+    if (quoteMatch) {
+      const quoteId = Number(quoteMatch[1]);
+
+      const resp = await fetch(`${mcpBase}/quotes/admin/${quoteId}`, {
+        headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        return res.status(502).json({
+          request_type: 'quote_detail',
+          error: `Quote detail failed: ${resp.status} ${txt}`,
+          results: []
+        });
+      }
+
+      const data = await resp.json();
+      return res.json({
+        request_type: 'quote_detail',
+        results: [data]
+      });
+    }
+
+    // Dashboard / summary
+    if (
+      lower.includes('dashboard') ||
+      lower.includes('summary') ||
+      lower.includes('metrics') ||
+      lower.includes('overview')
+    ) {
+      const resp = await fetch(`${mcpBase}/quotes/admin/dashboard`, {
+        headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        return res.status(502).json({
+          request_type: 'dashboard_metrics',
+          error: `Dashboard metrics failed: ${resp.status} ${txt}`,
+          results: []
+        });
+      }
+
+      const data = await resp.json();
+      return res.json({
+        request_type: 'dashboard_metrics',
+        results: [data]
+      });
+    }
+
+    // Outstanding quotes
+    if (lower.includes('quote') || lower.includes('outstanding')) {
+      const resp = await fetch(`${mcpBase}/quotes/admin/outstanding`, {
+        headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        return res.status(502).json({
+          request_type: 'outstanding_quotes',
+          error: `Outstanding quotes failed: ${resp.status} ${txt}`,
+          results: []
+        });
+      }
+
+      const data = await resp.json();
+      return res.json({
+        request_type: 'outstanding_quotes',
+        results: data
+      });
+    }
+
+    // Out of stock
+    if (
+      lower.includes('out of stock') ||
+      lower.includes('unavailable') ||
+      lower.includes('oos')
+    ) {
+      const resp = await fetch(`${mcpBase}/quotes/admin/out-of-stock`, {
+        headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        return res.status(502).json({
+          request_type: 'out_of_stock',
+          error: `Out-of-stock failed: ${resp.status} ${txt}`,
+          results: []
+        });
+      }
+
+      const data = await resp.json();
+      return res.json({
+        request_type: 'out_of_stock',
+        results: data
+      });
+    }
+
+    // Full inventory list
+    if (lower.includes('inventory')) {
+      const resp = await fetch(`${mcpBase}/quotes/admin/inventory`, {
+        headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        return res.status(502).json({
+          request_type: 'inventory_list',
+          error: `Inventory list failed: ${resp.status} ${txt}`,
+          results: []
+        });
+      }
+
+      const data = await resp.json();
+      return res.json({
+        request_type: 'inventory_list',
+        results: data
+      });
+    }
+
+    // Inventory by SKU from tool API, e.g. "check inventory for SKU-1"
+    const skuMatch = message?.match(/\bSKU[-\s]?\d+\b/i);
+    if (skuMatch) {
+      const sku = skuMatch[0].replace(/\s+/g, '-').toUpperCase();
+
+      const resp = await fetch(`${toolApiBase}/inventory/get_item/${encodeURIComponent(sku)}`, {
+        headers: toolApiKey ? { 'x-api-key': toolApiKey } : {}
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        return res.status(502).json({
+          request_type: 'inventory_item',
+          error: `Inventory item failed: ${resp.status} ${txt}`,
+          results: []
+        });
+      }
+
+      const data = await resp.json();
+      return res.json({
+        request_type: 'inventory_item',
+        results: [data]
+      });
+    }
+
+    return res.json({
+      request_type: 'unknown',
+      results: [],
+      message: 'Try asking about dashboard metrics, outstanding quotes, out-of-stock items, inventory, or a specific quote ID.'
+    });
+  } catch (err) {
+    logger.error(`Admin chat error: ${err?.message || err}`);
+    return res.status(500).json({
+      request_type: 'error',
+      results: [],
+      error: 'Failed to process admin chat request.'
+    });
   }
-
-  // Demo: backend "intercepts" request_type and fills mock results
-  // (Later replace these with DB MCP queries)
-  if (out.request_type === 'outstanding_quotes') {
-    out.results = [
-      { quote_id: 'Q-1002', total: 418.50 },
-      { quote_id: 'Q-1011', total: 92.00 }
-    ];
-  } else if (out.request_type === 'unavailable_items') {
-    out.results = [
-      { sku: 'SKU-009', requested_qty: 4, available_qty: 0 }
-    ];
-  } else if (out.request_type === 'help') {
-    out.results = [];
-  }
-
-  return res.json(out);
 });
 
 // Catch-all for frontend routing

@@ -16,15 +16,15 @@ def get_connection() -> pyodbc.Connection:
     if not all([server, database, username, password]):
         raise ValueError("One or more Azure SQL environment variables are missing.")
 
-    connection_string = f"""
-    DRIVER={{ODBC Driver 17 for SQL Server}};
-    SERVER={server};
-    DATABASE={database};
-    UID={username};
-    PWD={password};
-    Encrypt=yes;
-    TrustServerCertificate=no;
-    Connection Timeout=30;
-    """
+    connection_string = (
+        "DRIVER={ODBC Driver 18 for SQL Server};"
+        f"SERVER=tcp:{server},1433;"
+        f"DATABASE={database};"
+        f"UID={username};"
+        f"PWD={password};"
+        "Encrypt=yes;"
+        "TrustServerCertificate=no;"
+        "Connection Timeout=30;"
+    )
 
     return pyodbc.connect(connection_string)
