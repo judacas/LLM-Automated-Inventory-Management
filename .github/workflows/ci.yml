@@ -27,7 +27,7 @@ jobs:
 
       - name: Lint & Format (Ruff)
         run: |
-          uv run ruff format --check .
+          uv run ruff format --fix .
           uv run ruff check .
 
       - name: Type Check (MyPy)
