@@ -51,6 +51,7 @@ ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests
 
 [tool.deptry]
 root = "src"
+extend_exclude = [".*/tests/"]
 known_first_party = [
   "inventory_service",
   "admin_orchestrator_agent",
@@ -59,7 +60,7 @@ known_first_party = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["src/a2a_servers/tests"]
 pythonpath = ["src"]
 python_files = "test_*.py"
 python_classes = "Test*"

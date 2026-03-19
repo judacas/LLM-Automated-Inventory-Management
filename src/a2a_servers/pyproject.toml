@@ -27,3 +27,14 @@ dev = [
   "pytest-asyncio>=1.3.0",
   "mypy>=1.19.1",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".."]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = [
+  "--strict-markers",
+  "--strict-config",
+]
