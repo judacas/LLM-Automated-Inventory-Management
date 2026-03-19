@@ -24,9 +24,10 @@ uv sync
 export TOOL_API_KEY="dev-key"
 PYTHONPATH=src uv run uvicorn tool_api.app:app --reload
 ```
+
 **API Key is found in the Azure Portal under:** contoso-inventory-api-13847 → Settings (left bar) → Environment Variables
 
 ## Endpoints
+
 See:
 `docs/contracts/marwans_tool_contracts_v1.md`
-
