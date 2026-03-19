@@ -15,7 +15,6 @@ from a2a_servers.agent_definition import (
     load_agent_definitions,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -123,7 +122,6 @@ def test_load_valid_definition(tmp_path: Path) -> None:
 
 
 def test_load_explicit_slug_overrides_filename(tmp_path: Path) -> None:
-    toml = _VALID_TOML + '\n[a2a]\nslug = "custom-slug"\n'
     # Re-write a fresh file; the explicit slug key overrides the filename
     content = textwrap.dedent("""\
         [a2a]
@@ -218,16 +216,22 @@ def test_missing_skills_section_raises(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("missing_key", ["name", "description", "version", "health_message"])
+@pytest.mark.parametrize(
+    "missing_key", ["name", "description", "version", "health_message"]
+)
 def test_missing_required_a2a_key_raises(tmp_path: Path, missing_key: str) -> None:
-    lines = [line for line in _VALID_TOML.splitlines() if not line.startswith(missing_key + " =")]
+    lines = [
+        line
+        for line in _VALID_TOML.splitlines()
+        if not line.startswith(missing_key + " =")
+    ]
     p = _write_toml(tmp_path, "math_agent.toml", "\n".join(lines))
     with pytest.raises(ValueError):
         load_agent_definition(p)
 
 
 def test_missing_foundry_agent_name_raises(tmp_path: Path) -> None:
-    content = _VALID_TOML.replace("agent_name = \"math-foundry-agent\"\n", "")
+    content = _VALID_TOML.replace('agent_name = "math-foundry-agent"\n', "")
     p = _write_toml(tmp_path, "math_agent.toml", content)
     with pytest.raises(ValueError, match="foundry.agent_name"):
         load_agent_definition(p)
