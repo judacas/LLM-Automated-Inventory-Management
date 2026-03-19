@@ -37,7 +37,6 @@ class StreamingConversationBackend(Protocol):
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
 
 
 class FoundryAgentExecutor(AgentExecutor):
@@ -87,7 +86,6 @@ class FoundryAgentExecutor(AgentExecutor):
         try:
             user_message = self._convert_parts_to_text(message_parts)
             logger.info("💬 User message: %s", user_message)
-            agent = await self._get_or_create_agent()
             conversation_id = await self._get_or_create_conversation(context_id)
 
             # Let the user know we're working
@@ -99,17 +97,19 @@ class FoundryAgentExecutor(AgentExecutor):
             )
 
             # Stream the response back, sending deltas as working updates
-            full_text = ""
+            full_text_parts = []
+            agent = await self._get_or_create_agent()
             async for delta in agent.run_conversation_streaming(
                 conversation_id, user_message
             ):
-                full_text += delta
+                full_text_parts.append(delta)
                 await task_updater.update_status(
                     TaskState.working,
                     message=new_agent_text_message(delta, context_id=context_id),
                 )
 
             # Complete the task with the full response
+            full_text = "".join(full_text_parts)
             final_message = full_text or "Task completed."
             logger.info("🤖 Agent response:\n%s", final_message)
             await task_updater.complete(

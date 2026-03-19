@@ -273,20 +273,19 @@ async def smoke_test_agent(
 
                 stream_response = client.send_message_streaming(streaming_request)
                 chunk_count = 0
-                full_streamed_text = ""
+                full_streamed_text_parts = []
                 async for chunk in stream_response:
                     chunk_count += 1
                     result_obj: Any = getattr(chunk, "root", chunk)
                     result: Any = getattr(result_obj, "result", result_obj)
                     chunk_text = _extract_chunk_text(result)
                     if chunk_text:
-                        full_streamed_text = chunk_text
+                        full_streamed_text_parts.append(chunk_text)
 
                 logger.info(f"✅ Streaming completed ({chunk_count} chunks total)")
+                full_streamed_text = "".join(full_streamed_text_parts)
                 if full_streamed_text:
                     logger.info(f"🤖 Streamed response:\n{full_streamed_text}")
-                if full_streamed_text:
-                    logger.info(f"🤖 Streamed answer: {full_streamed_text}")
 
             except Exception as e:
                 logger.error(f"❌ Error testing message '{test_message[:30]}...': {e}")

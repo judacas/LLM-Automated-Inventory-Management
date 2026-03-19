@@ -67,7 +67,8 @@ class FoundryAgentBackend:
 
     async def create_conversation(self) -> str:
         """Create a new conversation and return its id."""
-        assert self._openai_client is not None  # noqa: S101
+        if self._openai_client is None:
+            raise RuntimeError("Backend not initialized")
         conversation = await self._openai_client.conversations.create()
         if not conversation.id:
             raise ValueError("Failed to create conversation: no ID returned")
@@ -81,7 +82,8 @@ class FoundryAgentBackend:
 
     async def run_conversation(self, conversation_id: str, user_message: str) -> str:
         """Send *user_message* and return the agent's text reply."""
-        assert self._openai_client is not None  # noqa: S101
+        if self._openai_client is None:
+            raise RuntimeError("Backend not initialized")
 
         # Add the user message to the conversation
         await self._openai_client.conversations.items.create(
@@ -119,7 +121,8 @@ class FoundryAgentBackend:
         self, conversation_id: str, user_message: str
     ) -> AsyncIterator[str]:
         """Send *user_message* and yield text deltas as they arrive."""
-        assert self._openai_client is not None  # noqa: S101
+        if self._openai_client is None:
+            raise RuntimeError("Backend not initialized")
 
         # Add the user message to the conversation
         await self._openai_client.conversations.items.create(
@@ -195,7 +198,7 @@ class FoundryAgentBackend:
                 await self.credential.close()
             except Exception:
                 logger.exception("Error closing credential")
-        self.credential = DefaultAzureCredential()
+            self.credential = None
         logger.info("FoundryAgentBackend cleaned up")
 
 
