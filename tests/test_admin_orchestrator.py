@@ -15,6 +15,13 @@ def test_quote_intent() -> None:
     assert "Quote Agent" in resp
 
 
+def test_system_summary_includes_quote_stub_summary() -> None:
+    svc = AdminOrchestratorService()
+    resp = svc.handle_message("system summary")
+    assert "System summary" in resp
+    assert "Quote summary" in resp
+
+
 def test_unknown_intent() -> None:
     svc = AdminOrchestratorService()
     resp = svc.handle_message("Tell me something random")

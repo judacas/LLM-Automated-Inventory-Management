@@ -34,6 +34,11 @@ Under the hood, the orchestrator routes admin requests to deterministic tool cal
   - Otherwise use comma-separated origins.
   - Default (if unset): `http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000`
 
+- `QUOTE_AGENT_MODE`
+  - Default: `null`
+  - Current behavior: returns stub responses for quote-related admin questions.
+  - Future behavior: we will add an `a2a` mode once your team standardizes how the quote agent is invoked.
+
 ## Local run (PowerShell)
 
 From repo root:

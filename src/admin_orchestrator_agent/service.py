@@ -15,6 +15,7 @@ from admin_orchestrator_agent.inventory_mcp_client import (
     InventoryMcpClient,
     try_extract_product_id,
 )
+from admin_orchestrator_agent.quote_agent_client import build_quote_agent_client
 
 
 class AdminOrchestratorService:
@@ -31,6 +32,7 @@ class AdminOrchestratorService:
         """Create classifier + MCP client dependencies."""
         self.classifier = AdminIntentClassifier()
         self.inventory_client = InventoryMcpClient()
+        self.quote_client = build_quote_agent_client()
 
     def handle_message(self, message: str) -> str:
         """Handle one admin message and return a response string."""
@@ -57,7 +59,7 @@ class AdminOrchestratorService:
             )
 
         if intent == AdminIntent.CHECK_QUOTES:
-            return "Delegating to Quote Agent (not implemented in my module)."
+            return self.quote_client.handle_admin_query(message)
 
         if intent == AdminIntent.SYSTEM_SUMMARY:
             inv = self.inventory_client.call_tool_sync(
@@ -71,7 +73,8 @@ class AdminOrchestratorService:
             return (
                 "System summary (inventory): "
                 f"{inv.get('in_stock_products')} in-stock / {inv.get('out_of_stock_products')} out-of-stock; "
-                f"{unavailable_count} unavailable requested items on pending quotes."
+                f"{unavailable_count} unavailable requested items on pending quotes. "
+                + self.quote_client.admin_summary()
             )
 
         return "I’m not sure what you mean. Can you clarify what you want to check?"
