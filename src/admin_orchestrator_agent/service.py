@@ -22,8 +22,9 @@ class AdminOrchestratorService:
     Routes admin requests to the correct underlying tool/agent.
 
     Today:
-    - inventory path uses InventoryService (mock repo)
-    - quote path is a stub (your teammate will own it)
+        - inventory path calls Inventory MCP tools (HTTP) via `InventoryMcpClient`
+            (with an optional in-process fallback for local dev/tests)
+        - quote path is a stub (to be implemented via A2A with the quote agent)
     """
 
     def __init__(self) -> None:
