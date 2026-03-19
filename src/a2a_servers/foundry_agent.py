@@ -28,7 +28,7 @@ class FoundryAgentBackend:
     def __init__(self, *, endpoint: str, agent_name: str) -> None:
         self.endpoint = endpoint
         self.agent_name = agent_name
-        self.credential = DefaultAzureCredential()
+        self.credential: DefaultAzureCredential | None = DefaultAzureCredential()
 
         # Clients – initialised lazily in ``initialize``
         self._project_client: AIProjectClient | None = None
@@ -45,6 +45,9 @@ class FoundryAgentBackend:
         """Open SDK clients and verify the agent exists."""
         if self._project_client is not None:
             return
+
+        if self.credential is None:
+            self.credential = DefaultAzureCredential()
 
         self._project_client = AIProjectClient(
             endpoint=self.endpoint,
