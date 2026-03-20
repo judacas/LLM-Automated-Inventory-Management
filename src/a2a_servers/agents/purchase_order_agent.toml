@@ -5,10 +5,10 @@ version = "1.0.0"
 health_message = "AI Foundry Purchase Order Agent is running!"
 default_input_modes = ["text"]
 default_output_modes = ["text"]
-streaming = true
+streaming = false
 
 [foundry]
-agent_name = "purchase-order-agent"
+agent_name = "userPurchaseOrder"
 
 [smoke_tests]
 prompts = [

@@ -5,7 +5,7 @@ version = "2.0.0"
 health_message = "AI Foundry Math Agent is running!"
 default_input_modes = ["text"]
 default_output_modes = ["text"]
-streaming = true
+streaming = false
 
 [foundry]
 agent_name = "Math-Agent"
