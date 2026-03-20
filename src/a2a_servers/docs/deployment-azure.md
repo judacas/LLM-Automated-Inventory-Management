@@ -111,7 +111,7 @@ If you use Container Apps or a custom App Service container, build an image that
 - sets the working directory to `src/a2a_servers`
 - launches `python __main__.py` on the configured port
 
-The repository's root [Dockerfile](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/Dockerfile) is for `tool_api`, not for `a2a_servers`. Do not reuse it unchanged for this package.
+The repository's root [Dockerfile](../../../Dockerfile) is for `tool_api`, not for `a2a_servers`. Do not reuse it unchanged for this package.
 
 ## Suggested App Service Deployment Procedure
 

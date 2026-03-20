@@ -148,8 +148,8 @@ uv run pytest src/a2a_servers/tests/test_agent_definition.py
 
 ## Files Worth Reading First
 
-- [README.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/README.md)
-- [docs/architecture.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/architecture.md)
-- [agent_definition.py](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/agent_definition.py)
-- [app_factory.py](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/app_factory.py)
-- [foundry_agent_executor.py](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/foundry_agent_executor.py)
+- [README.md](../README.md)
+- [docs/architecture.md](./architecture.md)
+- [agent_definition.py](../agent_definition.py)
+- [app_factory.py](../app_factory.py)
+- [foundry_agent_executor.py](../foundry_agent_executor.py)

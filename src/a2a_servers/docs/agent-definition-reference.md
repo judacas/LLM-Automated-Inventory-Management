@@ -24,7 +24,7 @@ Optional:
 
 ## Example Skeleton
 
-See the checked-in template at [agents/agent.template.toml](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/agents/agent.template.toml).
+See the checked-in template at [agents/agent.template.toml](../agents/agent.template.toml).
 To keep a sample in the repo without auto-loading it, use a filename like `agents/<name>_agent.sample.toml`.
 
 ## `[a2a]` Section
@@ -83,7 +83,7 @@ Optional key:
 
 If present, `prompts` must be a list of non-empty strings.
 
-These prompts are used by [test_client.py](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/test_client.py) to exercise the mounted agent.
+These prompts are used by [test_client.py](../test_client.py) to exercise the mounted agent.
 
 If omitted, the client falls back to a generic prompt.
 

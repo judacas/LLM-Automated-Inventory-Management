@@ -180,7 +180,7 @@ These values affect one mounted agent.
 
 ## Relationship to the Broader Project
 
-Per the root [projectOverview.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/projectOverview.md), the overall system is meant to support inventory, quoting, onboarding, purchasing, and an admin conversational surface.
+Per the root [projectOverview.md](../../../projectOverview.md), the overall system is meant to support inventory, quoting, onboarding, purchasing, and an admin conversational surface.
 
 In this branch, `src/a2a_servers` is best understood as enabling infrastructure for that system:
 

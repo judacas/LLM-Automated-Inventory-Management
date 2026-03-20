@@ -4,7 +4,7 @@ This package hosts the project's Agent-to-Agent gateway layer. It runs a single 
 
 This project uses a flat runtime layout: the server modules live directly under `src/a2a_servers`, and the app is started from that directory as a script rather than as an installed Python package.
 
-In this branch, `src/a2a_servers` is primarily infrastructure for exposing Foundry agents over A2A. It is not the full business workflow by itself. The broader project goals still come from [projectOverview.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/projectOverview.md), but this subrepo's responsibility is narrower:
+In this branch, `src/a2a_servers` is primarily infrastructure for exposing Foundry agents over A2A. It is not the full business workflow by itself. The broader project goals still come from [projectOverview.md](../../projectOverview.md), but this subrepo's responsibility is narrower:
 
 - publish A2A agent cards and endpoints
 - map each mounted A2A agent to a Foundry agent
@@ -13,15 +13,15 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 
 ## Start Here
 
-- Architecture: [docs/architecture.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/architecture.md)
-- Run locally and smoke test: [docs/runbook.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/runbook.md)
-- Deploy to Azure: [docs/deployment-azure.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/deployment-azure.md)
-- Azure AI Foundry integration: [docs/foundry-integration.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/foundry-integration.md)
-- Developer setup: [docs/developer-setup.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/developer-setup.md)
-- Agent definition contract: [docs/agent-definition-reference.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/agent-definition-reference.md)
-- Troubleshooting and known gaps: [docs/troubleshooting.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/troubleshooting.md)
+- Architecture: [docs/architecture.md](docs/architecture.md)
+- Run locally and smoke test: [docs/runbook.md](docs/runbook.md)
+- Deploy to Azure: [docs/deployment-azure.md](docs/deployment-azure.md)
+- Azure AI Foundry integration: [docs/foundry-integration.md](docs/foundry-integration.md)
+- Developer setup: [docs/developer-setup.md](docs/developer-setup.md)
+- Agent definition contract: [docs/agent-definition-reference.md](docs/agent-definition-reference.md)
+- Troubleshooting and known gaps: [docs/troubleshooting.md](docs/troubleshooting.md)
 
-- All together: [/docs](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs)
+- All together: [/docs](../../docs)
 
 ## Current State
 
