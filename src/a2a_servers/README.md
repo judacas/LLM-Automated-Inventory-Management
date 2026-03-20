@@ -21,7 +21,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - Agent definition contract: [docs/agent-definition-reference.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/agent-definition-reference.md)
 - Troubleshooting and known gaps: [docs/troubleshooting.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs/troubleshooting.md)
 
-- All together: [/docs](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/docs)
+- All together: [/docs](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/docs)
 
 ## Current State
 
