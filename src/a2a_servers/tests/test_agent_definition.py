@@ -6,8 +6,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
-
-from a2a_servers.agent_definition import (
+from agent_definition import (
     AgentDefinition,
     _derive_agent_slug,
     _normalize_agent_slug,

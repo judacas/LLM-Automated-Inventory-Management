@@ -15,10 +15,9 @@ from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
     EXTENDED_AGENT_CARD_PATH,
 )
+from agent_definition import AgentDefinition, load_agent_definitions
 from dotenv import load_dotenv
-
-from a2a_servers.agent_definition import AgentDefinition, load_agent_definitions
-from a2a_servers.settings import ServerSettings, load_server_settings
+from settings import ServerSettings, load_server_settings
 
 
 async def check_agent_health(
@@ -219,7 +218,7 @@ async def smoke_test_agent(
         except Exception as e:
             logger.error(f"❌ Critical error fetching public agent card: {e}")
             logger.info("💡 Make sure the A2A server is running:")
-            logger.info("   uv run .")
+            logger.info("   uv run python __main__.py")
             raise RuntimeError(
                 "Failed to fetch the public agent card. Cannot continue."
             ) from e

@@ -74,20 +74,32 @@ If managed identity is not configured, the app may work locally but fail in Azur
 
 ## Packaging And Startup
 
-### Option A: App Service from source
+### Option A: App Service from a flat `src/a2a_servers` zip
 
-Use a startup command that runs the package from `src/a2a_servers`.
+Zip the contents of `src/a2a_servers` so the artifact root contains files like:
 
-Example startup command:
+- `__main__.py`
+- `agent_definition.py`
+- `app_factory.py`
+- `agents/`
+- `pyproject.toml`
+
+Use a script-based startup command:
 
 ```bash
-uv run . --host 0.0.0.0 --port 8000 --url-mode forwarded --forwarded-base-url https://<your-app-hostname>
+python3 __main__.py
+```
+
+You may add runtime flags if needed:
+
+```bash
+python __main__.py --host 0.0.0.0 --port 8000 --url-mode forwarded --forwarded-base-url https://<your-app-hostname>
 ```
 
 You must ensure:
 
 - dependencies are installed for `src/a2a_servers/pyproject.toml`
-- the working directory is `src/a2a_servers`
+- the working directory is the deployed flat app root
 - the `agents/` folder is included in the deployment artifact
 
 ### Option B: Container deployment
@@ -95,9 +107,9 @@ You must ensure:
 If you use Container Apps or a custom App Service container, build an image that:
 
 - installs the package dependencies from `src/a2a_servers/pyproject.toml`
-- copies the `src/` tree
+- copies the `src/a2a_servers` app directory
 - sets the working directory to `src/a2a_servers`
-- launches the server on the configured port
+- launches `python __main__.py` on the configured port
 
 The repository's root [Dockerfile](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/Dockerfile) is for `tool_api`, not for `a2a_servers`. Do not reuse it unchanged for this package.
 
@@ -125,10 +137,10 @@ Recommended baseline choices:
 
 Deploy the repository or a deployment artifact that includes:
 
-- `src/a2a_servers`
-- `src/inventory_service` and any other imported shared packages
+- the flat `src/a2a_servers` app contents
+- the `agents/` folder
 
-This matters because the test and supporting modules import from sibling packages under `src/`.
+This app does not need the full repository when deployed in this flat layout.
 
 ### 4. Configure startup
 
@@ -179,7 +191,7 @@ If you choose Container Apps:
 - every TOML `foundry.agent_name` exists in that project
 - Azure host identity can call Foundry
 - `agents/` folder deployed with the app
-- startup command points to `src/a2a_servers`
+- startup command uses `python __main__.py`
 - `A2A_FORWARDED_BASE_URL` matches the real public hostname
 - root index and agent cards are reachable after deploy
 

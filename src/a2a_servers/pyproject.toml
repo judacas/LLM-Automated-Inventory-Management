@@ -28,6 +28,16 @@ dev = [
   "mypy>=1.19.1",
 ]
 
+[tool.deptry]
+known_first_party = [
+  "a2a_servers",
+  "agent_definition",
+  "app_factory",
+  "foundry_agent",
+  "foundry_agent_executor",
+  "settings",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".."]

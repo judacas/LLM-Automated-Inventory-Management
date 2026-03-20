@@ -2,11 +2,10 @@ import logging
 
 import click
 import uvicorn
+from agent_definition import load_agent_definitions
+from app_factory import MountedAgent, create_app
 from dotenv import load_dotenv
-
-from a2a_servers.agent_definition import load_agent_definitions
-from a2a_servers.app_factory import MountedAgent, create_app
-from a2a_servers.settings import ServerSettings, load_server_settings
+from settings import ServerSettings, load_server_settings
 
 load_dotenv()
 

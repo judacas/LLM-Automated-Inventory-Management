@@ -2,6 +2,8 @@
 
 This package hosts the project's Agent-to-Agent gateway layer. It runs a single ASGI process that discovers agent definitions from TOML files, mounts each one under its own A2A route, and forwards requests to named Azure AI Foundry agents.
 
+This project uses a flat runtime layout: the server modules live directly under `src/a2a_servers`, and the app is started from that directory as a script rather than as an installed Python package.
+
 In this branch, `src/a2a_servers` is primarily infrastructure for exposing Foundry agents over A2A. It is not the full business workflow by itself. The broader project goals still come from [projectOverview.md](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/projectOverview.md), but this subrepo's responsibility is narrower:
 
 - publish A2A agent cards and endpoints

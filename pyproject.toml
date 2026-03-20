@@ -49,6 +49,8 @@ target-version = "py311"
 select = ["E", "F", "I", "S", "B"]
 ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests) and line length
 
+
+# TODO: change to a package importing version to avoid this adhoc dependency management
 [tool.deptry]
 root = "src"
 extend_exclude = [".*/tests/"]
@@ -57,6 +59,11 @@ known_first_party = [
   "admin_orchestrator_agent",
   "tool_api",
   "a2a_servers",
+  "agent_definition",
+  "app_factory",
+  "foundry_agent",
+  "foundry_agent_executor",
+  "settings",
 ]
 
 [tool.pytest.ini_options]

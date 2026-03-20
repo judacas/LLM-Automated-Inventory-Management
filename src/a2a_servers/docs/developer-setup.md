@@ -75,14 +75,14 @@ uv run pytest tests
 From `src/a2a_servers`:
 
 ```bash
-uv run .
+uv run python __main__.py
 ```
 
 Useful variants:
 
 ```bash
-uv run . --agent-config-dir custom_agents
-uv run . --url-mode forwarded --forwarded-base-url https://example.com
+uv run python __main__.py --agent-config-dir custom_agents
+uv run python __main__.py --url-mode forwarded --forwarded-base-url https://example.com
 ```
 
 ## Running Smoke Tests
@@ -90,8 +90,8 @@ uv run . --url-mode forwarded --forwarded-base-url https://example.com
 From `src/a2a_servers`:
 
 ```bash
-uv run test_client.py
-uv run test_client.py --agent-slug quote
+uv run python test_client.py
+uv run python test_client.py --agent-slug quote
 ```
 
 ## Adding A New Agent

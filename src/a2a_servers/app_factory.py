@@ -9,18 +9,17 @@ from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
 from a2a.types import AgentCapabilities, AgentCard
+from agent_definition import AgentDefinition
+from foundry_agent import create_foundry_agent_backend
+from foundry_agent_executor import (
+    FoundryAgentExecutor,
+    create_foundry_agent_executor,
+)
+from settings import ServerSettings
 from starlette.applications import Starlette
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse
 from starlette.routing import Mount, Route
-
-from a2a_servers.agent_definition import AgentDefinition
-from a2a_servers.foundry_agent import create_foundry_agent_backend
-from a2a_servers.foundry_agent_executor import (
-    FoundryAgentExecutor,
-    create_foundry_agent_executor,
-)
-from a2a_servers.settings import ServerSettings
 
 
 @dataclass(frozen=True)

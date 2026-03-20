@@ -61,15 +61,15 @@ If the name in TOML does not exist in the configured Foundry project, startup or
 From `src/a2a_servers`:
 
 ```bash
-uv run .
+uv run python __main__.py
 ```
 
 Optional overrides:
 
 ```bash
-uv run . --host 0.0.0.0 --port 10007
-uv run . --agent-config-dir custom_agents
-uv run . --url-mode forwarded --forwarded-base-url https://example.com
+uv run python __main__.py --host 0.0.0.0 --port 10007
+uv run python __main__.py --agent-config-dir custom_agents
+uv run python __main__.py --url-mode forwarded --forwarded-base-url https://example.com
 ```
 
 ## What Healthy Startup Looks Like
@@ -92,14 +92,14 @@ Important endpoints to check:
 From `src/a2a_servers` in a second terminal:
 
 ```bash
-uv run test_client.py
+uv run python test_client.py
 ```
 
 To target a single mounted agent:
 
 ```bash
-uv run test_client.py --agent-slug quote
-uv run test_client.py --agent-slug math
+uv run python test_client.py --agent-slug quote
+uv run python test_client.py --agent-slug math
 ```
 
 The test client will:
@@ -152,7 +152,7 @@ Finally restart the A2A server so the published agent cards use the forwarded UR
 You can point the runtime at a different folder of TOML definitions:
 
 ```bash
-uv run . --agent-config-dir /absolute/path/to/agent-configs
+uv run python __main__.py --agent-config-dir /absolute/path/to/agent-configs
 ```
 
 This is useful when:
