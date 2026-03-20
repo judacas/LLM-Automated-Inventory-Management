@@ -4,7 +4,10 @@ import click
 import uvicorn
 from dotenv import load_dotenv
 
-from a2a_servers.agent_definition import load_agent_definitions
+from a2a_servers.agent_definition import (
+    load_agent_definitions,
+    resolve_agent_config_dir,
+)
 from a2a_servers.app_factory import MountedAgent, create_app
 from a2a_servers.settings import ServerSettings, load_server_settings
 
@@ -44,8 +47,9 @@ def main(
         forwarded_base_url=forwarded_base_url,
     )
 
-    definitions = load_agent_definitions(agent_config_dir)
-    app, mounted_agents = create_app(definitions, settings)
+    config_dir = resolve_agent_config_dir(agent_config_dir)
+    definitions = load_agent_definitions(str(config_dir))
+    app, mounted_agents = create_app(definitions, settings, config_dir=config_dir)
 
     log_level_name = settings.log_level_name
     log_level = getattr(logging, log_level_name, logging.INFO)
@@ -57,6 +61,7 @@ def main(
     logger.info("Loaded %s agent definitions", len(mounted_agents))
     logger.info("Agent card URL mode: %s", settings.url_mode)
     logger.info("Root index available at: %s/", settings.public_base_url)
+    logger.info("Dashboard available at: %s/dashboard/", settings.public_base_url)
 
     for mounted_agent in mounted_agents:
         _log_agent_startup(mounted_agent, settings)
