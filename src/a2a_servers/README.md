@@ -33,6 +33,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - Local smoke testing is included.
 - Azure deployment infrastructure is not checked into this branch yet, so deployment is currently a documented manual process rather than an automated IaC workflow.
 - each server can be easily added as a remote agent in foundry
+- pytest not updated and currently fails to do import overhaul
 
 ## Most Important Conventions
 
