@@ -1,0 +1,40 @@
+[a2a]
+name = "AI Foundry Email Agent"
+description = "An email delivery agent for the Contoso customer-service workflow. Its only job is to send the provided message as an email, and it expects the caller to specify who should receive it."
+version = "1.0.0"
+health_message = "AI Foundry Email Agent is running!"
+default_input_modes = ["text"]
+default_output_modes = ["text"]
+streaming = false
+
+[foundry]
+agent_name = "email-agent"
+
+[smoke_tests]
+prompts = [
+    "Send an email to buyer@fabrikam.com that says: Your Contoso quote for 25 blue widgets is attached. Please let us know within 5 days if you want to proceed with a purchase order.",
+    "Email onboarding@northwind-example.com and say: Before we can send your quote, please reply with your business name, business address, type of business, authorized purchaser email addresses, and preferred billing method.",
+    "Send an email to shipping@contoso.com that says: Purchase order PO-1042 is approved. Please prepare shipment for 10 laptop stands and 5 monitors.",
+]
+
+[[skills]]
+id = "email_sending"
+name = "Email Sending"
+description = "Send the exact message provided by the caller as an email to the specified recipient."
+tags = ["email", "customer-service", "quote", "notification"]
+examples = [
+    "Send an email to customer@adatum.com that says: Your quote is ready and remains valid for 5 days.",
+    "Email billing@wingtip-example.com and say: Invoice INV-2031 is attached for your approved purchase order.",
+    "Send this message to shipping@contoso.com: Customer order CO-7781 is ready for fulfillment.",
+]
+
+[[skills]]
+id = "recipient_confirmation"
+name = "Recipient Confirmation"
+description = "Ask who the email should be sent to when the caller provides message content without a recipient."
+tags = ["email", "recipient", "clarification", "workflow"]
+examples = [
+    "Send this as an email: Your quote has been saved and can be used to complete a purchase within 5 days.",
+    "Email the invoice to the customer.",
+    "Please send: We need the authorized purchaser email addresses before we can accept a purchase order.",
+]

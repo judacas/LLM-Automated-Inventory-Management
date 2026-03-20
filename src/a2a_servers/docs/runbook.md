@@ -52,7 +52,7 @@ Before starting the server, verify that each discovered config points to a real 
 Current examples:
 
 - `agents/quote_agent.toml` -> Foundry agent name `quote-agent`
-- `agents/math_agent.toml` -> Foundry agent name `Math-Agent`
+- `agents/math_agent.sample.toml` -> sample config for Foundry agent name `Math-Agent`
 
 If the name in TOML does not exist in the configured Foundry project, startup or first use will fail.
 

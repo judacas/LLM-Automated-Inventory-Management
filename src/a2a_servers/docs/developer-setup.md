@@ -102,6 +102,8 @@ uv run python test_client.py --agent-slug quote
    cp agents/agent.template.toml agents/<name>_agent.toml
    ```
 
+   If you want to keep an example config in the repo without loading it, name it `agents/<name>_agent.sample.toml` instead.
+
 2. Update:
 
    - `[a2a]`

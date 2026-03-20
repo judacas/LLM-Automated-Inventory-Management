@@ -48,7 +48,7 @@ Responsibilities:
 
 ### `agent_definition.py`
 
-Loads and validates `*_agent.toml` files.
+Loads and validates `*_agent.toml` files. Sample files such as `*_agent.sample.toml` are not discovered.
 
 Responsibilities:
 
@@ -168,7 +168,7 @@ These values affect the whole host process.
 
 ### Agent-level configuration
 
-Each `*_agent.toml` defines:
+Each live `*_agent.toml` defines:
 
 - public A2A identity
 - route slug

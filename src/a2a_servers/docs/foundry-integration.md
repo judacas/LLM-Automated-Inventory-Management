@@ -20,7 +20,7 @@ Each mounted A2A agent maps to one Foundry agent name:
 Examples in this branch:
 
 - `quote_agent.toml` -> `quote-agent`
-- `math_agent.toml` -> `Math-Agent`
+- `math_agent.sample.toml` -> sample config for `Math-Agent`
 
 If the name is wrong, the runtime will fail when it verifies or calls that Foundry agent.
 
@@ -105,6 +105,7 @@ To expose a new Foundry agent through this package:
 
 1. Create or confirm the Foundry agent in the Azure AI Foundry portal.
 2. Copy [agents/agent.template.toml](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/agents/agent.template.toml) to a new `*_agent.toml` file.
+   Use `*_agent.sample.toml` instead if you want an example that should not be auto-discovered.
 3. Set `foundry.agent_name` to the exact Foundry agent name.
 4. Fill in the `a2a` metadata and `[[skills]]` blocks.
 5. Add realistic `[smoke_tests].prompts`.
@@ -149,6 +150,6 @@ If that becomes necessary, the configuration model will need to move project end
 For stable collaboration:
 
 - treat the Foundry portal as the source of truth for agent behavior
-- treat `*_agent.toml` as the source of truth for A2A identity and discovery metadata
+- treat `*_agent.toml` as the source of truth for live A2A identity and discovery metadata
 - keep the Foundry agent name and TOML config in sync
 - add smoke-test prompts whenever a new agent is introduced

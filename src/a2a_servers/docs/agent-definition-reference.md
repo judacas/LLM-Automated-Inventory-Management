@@ -25,6 +25,7 @@ Optional:
 ## Example Skeleton
 
 See the checked-in template at [agents/agent.template.toml](/home/judacas/Documents/code/LLM-Automated-Inventory-Management/src/a2a_servers/agents/agent.template.toml).
+To keep a sample in the repo without auto-loading it, use a filename like `agents/<name>_agent.sample.toml`.
 
 ## `[a2a]` Section
 

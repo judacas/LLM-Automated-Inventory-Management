@@ -33,6 +33,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 ## Most Important Conventions
 
 - Files matching `agents/*_agent.toml` are auto-discovered.
+- Sample configs should use a name like `agents/*_agent.sample.toml` so they are kept in-repo but not loaded at startup.
 - Each config becomes a route prefix like `/<slug>/`.
 - The published agent card URL changes based on `A2A_URL_MODE`.
 - Duplicate slugs or duplicate Foundry agent names fail startup.

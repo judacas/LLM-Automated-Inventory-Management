@@ -28,7 +28,8 @@ Cause:
 Fix:
 
 - point `A2A_AGENT_CONFIG_DIR` at the correct directory
-- verify file names end with `_agent.toml`
+- verify live agent config file names end with `_agent.toml`
+- files ending in `.sample.toml` are ignored on purpose
 
 ## Startup Fails Due To Duplicate Slugs
 
