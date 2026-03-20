@@ -29,6 +29,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - Foundry integration is dynamic by agent name, not hardcoded per route.
 - Local smoke testing is included.
 - Azure deployment infrastructure is not checked into this branch yet, so deployment is currently a documented manual process rather than an automated IaC workflow.
+- each server can be easily added as a remote agent in foundry
 
 ## Most Important Conventions
 
@@ -42,17 +43,19 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 ## Current Limitations
 
 - Conversation tracking is in-memory only. Restarting the process loses the A2A-to-Foundry conversation map.
+- **each client can only connect to one remote agent at a time, this is believed to be a foundry support of a2a issue, not how the servers are set up**
 - Foundry conversations remain open until cleanup or process shutdown.
 - There is no checked-in Azure IaC for this package in the current branch.
 - There is no built-in authentication or network restriction layer in this package itself; deployment must provide that boundary.
 - The server assumes Foundry agents already exist and are correctly configured in Azure AI Foundry.
+- need to redeploy to add new agents
 
 ## What To Extend Next
 
 The most natural future extension points are:
 
-- persistent conversation storage instead of in-memory tracking
+- persistent conversation storage in DB instead of in-memory tracking
 - deployment automation for Azure
 - stronger auth and ingress controls
 - richer health checks that validate Foundry connectivity
-- more agent definitions that represent real project roles instead of examples
+- better process for adding and removeing agents, potentially with a gui
