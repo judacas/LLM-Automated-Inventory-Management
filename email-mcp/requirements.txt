@@ -1,4 +1,4 @@
 flask
-pymssql
+requests
 python-dotenv
-mcp[cli]
+gunicorn
