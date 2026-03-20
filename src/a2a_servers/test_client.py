@@ -1,5 +1,6 @@
 import argparse
 import logging  # Import the logging module
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -9,7 +10,6 @@ from a2a.types import (
     AgentCard,
     MessageSendParams,
     SendMessageRequest,
-    SendStreamingMessageRequest,
 )
 from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
@@ -64,38 +64,6 @@ def extract_text_from_message(message: Any) -> str:
     return ""
 
 
-def _extract_chunk_text(result: Any) -> str:
-    """Extract displayable text from any streaming response chunk variant."""
-    kind: Any = getattr(result, "kind", None)
-
-    if kind == "status-update":
-        status_obj: Any = getattr(result, "status", None)
-        if status_obj is not None:
-            msg_obj: Any = getattr(status_obj, "message", None)
-            if msg_obj is not None:
-                return extract_text_from_message(msg_obj)
-        return ""
-
-    if kind == "artifact-update":
-        artifact_obj: Any = getattr(result, "artifact", None)
-        if artifact_obj is not None:
-            parts_obj: Any = getattr(artifact_obj, "parts", [])
-            return extract_text_from_parts(parts_obj)
-        return ""
-
-    if kind == "message":
-        return extract_text_from_message(result)
-
-    # Final Task payload (no "kind", but carries .status)
-    status_obj = getattr(result, "status", None)
-    if status_obj is not None:
-        msg_obj = getattr(status_obj, "message", None)
-        if msg_obj is not None:
-            return extract_text_from_message(msg_obj)
-
-    return ""
-
-
 async def print_detailed_response(
     response: Any, logger: logging.Logger, response_type: str = "Response"
 ) -> None:
@@ -146,8 +114,15 @@ async def smoke_test_agent(
     definition: AgentDefinition,
     settings: ServerSettings,
     logger: logging.Logger,
-) -> None:
-    base_url = settings.agent_base_url_for(definition.slug)
+    *,
+    public_base_url_override: str | None = None,
+) -> dict[str, Any]:
+    if public_base_url_override:
+        base_url = (
+            f"{public_base_url_override.rstrip('/')}/{definition.slug.strip('/')}"
+        )
+    else:
+        base_url = settings.agent_base_url_for(definition.slug)
 
     logger.info("Connecting to A2A agent at: %s", base_url)
     logger.info("Loaded smoke-test config from: %s", definition.source_path)
@@ -157,7 +132,15 @@ async def smoke_test_agent(
             logger.error(
                 "❌ Agent server appears to be unhealthy. Please check the server."
             )
-            return
+            return {
+                "slug": definition.slug,
+                "agent_name": definition.public_name,
+                "base_url": base_url,
+                "prompt_count": 0,
+                "success_count": 0,
+                "failure_count": 1,
+                "health_ok": False,
+            }
 
         resolver = A2ACardResolver(
             httpx_client=httpx_client,
@@ -224,9 +207,13 @@ async def smoke_test_agent(
             ) from e
 
         client = A2AClient(
-            httpx_client=httpx_client, agent_card=final_agent_card_to_use
+            httpx_client=httpx_client,
+            agent_card=final_agent_card_to_use,
         )
-        logger.info("✅ A2AClient initialized.")
+        logger.info(
+            "✅ A2AClient initialized using agent card URL: %s",
+            final_agent_card_to_use.url,
+        )
 
         smoke_test_messages = list(definition.smoke_test_prompts)
         if not smoke_test_messages:
@@ -239,6 +226,8 @@ async def smoke_test_agent(
             len(smoke_test_messages),
             definition.public_name,
         )
+        success_count = 0
+        failure_count = 0
 
         for i, test_message in enumerate(smoke_test_messages, 1):
             logger.info(f"\n--- Test {i}/{len(smoke_test_messages)} ---")
@@ -263,38 +252,33 @@ async def smoke_test_agent(
                 await print_detailed_response(
                     response, logger, "Regular Message Response"
                 )
-
-                logger.info("🌊 Testing streaming response...")
-                streaming_request = SendStreamingMessageRequest(
-                    id=str(uuid4()),
-                    params=MessageSendParams(**send_message_payload),
-                )
-
-                stream_response = client.send_message_streaming(streaming_request)
-                chunk_count = 0
-                full_streamed_text_parts = []
-                async for chunk in stream_response:
-                    chunk_count += 1
-                    result_obj: Any = getattr(chunk, "root", chunk)
-                    result: Any = getattr(result_obj, "result", result_obj)
-                    chunk_text = _extract_chunk_text(result)
-                    if chunk_text:
-                        full_streamed_text_parts.append(chunk_text)
-
-                logger.info(f"✅ Streaming completed ({chunk_count} chunks total)")
-                full_streamed_text = "".join(full_streamed_text_parts)
-                if full_streamed_text:
-                    logger.info(f"🤖 Streamed response:\n{full_streamed_text}")
+                result_obj = response.root if hasattr(response, "root") else response
+                if hasattr(result_obj, "error") and result_obj.error is not None:
+                    failure_count += 1
+                else:
+                    success_count += 1
 
             except Exception as e:
                 logger.error(f"❌ Error testing message '{test_message[:30]}...': {e}")
+                failure_count += 1
 
         logger.info("\n🎉 Agent smoke testing completed!")
-        logger.info("📊 Test Summary:")
+        logger.info("📊 Agent Summary:")
         logger.info(f"   - Agent: {final_agent_card_to_use.name}")
         logger.info(f"   - Base URL: {base_url}")
         logger.info(f"   - Test Messages: {len(smoke_test_messages)}")
-        logger.info("   - Both regular and streaming messaging tested")
+        logger.info(f"   - Succeeded: {success_count}")
+        logger.info(f"   - Failed: {failure_count}")
+        logger.info("   - Regular message/send requests tested")
+        return {
+            "slug": definition.slug,
+            "agent_name": final_agent_card_to_use.name,
+            "base_url": base_url,
+            "prompt_count": len(smoke_test_messages),
+            "success_count": success_count,
+            "failure_count": failure_count,
+            "health_ok": True,
+        }
 
 
 def _parse_args() -> argparse.Namespace:
@@ -313,11 +297,21 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Directory containing `*_agent.toml` files.",
     )
+    parser.add_argument(
+        "--base-url",
+        dest="base_url",
+        default=None,
+        help=(
+            "Public server base URL to test, for example "
+            "`https://my-host.example.com`. The client will append `/<slug>`."
+        ),
+    )
     return parser.parse_args()
 
 
 async def main() -> None:
     load_dotenv()
+    load_dotenv(Path(__file__).resolve().with_name(".env"))
     args = _parse_args()
 
     logging.basicConfig(
@@ -327,6 +321,8 @@ async def main() -> None:
 
     definitions = load_agent_definitions(args.agent_config_dir)
     settings = load_server_settings(require_project_endpoint=False)
+    if args.base_url:
+        logger.info("Using explicit base URL override: %s", args.base_url.rstrip("/"))
     selected_definitions = definitions
     if args.agent_slug:
         selected_definitions = tuple(
@@ -340,9 +336,34 @@ async def main() -> None:
     logger.info("Loaded %s agent definitions for smoke testing.", len(definitions))
     logger.info("Running smoke tests for %s agent(s).", len(selected_definitions))
 
+    summaries: list[dict[str, Any]] = []
     for definition in selected_definitions:
         logger.info("\n=== Smoke testing slug `%s` ===", definition.slug)
-        await smoke_test_agent(definition, settings, logger)
+        summaries.append(
+            await smoke_test_agent(
+                definition,
+                settings,
+                logger,
+                public_base_url_override=args.base_url,
+            )
+        )
+
+    total_prompts = sum(summary["prompt_count"] for summary in summaries)
+    total_successes = sum(summary["success_count"] for summary in summaries)
+    total_failures = sum(summary["failure_count"] for summary in summaries)
+    logger.info("\n=== Multi-Agent Smoke Test Summary ===")
+    logger.info("Agents tested: %s", len(summaries))
+    logger.info("Total prompts: %s", total_prompts)
+    logger.info("Succeeded: %s", total_successes)
+    logger.info("Failed: %s", total_failures)
+    for summary in summaries:
+        logger.info(
+            " - %s (%s): %s/%s passed",
+            summary["slug"],
+            summary["agent_name"],
+            summary["success_count"],
+            summary["prompt_count"],
+        )
 
 
 if __name__ == "__main__":

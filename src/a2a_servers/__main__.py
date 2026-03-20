@@ -7,7 +7,7 @@ from app_factory import MountedAgent, create_app
 from dotenv import load_dotenv
 from settings import ServerSettings, load_server_settings
 
-load_dotenv()
+load_dotenv()  # TODO: match the .env loading strategy in foundry_agent.py (currently duplicated) but also might need a better strategy overall for config management across the codebase
 
 logger = logging.getLogger(__name__)
 
