@@ -146,16 +146,17 @@ Fix:
 Common causes:
 
 - startup command points at the wrong directory
-- the deployment artifact omitted `agents/`
 - the host is binding to the wrong port or interface
-- the team reused the root Dockerfile, which targets `tool_api`, not `a2a_servers`
+- zip was setup incorrectly
+- you aren't patient enough and just gotta wait for it to finish deploying
 
 Fix:
 
 - deploy the correct package
 - run from `src/a2a_servers`
 - bind to `0.0.0.0`
-- include agent config files in the artifact
+- ensure that the zip has all python files and such at root level
+- pray and get some sleep
 
 ## Tests Pass But Real Integration Still Fails
 

@@ -14,10 +14,13 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 ## Start Here
 
 - Architecture: [docs/architecture.md](docs/architecture.md)
+- Developer setup: [docs/developer-setup.md](docs/developer-setup.md)
+- Add a new agent: [docs/adding-agents.md](docs/adding-agents.md)
+- Redeploy after a change: [docs/redeploying.md](docs/redeploying.md)
+- Local testing with Dev Tunnels: [docs/local-testing-with-devtunnels.md](docs/local-testing-with-devtunnels.md)
 - Run locally and smoke test: [docs/runbook.md](docs/runbook.md)
 - Deploy to Azure: [docs/deployment-azure.md](docs/deployment-azure.md)
 - Azure AI Foundry integration: [docs/foundry-integration.md](docs/foundry-integration.md)
-- Developer setup: [docs/developer-setup.md](docs/developer-setup.md)
 - Agent definition contract: [docs/agent-definition-reference.md](docs/agent-definition-reference.md)
 - Troubleshooting and known gaps: [docs/troubleshooting.md](docs/troubleshooting.md)
 
@@ -39,6 +42,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - The published agent card URL changes based on `A2A_URL_MODE`.
 - Duplicate slugs or duplicate Foundry agent names fail startup.
 - The A2A server process does not create Foundry agents for you; it expects them to already exist.
+- adding or changing an agent in production requires a redeploy
 
 ## Current Limitations
 

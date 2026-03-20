@@ -4,6 +4,15 @@
 
 This document is the developer onboarding guide for `src/a2a_servers`.
 
+It covers environment setup only.
+
+For task-specific guides, use:
+
+- add a new agent: [adding-agents.md](./adding-agents.md)
+- redeploy after a change: [redeploying.md](./redeploying.md)
+- local public testing with Dev Tunnels: [local-testing-with-devtunnels.md](./local-testing-with-devtunnels.md)
+- local run and smoke-test checks: [runbook.md](./runbook.md)
+
 ## Tooling
 
 - `uv` for environment and dependency management
@@ -49,13 +58,6 @@ A2A_URL_MODE=local
 LOG_LEVEL=INFO
 ```
 
-If you need a public tunnel:
-
-```dotenv
-A2A_URL_MODE=forwarded
-A2A_FORWARDED_BASE_URL=https://<your-public-host>
-```
-
 ## Running Tests
 
 From the repository root:
@@ -94,26 +96,7 @@ uv run python test_client.py
 uv run python test_client.py --agent-slug quote
 ```
 
-## Adding A New Agent
-
-1. Copy the template:
-
-   ```bash
-   cp agents/agent.template.toml agents/<name>_agent.toml
-   ```
-
-   If you want to keep an example config in the repo without loading it, name it `agents/<name>_agent.sample.toml` instead.
-
-2. Update:
-
-   - `[a2a]`
-   - `[foundry]`
-   - `[smoke_tests]`
-   - each `[[skills]]` block
-
-3. Start the server and confirm the agent appears in `GET /`.
-
-4. Smoke test the new slug.
+For the full local validation flow, see [runbook.md](./runbook.md).
 
 ## Common Development Tasks
 
@@ -150,6 +133,7 @@ uv run pytest src/a2a_servers/tests/test_agent_definition.py
 
 - [README.md](../README.md)
 - [docs/architecture.md](./architecture.md)
+- [docs/adding-agents.md](./adding-agents.md)
 - [agent_definition.py](../agent_definition.py)
 - [app_factory.py](../app_factory.py)
 - [foundry_agent_executor.py](../foundry_agent_executor.py)

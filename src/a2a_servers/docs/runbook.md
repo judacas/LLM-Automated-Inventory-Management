@@ -2,7 +2,14 @@
 
 ## What This Covers
 
-This document explains how to run the A2A server locally, validate that it is healthy, expose it publicly for Foundry testing, and smoke test mounted agents.
+This document explains how to run the A2A server locally, validate that it is healthy, and smoke test mounted agents.
+
+For adjacent workflows, use:
+
+- setup only: [developer-setup.md](./developer-setup.md)
+- add or edit an agent definition: [adding-agents.md](./adding-agents.md)
+- local public testing through Azure Dev Tunnels: [local-testing-with-devtunnels.md](./local-testing-with-devtunnels.md)
+- redeploy the Azure service: [redeploying.md](./redeploying.md)
 
 ## Prerequisites
 
@@ -20,30 +27,7 @@ Typical local auth options:
 
 ## First-Time Setup
 
-From the repository root:
-
-```bash
-uv sync
-cd src/a2a_servers
-cp .env.template .env
-```
-
-Edit `.env` and set at least:
-
-```dotenv
-AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
-A2A_AGENT_CONFIG_DIR=agents
-A2A_HOST=localhost
-A2A_PORT=10007
-A2A_URL_MODE=local
-LOG_LEVEL=INFO
-```
-
-Notes:
-
-- `AZURE_AI_PROJECT_ENDPOINT` is required.
-- `A2A_AGENT_CONFIG_DIR` defaults to `agents`, but setting it explicitly is clearer.
-- If you use `A2A_URL_MODE=forwarded`, you must also set `A2A_FORWARDED_BASE_URL`.
+Complete [developer-setup.md](./developer-setup.md) first.
 
 ## Confirm Agent Definitions
 
@@ -109,43 +93,6 @@ The test client will:
 - optionally fetch the extended card if advertised
 - send one or more prompt-based requests
 - print task status and final output
-
-## Use With A Public URL
-
-If Azure AI Foundry or another remote caller must reach your local machine, use a tunnel and publish proxy-aware URLs.
-
-Required `.env` settings:
-
-```dotenv
-A2A_URL_MODE=forwarded
-A2A_FORWARDED_BASE_URL=https://<public-host>
-```
-
-The mounted agent URLs will then be published as:
-
-- `https://<public-host>/<slug>/`
-
-## Dev Tunnel Flow
-
-This package already assumes Azure Dev Tunnels is a supported development path.
-
-Example flow:
-
-```bash
-devtunnel user login
-devtunnel create my-a2a-agent -a
-devtunnel port create -p 10007 --protocol http
-devtunnel host my-a2a-agent
-```
-
-Then copy the printed HTTPS host into:
-
-```dotenv
-A2A_URL_MODE=forwarded
-A2A_FORWARDED_BASE_URL=https://<your-tunnel-host>
-```
-
-Finally restart the A2A server so the published agent cards use the forwarded URL.
 
 ## Running With A Different Agent Set
 

@@ -4,6 +4,10 @@
 
 This document explains how to deploy `src/a2a_servers` to Azure based on the current state of this branch.
 
+This is the Azure hosting and deployment-shape reference.
+
+For the operational "I changed something, now how do I republish it?" workflow, use [redeploying.md](./redeploying.md).
+
 Important current-state note:
 
 - there is no checked-in A2A-specific Bicep, Terraform, or `azure.yaml` for this package in this branch
@@ -14,17 +18,31 @@ Important current-state note:
 
 For the current package, the cleanest Azure target is a Linux web host that can run a long-lived ASGI process and expose HTTP routes publicly.
 
-Recommended order:
+Use Azure App Service for Linux.
 
-1. Azure App Service for Linux
-2. Azure Container Apps if your team prefers container-first hosting
-
-App Service is usually the simplest fit here because:
+App Service fits here because:
 
 - the app is an HTTP ASGI service
 - it needs a stable public hostname for agent cards
-- it does not currently require event-driven container orchestration
 - the README already assumes an App Service-style host URL
+
+### Why App Service Is Enough
+
+This service is mostly a thin async router between incoming A2A HTTP requests and Azure AI Foundry agents.
+
+In practice, that means:
+
+- most of the real compute happens in Foundry, not in this app
+- this app mainly does request validation, routing, metadata publication, and async network calls
+- CPU and memory pressure in this layer should stay relatively low unless overall traffic becomes very high
+
+Because of that, there is not much value today in:
+
+- isolating agents into separate containers
+- scaling agents independently
+- introducing container-specific operational complexity
+
+The main reason to scale this service would be sustained high network traffic or connection volume, not per-agent compute demand. Until that becomes a real issue, a single App Service is the simpler and more appropriate deployment shape.
 
 ## Required Azure Resources
 
@@ -74,9 +92,7 @@ If managed identity is not configured, the app may work locally but fail in Azur
 
 ## Packaging And Startup
 
-### Option A: App Service from a flat `src/a2a_servers` zip
-
-Zip the contents of `src/a2a_servers` so the artifact root contains files like:
+Deploy the flat contents of `src/a2a_servers` so the artifact root contains files like:
 
 - `__main__.py`
 - `agent_definition.py`
@@ -102,17 +118,6 @@ You must ensure:
 - the working directory is the deployed flat app root
 - the `agents/` folder is included in the deployment artifact
 
-### Option B: Container deployment
-
-If you use Container Apps or a custom App Service container, build an image that:
-
-- installs the package dependencies from `src/a2a_servers/pyproject.toml`
-- copies the `src/a2a_servers` app directory
-- sets the working directory to `src/a2a_servers`
-- launches `python __main__.py` on the configured port
-
-The repository's root [Dockerfile](../../../Dockerfile) is for `tool_api`, not for `a2a_servers`. Do not reuse it unchanged for this package.
-
 ## Suggested App Service Deployment Procedure
 
 ### 1. Prepare Foundry first
@@ -125,7 +130,7 @@ Before deploying the server, create or confirm:
 
 ### 2. Create the web app
 
-Create a Linux App Service or equivalent host.
+Create a Linux App Service.
 
 Recommended baseline choices:
 
@@ -138,7 +143,6 @@ Recommended baseline choices:
 Deploy the repository or a deployment artifact that includes:
 
 - the flat `src/a2a_servers` app contents
-- the `agents/` folder
 
 This app does not need the full repository when deployed in this flat layout.
 
@@ -168,22 +172,15 @@ Make sure the card URL and route URLs point to the Azure hostname, not localhost
 
 ### 7. Run an end-to-end smoke test
 
-Use the checked-in `test_client.py` from a trusted environment and point it at the deployed hostname by matching the deployed card URLs.
+Use the checked-in `test_client.py` from a trusted environment and point it at the deployed hostname by matching the deployed card URLs via enviornment variables or parameterss.
 
-## Container Apps Notes
+Example with deployed hostname:
 
-Container Apps is a good option if your team wants:
+```bash
+uv run test_client.py --base-url https://my-app-service.azurewebsites.net
+```
 
-- container-native deployment
-- revision-based rollout
-- tighter control over image build and startup
-
-If you choose Container Apps:
-
-- expose the app's HTTP ingress publicly or internally as needed
-- set `A2A_URL_MODE=forwarded`
-- set `A2A_FORWARDED_BASE_URL` to the Container Apps ingress FQDN
-- ensure the container listens on the ingress target port
+For a concise post-change checklist, use [redeploying.md](./redeploying.md).
 
 ## Deployment Checklist
 

@@ -10,6 +10,8 @@ That means the order of operations is:
 2. add or update the matching `*_agent.toml`
 3. run or deploy the A2A server
 
+For the step-by-step workflow for adding a new mounted agent, use [adding-agents.md](./adding-agents.md).
+
 ## Core Mapping
 
 Each mounted A2A agent maps to one Foundry agent name:
@@ -99,18 +101,14 @@ For example:
 - a quote agent should know how to answer quoting and availability questions
 - a math agent may be configured with Code Interpreter
 
-## Integrating New Foundry Agents
+## Adding New Foundry Agents
 
-To expose a new Foundry agent through this package:
+The implementation rule is simple:
 
-1. Create or confirm the Foundry agent in the Azure AI Foundry portal.
-2. Copy [agents/agent.template.toml](../agents/agent.template.toml) to a new `*_agent.toml` file.
-   Use `*_agent.sample.toml` instead if you want an example that should not be auto-discovered.
-3. Set `foundry.agent_name` to the exact Foundry agent name.
-4. Fill in the `a2a` metadata and `[[skills]]` blocks.
-5. Add realistic `[smoke_tests].prompts`.
-6. Start the server and verify the new slug appears at `GET /`.
-7. Run `uv run test_client.py --agent-slug <slug>`.
+- Foundry is the source of truth for agent behavior
+- `*_agent.toml` is the source of truth for A2A identity and routing
+
+Use [adding-agents.md](./adding-agents.md) for the actual procedure.
 
 ## Integrating With Foundry-Orchestrated Systems
 
