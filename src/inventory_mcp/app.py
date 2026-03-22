@@ -36,13 +36,13 @@ from inventory_mcp.server import mcp
 # This wrapper normalizes that edge case so both `/mcp` and `/mcp/` behave.
 _mcp_http_app = mcp.streamable_http_app()
 
-# --- Session manager startup (important for Azure Functions) ---
+# --- Session manager startup (important for some hosts) ---
 #
 # The MCP StreamableHTTP transport requires `mcp.session_manager.run()` to be active.
 # Normally an ASGI server like Uvicorn triggers ASGI lifespan events so our `lifespan`
 # context manager below can start it.
 #
-# However, some hosts/middleware (notably Azure Functions ASGI adapters) may NOT run
+# However, some hosts/middleware may NOT run
 # lifespan events. In that case, MCP requests can fail with errors like:
 # - "Task group is not initialized. Make sure to use run()."
 # - "Session terminated"
@@ -92,6 +92,57 @@ async def _mcp_http_app_with_normalized_path(
     await _ensure_session_manager_running()
 
     if scope.get("type") == "http":
+        # Azure App Service sends requests with Host like:
+        #   <app>.azurewebsites.net
+        # The MCP SDK's Streamable HTTP ASGI app may include TrustedHostMiddleware
+        # defaults that reject unknown hosts, returning:
+        #   421 Invalid Host header
+        #
+        # Prefer configuring allowed hosts via `TransportSecuritySettings.allowed_hosts`
+        # (see `inventory_mcp.server`).
+        #
+        # This header rewrite is a fallback escape hatch and is OFF by default.
+        enable_rewrite = os.getenv("MCP_ENABLE_HOST_HEADER_REWRITE", "").strip()
+        if enable_rewrite == "1":
+            incoming_host = ""
+            for k, v in scope.get("headers", []):
+                if k.lower() == b"host":
+                    incoming_host = v.decode("latin-1")
+                    break
+            incoming_host = incoming_host.split(":", 1)[0].strip().lower()
+
+            allowed_hosts = {
+                h.strip().lower()
+                for h in os.getenv("MCP_ALLOWED_HOSTS", "").split(",")
+                if h.strip()
+            }
+
+            website_hostname = os.getenv("WEBSITE_HOSTNAME", "").strip().lower()
+            is_app_service_host = bool(incoming_host) and (
+                incoming_host == website_hostname
+                or incoming_host.endswith(".azurewebsites.net")
+                or incoming_host in allowed_hosts
+            )
+
+            if is_app_service_host:
+                scope = dict(scope)
+                # Some middleware/frameworks validate against `Host`, others use
+                # forwarded host headers (often in proxy scenarios). Rewrite both.
+                rewrite_keys = {
+                    b"host",
+                    b"x-forwarded-host",
+                    b"x-original-host",
+                    b"x-host",
+                }
+                headers = [
+                    (k, v)
+                    for (k, v) in scope.get("headers", [])
+                    if k.lower() not in rewrite_keys
+                ]
+                headers.append((b"host", b"localhost"))
+                headers.append((b"x-forwarded-host", b"localhost"))
+                scope["headers"] = headers
+
         path = scope.get("path", "")
 
         # Normalize edge cases so clients can use either `/mcp` or `/mcp/`.

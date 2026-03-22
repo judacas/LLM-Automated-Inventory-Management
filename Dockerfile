@@ -35,4 +35,6 @@ ENV PYTHONPATH=/app/src
 
 EXPOSE 8000
 
-CMD ["uvicorn", "inventory_mcp.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# App Service (Linux) routes traffic to the port exposed by the container.
+# Many platforms set `PORT`; we default to 8000 for local/dev parity.
+CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker inventory_mcp.app:app --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --timeout 120"]

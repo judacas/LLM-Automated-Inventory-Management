@@ -40,6 +40,9 @@ pip-delete-this-directory.txt
 # Local install artifacts (keep repo clean)
 *.deb
 
+# Azure Developer CLI / Copilot preparation artifacts
+.azure/
+
 # Unit test reports
 .tox/
 .nox/

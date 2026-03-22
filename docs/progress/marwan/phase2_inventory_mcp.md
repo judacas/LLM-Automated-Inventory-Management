@@ -16,6 +16,9 @@ Repository selection is environment-driven:
 - If `AZURE_SQL_CONNECTION_STRING` is set, `AzureSqlInventoryRepository` is used.
 - Otherwise, the mocked `InventoryRepository` is used.
 
+Recommended for deployments:
+- Set `INVENTORY_REQUIRE_SQL=1` so the service fails fast if DB config is missing.
+
 ---
 
 ## MCP Endpoint
@@ -61,15 +64,21 @@ Verify:
 
 ---
 
-## Azure Demo Deployment (no containers)
+## Azure Deployment (App Service Linux, container)
 
-Use a managed hosting option that does not require Docker/Container Apps.
+Deployment target:
+- Web App for Containers (Linux) on the existing B1 plan.
 
-Recommended for a fast demo:
-- Azure App Service (Python) with a startup command that runs `uvicorn inventory_mcp.app:app ...`
+Runbooks:
+- Deploy (first time): [docs/deploy/deploy_app_service_container.md](../../deploy/deploy_app_service_container.md)
+- Deployed smoke test: [docs/deploy/test_deployed_inventory_mcp.md](../../deploy/test_deployed_inventory_mcp.md)
 
-Environment variables to set in Azure:
-- `AZURE_SQL_CONNECTION_STRING=<your connection string>` (optional for demo; required for DB-backed runs)
+Repeat deployments:
+- Use `scripts/deploy_inventory_mcp_appservice.sh` (build → push → update webapp → set app settings → restart).
+
+Operational notes:
+- MCP Streamable HTTP uses SSE; probing `/mcp` with a plain browser/`curl` can return `406 Not Acceptable` unless `Accept: text/event-stream` is set.
+- Deployed requests can fail with `421 Invalid Host header` if the hostname is not allow-listed; the server now uses MCP transport security allow-lists built from `WEBSITE_HOSTNAME` + `MCP_ALLOWED_HOSTS`.
 
 ---
 
@@ -168,3 +177,15 @@ Docs organization + merge friendliness:
 
 - Added a docs landing page at `docs/README.md` and added per-area landing pages under `docs/admin/`, `docs/inventory/`, and `docs/deploy/`.
 - Added `.local/` to `.gitignore` for local-only chat transcripts/notes that should never be committed.
+
+---
+
+## Progress Update (2026-03-22)
+
+Deployed + production-hardening (App Service container):
+
+- Confirmed the deployed MCP endpoint works end-to-end using `scripts/mcp_demo_client.py` against `https://<app>.azurewebsites.net/mcp`.
+- Documented Streamable HTTP expectation for SSE (`406 Not Acceptable` is expected without `Accept: text/event-stream`).
+- Fixed deployed host validation issues (`421 Invalid Host header`) by using MCP SDK transport security allow-lists.
+- Added a one-shot redeploy script (`scripts/deploy_inventory_mcp_appservice.sh`) to make redeploy repeatable.
+- Connected the deployed service to the real database via `AZURE_SQL_CONNECTION_STRING` and added `INVENTORY_REQUIRE_SQL=1` as a guardrail.

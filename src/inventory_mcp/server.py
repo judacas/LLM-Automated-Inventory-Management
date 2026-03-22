@@ -5,10 +5,12 @@ Key design choice:
     existing InventoryService + repository layer.
 """
 
+import os
 from dataclasses import asdict
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from inventory_service.admin_models import (
     InventoryAdminSummary,
@@ -20,12 +22,66 @@ from inventory_service.factory import (
 )
 from inventory_service.models import InventoryItem_v2
 
+
 # `FastMCP` is a high-level server helper from the MCP Python SDK.
 #
 # It lets us define:
 # - server name + instructions (what the server is for)
 # - tools (callable functions exposed to MCP clients)
 # - the HTTP transport (handled by `mcp.streamable_http_app()` in `inventory_mcp.app`)
+def _parse_csv_env(name: str) -> list[str]:
+    value = os.getenv(name, "")
+    return [v.strip() for v in value.split(",") if v.strip()]
+
+
+def _build_transport_security() -> TransportSecuritySettings:
+    """Build DNS rebinding protection settings for deployed HTTP transports.
+
+    Why this exists:
+    - `FastMCP` auto-enables DNS rebinding protection when the server `host` is
+      localhost-ish.
+    - In App Service, requests arrive with `Host: <app>.azurewebsites.net`.
+    - If allowed hosts don't include the Azure hostname, MCP requests fail with:
+      `421 Invalid Host header`.
+
+    Configuration:
+    - `MCP_ALLOWED_HOSTS`: comma-separated hostnames to allow.
+      Example: "admin-inventory-mcp.azurewebsites.net,mcp.contoso.com"
+    - `WEBSITE_HOSTNAME`: automatically set by Azure App Service.
+    """
+
+    website_hostname = os.getenv("WEBSITE_HOSTNAME", "").strip()
+
+    allowed_hosts: set[str] = {
+        # Local dev / tests
+        "127.0.0.1:*",
+        "localhost:*",
+        "[::1]:*",
+    }
+
+    for host in _parse_csv_env("MCP_ALLOWED_HOSTS"):
+        allowed_hosts.add(host)
+        allowed_hosts.add(f"{host}:*")
+
+    if website_hostname:
+        allowed_hosts.add(website_hostname)
+        allowed_hosts.add(f"{website_hostname}:*")
+
+    allowed_origins = {
+        # Common dev origins (MCP Inspector)
+        "http://127.0.0.1:*",
+        "http://localhost:*",
+    }
+    for origin in _parse_csv_env("MCP_ALLOWED_ORIGINS"):
+        allowed_origins.add(origin)
+
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=sorted(allowed_hosts),
+        allowed_origins=sorted(allowed_origins),
+    )
+
+
 mcp = FastMCP(
     "contoso-inventory",
     instructions=(
@@ -37,6 +93,7 @@ mcp = FastMCP(
     stateless_http=True,
     # Always respond with JSON (easier to demo and integrate).
     json_response=True,
+    transport_security=_build_transport_security(),
 )
 
 # Build the domain/service layer once at import time.

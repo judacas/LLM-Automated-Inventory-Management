@@ -6,8 +6,10 @@ This folder contains deployment-related notes and reference material.
 
 ## Contents
 
-- Azure Functions demo reference: [deploy_azure_functions_demo.md](deploy_azure_functions_demo.md)
+- App Service (Linux) container runbook: [deploy_app_service_container.md](deploy_app_service_container.md)
+- Deployed smoke test (MCP over HTTP): [test_deployed_inventory_mcp.md](test_deployed_inventory_mcp.md)
+- Repeat deployments (one-shot script): `scripts/deploy_inventory_mcp_appservice.sh`
 
-## Next planned deployment work
+## Notes
 
-The current project direction is to run Inventory MCP and the Admin Orchestrator as web services (App Service / similar). Add App Service runbooks here when you are ready to start deployment planning.
+This project deploys the Inventory MCP as a web service using an App Service Plan (Linux) and a container image.

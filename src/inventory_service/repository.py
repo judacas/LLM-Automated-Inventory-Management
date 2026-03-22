@@ -1,6 +1,6 @@
 """Inventory repository layer (data access).
 
-The MCP server and any other adapters (Azure Functions, legacy REST) rely on this
+The MCP server and any other adapters (HTTP service, legacy REST) rely on this
 module to hide the storage backend.
 
 Implementations:
