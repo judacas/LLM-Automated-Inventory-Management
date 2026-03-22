@@ -37,7 +37,15 @@ class InventoryMcpClient:
     """
 
     def __init__(self, url: str | None = None) -> None:
-        self.url = url or os.getenv("INVENTORY_MCP_URL", "http://localhost:8000/mcp")
+        if url is not None:
+            resolved_url = url
+        else:
+            resolved_url = os.getenv(
+                "INVENTORY_MCP_URL",
+                "http://localhost:8000/mcp",
+            )
+
+        self.url: str = resolved_url
 
         # Unit-test/dev safety valve:
         # - If the MCP server isn't running yet, we can still provide useful behavior
