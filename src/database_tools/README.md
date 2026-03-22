@@ -57,7 +57,7 @@ database_tools/
 
 ### 2. **services/** - Business Logic Layer
 
-This layer contains all domain-specific operations, separated by business concern:
+This layer contains all email-specific operations, separated by business concern:
 
 #### **business_service.py**
 Email-based operations related to business accounts.
