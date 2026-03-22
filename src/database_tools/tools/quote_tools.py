@@ -11,7 +11,7 @@ from database_tools.services.quote_service import (
     UserQuoteSummary,
     confirm_quote,
     confirm_quote_by_product_name,
-    get_active_quotes_by_domain,
+    get_active_quotes_by_email,
     get_all_inventory,
     get_dashboard_metrics,
     get_inventory_status_by_name,
@@ -36,8 +36,8 @@ def tool_confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
     return confirm_quote(request)
 
 
-def tool_get_active_quotes(domain: str) -> list[UserQuoteSummary]:
-    return get_active_quotes_by_domain(domain=domain)
+def tool_get_active_quotes(email: str) -> list[UserQuoteSummary]:
+    return get_active_quotes_by_email(email=email)
 
 
 def tool_get_dashboard_metrics() -> DashboardMetricsResponse:

@@ -3,7 +3,7 @@ from database_tools.services.purchase_service import (
     PurchaseOrderResult,
     PurchaseOrderSummary,
     create_purchase_order,
-    get_purchase_orders_by_domain,
+    get_purchase_orders_by_email,
 )
 
 
@@ -14,6 +14,6 @@ def tool_create_purchase_order(
 
 
 def tool_get_purchase_orders(
-    domain: str,
+    email: str,
 ) -> list[PurchaseOrderSummary]:
-    return get_purchase_orders_by_domain(domain=domain)
+    return get_purchase_orders_by_email(email=email)

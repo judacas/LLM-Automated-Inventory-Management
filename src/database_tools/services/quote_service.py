@@ -14,7 +14,7 @@ class QuoteItemInput(TypedDict):
 
 
 class ConfirmQuoteRequest(TypedDict):
-    domain: str
+    email: str
     items: list[QuoteItemInput]
 
 
@@ -100,7 +100,7 @@ class QuoteItemByNameInput(TypedDict):
 
 
 class ConfirmQuoteByNameRequest(TypedDict):
-    domain: str
+    email: str
     items: list[QuoteItemByNameInput]
 
 
@@ -121,28 +121,62 @@ def add_business_days(start: date, days: int) -> date:
 def get_product_id_by_name(name: str) -> int:
     normalized_name = name.strip().lower()
 
+    if not normalized_name:
+        raise ValueError("Product name is required.")
+
     with get_connection() as conn:
         cursor = conn.cursor()
 
+        # 1. Try exact normalized match first
         cursor.execute(
             """
-            SELECT product_id
+            SELECT product_id, name
             FROM Products
             WHERE LOWER(LTRIM(RTRIM(name))) = ?
             """,
             (normalized_name,),
         )
 
-        row = cursor.fetchone()
-        if row is None:
-            raise ValueError(f"Product '{name}' not found.")
+        exact_rows = cursor.fetchall()
 
-        return int(row.product_id)
+        if len(exact_rows) == 1:
+            return int(exact_rows[0].product_id)
+
+        if len(exact_rows) > 1:
+            matches = ", ".join(str(row.name) for row in exact_rows)
+            raise ValueError(
+                f"Ambiguous product name '{name}'. Matching products: {matches}"
+            )
+
+        # 2. If no exact match, try partial match
+        cursor.execute(
+            """
+            SELECT product_id, name
+            FROM Products
+            WHERE LOWER(name) LIKE ?
+            ORDER BY name
+            """,
+            (f"%{normalized_name}%",),
+        )
+
+        partial_rows = cursor.fetchall()
+
+        if len(partial_rows) == 1:
+            return int(partial_rows[0].product_id)
+
+        if len(partial_rows) > 1:
+            matches = ", ".join(str(row.name) for row in partial_rows)
+            raise ValueError(
+                f"Ambiguous product name '{name}'. Matching products: {matches}"
+            )
+
+        raise ValueError(f"Product '{name}' not found.")
 
 
 def confirm_quote_by_product_name(
     request: ConfirmQuoteByNameRequest,
 ) -> ConfirmQuoteResponse:
+    expire_quotes()
     if not request["items"]:
         raise ValueError("Quote must contain at least one item.")
 
@@ -162,7 +196,7 @@ def confirm_quote_by_product_name(
         )
 
     resolved_request: ConfirmQuoteRequest = {
-        "domain": request["domain"],
+        "email": request["email"],
         "items": resolved_items,
     }
 
@@ -185,7 +219,7 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
         if item["quantity"] <= 0:
             raise ValueError("Quantity must be greater than zero.")
 
-    normalized_domain = request["domain"].strip().lower()
+    normalized_email = request["email"].strip().lower()
 
     with get_connection() as conn:
         conn.autocommit = False
@@ -196,14 +230,14 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
                 """
                 SELECT account_id, discount_percent
                 FROM BusinessAccounts
-                WHERE LOWER(LTRIM(RTRIM(domain))) = ?
+                WHERE LOWER(LTRIM(RTRIM(email))) = ?
                 """,
-                (normalized_domain,),
+                (normalized_email,),
             )
             account_row = cursor.fetchone()
 
             if account_row is None:
-                raise ValueError("Business account not found.")
+                raise ValueError("Business account not found for this email.")
 
             account_id: int = account_row.account_id
             discount_flag: int = account_row.discount_percent
@@ -372,10 +406,10 @@ def expire_quotes() -> None:
             raise
 
 
-def get_active_quotes_by_domain(domain: str) -> list[UserQuoteSummary]:
+def get_active_quotes_by_email(email: str) -> list[UserQuoteSummary]:
     expire_quotes()
 
-    normalized_domain = domain.strip().lower()
+    normalized_email = email.strip().lower()
 
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -384,9 +418,9 @@ def get_active_quotes_by_domain(domain: str) -> list[UserQuoteSummary]:
             """
             SELECT account_id
             FROM BusinessAccounts
-            WHERE LOWER(LTRIM(RTRIM(domain))) = ?
+            WHERE LOWER(LTRIM(RTRIM(email))) = ?
             """,
-            (normalized_domain,),
+            (normalized_email,),
         )
 
         account_row = cursor.fetchone()
@@ -491,6 +525,8 @@ def get_outstanding_quotes() -> list[QuoteSummary]:
 
 
 def get_quote_by_id(quote_id: int) -> QuoteDetailResponse:
+    expire_quotes()
+    
     with get_connection() as conn:
         cursor = conn.cursor()
 

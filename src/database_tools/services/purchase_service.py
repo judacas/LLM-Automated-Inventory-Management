@@ -9,7 +9,7 @@ from ..database import get_connection
 
 class CreatePurchaseOrderInput(TypedDict):
     quote_id: int
-    domain: str | None
+    email: str | None
 
 
 class PurchaseOrderItemResult(TypedDict):
@@ -41,8 +41,8 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
     expire_quotes()
 
     quote_id = data["quote_id"]
-    domain = data["domain"]
-    normalized_domain = domain.strip().lower() if domain is not None else None
+    email = data["email"]
+    normalized_email = email.strip().lower() if email is not None else None
 
     with get_connection() as conn:
         conn.autocommit = False
@@ -71,24 +71,24 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
             if quote_status != "active":
                 raise ValueError("Quote is not active and cannot be converted")
 
-            # Optional Domain Validation
-            if normalized_domain is not None:
+            # Optional Email Validation
+            if normalized_email is not None:
                 cursor.execute(
                     """
                     SELECT account_id
                     FROM BusinessAccounts
-                    WHERE LOWER(LTRIM(RTRIM(domain))) = ?
+                    WHERE LOWER(LTRIM(RTRIM(email))) = ?
                     """,
-                    (normalized_domain,),
+                    (normalized_email,),
                 )
 
-                domain_row = cursor.fetchone()
+                email_row = cursor.fetchone()
 
-                if domain_row is None:
-                    raise ValueError("Domain does not exist")
+                if email_row is None:
+                    raise ValueError("Email does not exist")
 
-                if domain_row.account_id != account_id:
-                    raise ValueError("Quote does not belong to this domain")
+                if email_row.account_id != account_id:
+                    raise ValueError("Quote does not belong to this email")
 
             # Prevent Duplicate Conversion
             cursor.execute(
@@ -256,8 +256,8 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
             raise
 
 
-def get_purchase_orders_by_domain(domain: str) -> list[PurchaseOrderSummary]:
-    normalized_domain = domain.strip().lower()
+def get_purchase_orders_by_email(email: str) -> list[PurchaseOrderSummary]:
+    normalized_email = email.strip().lower()
 
     with get_connection() as conn:
         cursor = conn.cursor()
@@ -267,9 +267,9 @@ def get_purchase_orders_by_domain(domain: str) -> list[PurchaseOrderSummary]:
             """
             SELECT account_id
             FROM BusinessAccounts
-            WHERE LOWER(LTRIM(RTRIM(domain))) = ?
+            WHERE LOWER(LTRIM(RTRIM(email))) = ?
             """,
-            (normalized_domain,),
+            (normalized_email,),
         )
 
         row = cursor.fetchone()

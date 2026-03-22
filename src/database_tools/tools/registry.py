@@ -2,7 +2,7 @@ from typing import Any, Callable
 
 from database_tools.tools.business_tools import (
     tool_create_business_account,
-    tool_get_business_by_domain,
+    tool_get_business_by_email,
 )
 from database_tools.tools.purchase_tools import (
     tool_create_purchase_order,
@@ -41,7 +41,7 @@ class MCPToolRegistry:
 registry = MCPToolRegistry()
 
 registry.register("create_business_account", tool_create_business_account)
-registry.register("get_business_by_domain", tool_get_business_by_domain)
+registry.register("get_business_by_email", tool_get_business_by_email)
 
 registry.register("get_product_id_by_name", tool_get_product_id_by_name)
 registry.register("confirm_quote_by_product_name", tool_confirm_quote_by_product_name)

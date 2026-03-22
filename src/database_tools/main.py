@@ -10,14 +10,14 @@ from mcp.server.transport_security import TransportSecuritySettings
 from database_tools.services.business_service import (
     BusinessAccount,
     create_business_account,
-    get_business_by_domain,
+    get_business_by_email,
 )
 from database_tools.services.purchase_service import (
     CreatePurchaseOrderInput,
     PurchaseOrderResult,
     PurchaseOrderSummary,
     create_purchase_order,
-    get_purchase_orders_by_domain,
+    get_purchase_orders_by_email,
 )
 from database_tools.services.quote_service import (
     ConfirmQuoteByNameRequest,
@@ -33,7 +33,7 @@ from database_tools.services.quote_service import (
     confirm_quote,
     confirm_quote_by_product_name,
     expire_quotes,
-    get_active_quotes_by_domain,
+    get_active_quotes_by_email,
     get_all_inventory,
     get_dashboard_metrics,
     get_inventory_status_by_name,
@@ -67,12 +67,12 @@ mcp = FastMCP(
 
 
 @mcp.tool()
-async def get_business_by_domain_tool(domain: str) -> BusinessAccount | None:
+async def get_business_by_email_tool(email: str) -> BusinessAccount | None:
     """
-    Look up a business account by its domain and return the business record,
+    Look up a business account by its email and return the business record,
     or None if no matching business exists.
     """
-    return await asyncio.to_thread(get_business_by_domain, domain)
+    return await asyncio.to_thread(get_business_by_email, email)
 
 
 @mcp.tool()
@@ -81,8 +81,7 @@ async def create_business_account_tool(
     address: str,
     business_type: str,
     billing_method: str,
-    domain: str,
-    authorized_emails: list[str],
+    email: str,
 ) -> int:
     """
     Create a new business account and return the created account ID.
@@ -93,8 +92,7 @@ async def create_business_account_tool(
         address,
         business_type,
         billing_method,
-        domain,
-        authorized_emails,
+        email,
     )
 
 
@@ -117,11 +115,11 @@ async def confirm_quote_by_product_name_tool(
 
 
 @mcp.tool()
-async def get_active_quotes_tool(domain: str) -> list[UserQuoteSummary]:
+async def get_active_quotes_tool(email: str) -> list[UserQuoteSummary]:
     """
-    Return all active quotes for the business associated with the given domain.
+    Return all active quotes for the business associated with the given email.
     """
-    return await asyncio.to_thread(get_active_quotes_by_domain, domain)
+    return await asyncio.to_thread(get_active_quotes_by_email, email)
 
 
 @mcp.tool()
@@ -182,11 +180,11 @@ async def confirm_quote_tool(request: ConfirmQuoteRequest) -> ConfirmQuoteRespon
 
 
 @mcp.tool()
-async def get_purchase_orders_tool(domain: str) -> list[PurchaseOrderSummary]:
+async def get_purchase_orders_tool(email: str) -> list[PurchaseOrderSummary]:
     """
-    Return all purchase orders for the business associated with the given domain.
+    Return all purchase orders for the business associated with the given email.
     """
-    return await asyncio.to_thread(get_purchase_orders_by_domain, domain)
+    return await asyncio.to_thread(get_purchase_orders_by_email, email)
 
 
 @mcp.tool()
