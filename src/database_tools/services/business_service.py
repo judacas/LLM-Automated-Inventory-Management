@@ -12,6 +12,7 @@ class BusinessAccount(TypedDict):
     discount_percent: int
     email: str
 
+
 APPROVED_BILLING_METHODS = {
     "credit card": "credit_card",
     "mailed invoice": "mailed_invoice",
@@ -37,6 +38,7 @@ def normalize_billing_method(billing_method: str) -> str:
         )
 
     return APPROVED_BILLING_METHODS[normalized]
+
 
 def get_business_emails(limit: int = 10) -> list[str]:
     conn = get_connection()
@@ -98,6 +100,7 @@ def get_business_by_email(email: str) -> BusinessAccount | None:
     finally:
         conn.close()
 
+
 def create_business_account(
     company_name: str,
     address: str,
@@ -125,9 +128,7 @@ def create_business_account(
         missing_fields.append("email")
 
     if missing_fields:
-        raise ValueError(
-            f"Missing required fields: {', '.join(missing_fields)}"
-        )
+        raise ValueError(f"Missing required fields: {', '.join(missing_fields)}")
 
     normalized_billing_method = normalize_billing_method(billing_method)
     discount_flag = 1 if normalized_billing_method == "credit_card" else 0

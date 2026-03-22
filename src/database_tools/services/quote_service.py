@@ -526,7 +526,7 @@ def get_outstanding_quotes() -> list[QuoteSummary]:
 
 def get_quote_by_id(quote_id: int) -> QuoteDetailResponse:
     expire_quotes()
-    
+
     with get_connection() as conn:
         cursor = conn.cursor()
 
