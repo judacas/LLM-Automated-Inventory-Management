@@ -16,12 +16,8 @@ import os
 import re
 from typing import Any
 
-try:
-    from mcp import ClientSession
-    from mcp.client.streamable_http import streamable_http_client
-except ImportError:  # pragma: no cover
-    ClientSession = None
-    streamable_http_client = None
+from mcp import ClientSession
+from mcp.client.streamable_http import streamable_http_client
 
 from inventory_service.factory import (
     build_inventory_admin_service,

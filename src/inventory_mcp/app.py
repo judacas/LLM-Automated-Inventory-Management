@@ -12,7 +12,6 @@ import asyncio
 import contextlib
 import os
 from collections.abc import AsyncIterator
-from typing import Any, Awaitable, Callable
 
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -20,6 +19,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Mount, Route
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from inventory_mcp.server import mcp
 
@@ -34,7 +34,7 @@ from inventory_mcp.server import mcp
 # path, it may terminate the session during initialize.
 #
 # This wrapper normalizes that edge case so both `/mcp` and `/mcp/` behave.
-_mcp_http_app = mcp.streamable_http_app()
+_mcp_http_app: ASGIApp = mcp.streamable_http_app()
 
 # --- Session manager startup (important for some hosts) ---
 #
@@ -83,9 +83,9 @@ async def _ensure_session_manager_running() -> None:
 
 
 async def _mcp_http_app_with_normalized_path(
-    scope: dict[str, Any],
-    receive: Callable[[], Awaitable[dict[str, Any]]],
-    send: Callable[[dict[str, Any]], Awaitable[None]],
+    scope: Scope,
+    receive: Receive,
+    send: Send,
 ) -> None:
     # Make sure the MCP session manager is running before we delegate to the
     # underlying Streamable HTTP ASGI app.

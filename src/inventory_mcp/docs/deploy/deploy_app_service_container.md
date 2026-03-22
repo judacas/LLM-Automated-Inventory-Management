@@ -237,7 +237,7 @@ Options (pick one based on your team's security posture):
 - If your SQL server uses a private endpoint, you must use VNet integration and test connectivity inside the VNet.
 
 For local validation before deploying, see:
-- [docs/inventory/real_sql_test.md](../inventory/real_sql_test.md)
+- [real_sql_test.md](../real_sql_test.md)
 
 ---
 
