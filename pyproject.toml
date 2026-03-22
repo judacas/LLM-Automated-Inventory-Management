@@ -9,6 +9,10 @@ dependencies = [
     "mcp>=1.26.0",
     "pyodbc>=5.3.0",
     "starlette>=0.52.1",
+]
+
+[project.optional-dependencies]
+dev = [
     "uvicorn>=0.40.0",
 ]
 

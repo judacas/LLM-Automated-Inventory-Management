@@ -445,6 +445,10 @@ dependencies = [
     { name = "mcp" },
     { name = "pyodbc" },
     { name = "starlette" },
+]
+
+[package.optional-dependencies]
+dev = [
     { name = "uvicorn" },
 ]
 
@@ -464,8 +468,9 @@ requires-dist = [
     { name = "mcp", specifier = ">=1.26.0" },
     { name = "pyodbc", specifier = ">=5.3.0" },
     { name = "starlette", specifier = ">=0.52.1" },
-    { name = "uvicorn", specifier = ">=0.40.0" },
+    { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.40.0" },
 ]
+provides-extras = ["dev"]
 
 [package.metadata.requires-dev]
 dev = [
