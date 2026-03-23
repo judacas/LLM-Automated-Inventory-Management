@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import re
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from a2a.types import AgentSkill
@@ -24,6 +24,7 @@ class AgentDefinition:
     default_input_modes: tuple[str, ...]
     default_output_modes: tuple[str, ...]
     skills: tuple[AgentSkill, ...]
+    skill_keywords: dict[str, tuple[str, ...]] = field(default_factory=dict)
     smoke_test_prompts: tuple[str, ...]
     supports_streaming: bool = True
 
@@ -119,10 +120,12 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
     foundry_agent_name = _read_required_string(foundry, "agent_name", "foundry")
 
     skills: list[AgentSkill] = []
+    skill_keywords: dict[str, tuple[str, ...]] = {}
     for index, skill_data in enumerate(skills_table, start=1):
         if not isinstance(skill_data, dict):
             raise ValueError(f"`[[skills]]` entry #{index} must be a table")
 
+        keywords = _read_string_list(skill_data, "routing_keywords", default=[])
         skill = AgentSkill(
             id=_read_required_string(skill_data, "id", f"skills[{index}]"),
             name=_read_required_string(skill_data, "name", f"skills[{index}]"),
@@ -133,6 +136,7 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
             examples=list(_read_string_list(skill_data, "examples")),
         )
         skills.append(skill)
+        skill_keywords[skill.id] = keywords
 
     streaming_value = a2a.get("streaming", True)
     if not isinstance(streaming_value, bool):
@@ -163,6 +167,7 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
             a2a, "default_output_modes", default=["text"]
         ),
         skills=tuple(skills),
+        skill_keywords=skill_keywords,
         smoke_test_prompts=_read_string_list(smoke_tests, "prompts"),
         supports_streaming=streaming_value,
     )
