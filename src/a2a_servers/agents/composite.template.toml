@@ -1,0 +1,55 @@
+# Composite agent configuration template
+#
+# A composite agent groups multiple individual agent configs under a single A2A endpoint.
+# This lets an Azure AI Foundry client (which can only connect to one remote A2A agent at
+# a time) interact with several Foundry agents through a single URL.
+#
+# Routing: when a message arrives the composite agent scans it for the first matching
+# `keywords` pattern (Python regex, case-insensitive) and forwards the request to that
+# member's Foundry backend.  If no pattern matches, the first member is used as the
+# default fallback.
+#
+# Routing is sticky per conversation context: once a context is mapped to a member, all
+# subsequent messages in that context are handled by the same backend.
+#
+# Save this file as  agents/<name>_composite.toml  (the *_composite.toml glob is
+# auto-discovered).  Sample files should be named *_composite.sample.toml so they are
+# kept in-repo but ignored at startup.
+
+[composite]
+name        = "Your Combined Agent Name"
+description = "Short description of what this unified agent handles and when to call it."
+version     = "1.0.0"
+health_message = "Your combined agent is running!"
+
+# Optional: override the URL slug.  Defaults to the filename stem minus "_composite".
+# slug = "my-combined-agent"
+
+default_input_modes  = ["text"]
+default_output_modes = ["text"]
+streaming = true
+
+# ------------------------------------------------------------------
+# Member agents
+# Each [[composite.members]] block references one individual *_agent.toml file.
+# Paths are resolved relative to this composite config file.
+# ------------------------------------------------------------------
+
+[[composite.members]]
+# Path to the individual agent config (relative to this file).
+config = "first_agent.toml"
+
+# Regex patterns (Python re syntax, case-insensitive) used to route messages to this
+# member.  The first member whose patterns produce a match wins.  Leave empty ([]) to
+# use this member only as the default fallback (it should be listed last in that case).
+keywords = [
+    "\\bfirst\\b",
+    "example keyword",
+]
+
+[[composite.members]]
+config = "second_agent.toml"
+keywords = [
+    "\\bsecond\\b",
+    "another keyword",
+]
