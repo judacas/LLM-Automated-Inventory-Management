@@ -24,8 +24,8 @@ class AgentDefinition:
     default_input_modes: tuple[str, ...]
     default_output_modes: tuple[str, ...]
     skills: tuple[AgentSkill, ...]
+    smoke_test_prompts: tuple[str, ...] = field(default_factory=tuple)
     skill_keywords: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    smoke_test_prompts: tuple[str, ...]
     supports_streaming: bool = True
 
 

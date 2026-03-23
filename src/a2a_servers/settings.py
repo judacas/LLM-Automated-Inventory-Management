@@ -31,6 +31,19 @@ class ServerSettings:
         return f"{self.agent_base_url_for(slug)}/"
 
 
+@dataclass(frozen=True)
+class CompositeAgentSettings:
+    slug: str
+    name: str
+    description: str
+    version: str
+    health_message: str
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.slug.strip())
+
+
 def load_server_settings(
     *,
     host: str | None = None,
@@ -60,4 +73,41 @@ def load_server_settings(
         ).strip(),
         log_level_name=(os.getenv("LOG_LEVEL", "INFO")).strip().upper(),
         project_endpoint=project_endpoint,
+    )
+
+
+def load_composite_agent_settings(
+    *,
+    slug: str | None = None,
+    name: str | None = None,
+    description: str | None = None,
+    version: str | None = None,
+    health_message: str | None = None,
+) -> CompositeAgentSettings | None:
+    resolved_slug = (slug or os.getenv("A2A_COMPOSITE_SLUG") or "").strip()
+    if not resolved_slug:
+        return None
+
+    resolved_name = (name or os.getenv("A2A_COMPOSITE_NAME") or "Composite Agent").strip()
+    resolved_description = (
+        description
+        or os.getenv(
+            "A2A_COMPOSITE_DESCRIPTION",
+            "Routes skills to specialized Foundry agents by keyword.",
+        )
+        or ""
+    ).strip()
+    resolved_version = (version or os.getenv("A2A_COMPOSITE_VERSION") or "1.0.0").strip()
+    resolved_health = (
+        health_message
+        or os.getenv("A2A_COMPOSITE_HEALTH_MESSAGE")
+        or "Composite agent OK"
+    ).strip()
+
+    return CompositeAgentSettings(
+        slug=resolved_slug,
+        name=resolved_name,
+        description=resolved_description,
+        version=resolved_version,
+        health_message=resolved_health,
     )

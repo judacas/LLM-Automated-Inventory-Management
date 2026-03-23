@@ -72,8 +72,14 @@ Optional arrays:
 
 - `tags`
 - `examples`
+- `routing_keywords`
 
 These values are published in the A2A agent card, so they should be written for discoverability by other humans and agents.
+
+When composite routing is enabled (see the README), `routing_keywords` lets you
+define the words or phrases that should trigger this skill. A simple
+case-insensitive regex search is used, so keywords should be concise and
+distinct.
 
 ## `[smoke_tests]` Section
 

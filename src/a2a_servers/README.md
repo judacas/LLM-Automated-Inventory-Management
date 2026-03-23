@@ -55,6 +55,26 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - The server assumes Foundry agents already exist and are correctly configured in Azure AI Foundry.
 - need to redeploy to add new agents
 
+## Composite (Single-Endpoint) Mode
+
+Azure AI Foundry currently allows a client to connect to only one A2A server at a time. To expose multiple agents through a single endpoint, set `A2A_COMPOSITE_SLUG` (or pass `--composite-slug`) and the server will:
+
+- publish one combined agent card using `A2A_COMPOSITE_NAME`, `A2A_COMPOSITE_DESCRIPTION`, `A2A_COMPOSITE_VERSION`, and `A2A_COMPOSITE_HEALTH_MESSAGE` (all optional)
+- merge the skills from every discovered agent
+- route incoming requests to the correct Foundry agent using a keyword pre-processor
+
+Add optional `routing_keywords` to skills to make routing explicit:
+
+```toml
+[[skills]]
+id = "inventory"
+name = "Inventory"
+description = "Check and update stock"
+routing_keywords = ["inventory", "stock", "items"]
+```
+
+If no routing keywords are provided, the router falls back to the skill id, name, and tags. Single-agent configurations continue to work unchanged.
+
 ## What To Extend Next
 
 The most natural future extension points are:
