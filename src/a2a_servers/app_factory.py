@@ -103,7 +103,33 @@ def create_app(
             }
         )
 
+    async def config_status(request: Request) -> JSONResponse:
+        """Endpoint to check configuration source and status."""
+        config_loader = getattr(request.app.state, "config_loader", None)
+        if config_loader is None:
+            return JSONResponse(
+                {
+                    "error": "Configuration loader not available",
+                    "note": "This endpoint is only available when using the async loader",
+                },
+                status_code=503,
+            )
+
+        metadata = config_loader.get_metadata()
+        return JSONResponse(
+            {
+                "configuration": {
+                    "source_type": metadata.source_type,
+                    "loaded_at": metadata.loaded_at.isoformat(),
+                    "file_count": metadata.file_count,
+                    "source_info": metadata.source_info,
+                },
+                "agents_loaded": len(mounted_agents),
+            }
+        )
+
     routes.append(Route(path="/", methods=["GET"], endpoint=root_index))
+    routes.append(Route(path="/config/status", methods=["GET"], endpoint=config_status))
 
     for definition in definitions:
         sub_app, agent_card, agent_executor = create_agent_app(definition, settings)

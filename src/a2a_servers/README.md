@@ -16,6 +16,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - Architecture: [docs/architecture.md](docs/architecture.md)
 - Developer setup: [docs/developer-setup.md](docs/developer-setup.md)
 - Add a new agent: [docs/adding-agents.md](docs/adding-agents.md)
+- **Azure Blob Storage configuration: [docs/azure-blob-configuration.md](docs/azure-blob-configuration.md)** ⬅️ NEW
 - Redeploy after a change: [docs/redeploying.md](docs/redeploying.md)
 - Local testing with Dev Tunnels: [docs/local-testing-with-devtunnels.md](docs/local-testing-with-devtunnels.md)
 - Run locally and smoke test: [docs/runbook.md](docs/runbook.md)
@@ -29,6 +30,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 ## Current State
 
 - Multi-agent mounting is implemented and working locally along with manual deployment to azure.
+- **Agent configurations can be hosted in Azure Blob Storage for decoupled deployment**
 - Foundry integration is dynamic by agent name, not hardcoded per route.
 - Local smoke testing is included.
 - Azure deployment infrastructure is not checked into this branch yet, so deployment is currently a documented manual process rather than an automated IaC workflow.
@@ -43,7 +45,8 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - The published agent card URL changes based on `A2A_URL_MODE`.
 - Duplicate slugs or duplicate Foundry agent names fail startup.
 - The A2A server process does not create Foundry agents for you; it expects them to already exist.
-- adding or changing an agent in production requires a redeploy
+- **Configuration can be loaded from local filesystem (default) or Azure Blob Storage**
+- **When using Azure Blob Storage, configuration changes take effect after cache TTL (default 60s)**
 
 ## Current Limitations
 
@@ -53,7 +56,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - There is no checked-in Azure IaC for this package in the current branch.
 - There is no built-in authentication or network restriction layer in this package itself; deployment must provide that boundary.
 - The server assumes Foundry agents already exist and are correctly configured in Azure AI Foundry.
-- need to redeploy to add new agents
+- **When using Azure Blob Storage, adding or removing agents requires a restart (only updates to existing agents are hot-reloadable)**
 
 ## What To Extend Next
 
@@ -63,4 +66,5 @@ The most natural future extension points are:
 - deployment automation for Azure
 - stronger auth and ingress controls
 - richer health checks that validate Foundry connectivity
-- better process for adding and removeing agents, potentially with a gui
+- **hot-reload of agent additions/removals without restart**
+- **GUI for managing agent configurations in Azure Blob Storage**
