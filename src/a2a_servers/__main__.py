@@ -2,7 +2,7 @@ import logging
 
 import click
 import uvicorn
-from agent_definition import load_agent_definitions
+from agent_definition import load_agent_definitions, load_agent_definitions_from_blob
 from app_factory import MountedAgent, create_app
 from dotenv import load_dotenv
 from settings import ServerSettings, load_server_settings
@@ -28,12 +28,23 @@ logger = logging.getLogger(__name__)
     type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=str),
     default=None,
 )
+@click.option(
+    "--agent-config-blob-url",
+    "agent_config_blob_url",
+    default=None,
+    help=(
+        "Azure Blob Storage container URL containing *_agent.toml files. "
+        "When set, overrides --agent-config-dir and A2A_AGENT_CONFIG_DIR. "
+        "Example: https://<account>.blob.core.windows.net/<container>"
+    ),
+)
 def main(
     host: str | None,
     port: int | None,
     url_mode: str | None,
     forwarded_base_url: str | None,
     agent_config_dir: str | None,
+    agent_config_blob_url: str | None,
 ) -> None:
     """Start a multi-agent A2A server backed by Azure AI Foundry."""
     settings = load_server_settings(
@@ -41,9 +52,22 @@ def main(
         port=port,
         url_mode=url_mode,
         forwarded_base_url=forwarded_base_url,
+        agent_config_blob_url=agent_config_blob_url,
     )
 
-    definitions = load_agent_definitions(agent_config_dir)
+    if settings.agent_config_blob_url:
+        logger.info(
+            "Loading agent definitions from blob storage: %s",
+            settings.agent_config_blob_url,
+        )
+        definitions = load_agent_definitions_from_blob(
+            settings.agent_config_blob_url,
+            conn_str=settings.agent_config_blob_conn_str,
+        )
+    else:
+        logger.info("Loading agent definitions from local directory")
+        definitions = load_agent_definitions(agent_config_dir)
+
     app, mounted_agents = create_app(definitions, settings)
 
     log_level_name = settings.log_level_name

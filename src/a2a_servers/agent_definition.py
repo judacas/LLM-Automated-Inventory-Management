@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 import tomllib
@@ -10,6 +11,8 @@ from a2a.types import AgentSkill
 
 DEFAULT_AGENT_CONFIG_DIR = Path(__file__).resolve().parent / "agents"
 AGENT_CONFIG_GLOB = "*_agent.toml"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -87,17 +90,16 @@ def discover_agent_definition_paths(config_dir: str | None = None) -> tuple[Path
     return paths
 
 
-def load_agent_definition(config_path: str | Path) -> AgentDefinition:
-    path = Path(config_path).expanduser().resolve()
-    if not path.exists():
-        raise FileNotFoundError(
-            f"Agent config file not found: {path}. "
-            "Create one from `agents/agent.template.toml`."
-        )
+def _parse_agent_definition(
+    document: dict[str, object], path: Path
+) -> AgentDefinition:
+    """Parse a validated TOML document into an :class:`AgentDefinition`.
 
-    with path.open("rb") as handle:
-        document = tomllib.load(handle)
-
+    ``path`` is used as the ``source_path`` on the result and for deriving the
+    slug when no explicit ``a2a.slug`` is provided.  For configs loaded from
+    remote storage it can be a virtual ``Path`` such as
+    ``Path("email_agent.toml")`` – it does not need to exist on disk.
+    """
     a2a = document.get("a2a")
     if not isinstance(a2a, dict):
         raise ValueError("Agent config must define an `[a2a]` section")
@@ -168,14 +170,38 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
     )
 
 
-def load_agent_definitions(
-    config_dir: str | None = None,
-) -> tuple[AgentDefinition, ...]:
-    definitions = tuple(
-        load_agent_definition(path)
-        for path in discover_agent_definition_paths(config_dir)
-    )
+def load_agent_definition(config_path: str | Path) -> AgentDefinition:
+    path = Path(config_path).expanduser().resolve()
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Agent config file not found: {path}. "
+            "Create one from `agents/agent.template.toml`."
+        )
 
+    with path.open("rb") as handle:
+        document = tomllib.load(handle)
+
+    return _parse_agent_definition(document, path)
+
+
+def load_agent_definition_from_content(
+    content: bytes, virtual_path: Path
+) -> AgentDefinition:
+    """Parse an agent definition from raw TOML bytes.
+
+    ``virtual_path`` is used to derive the slug when no explicit ``a2a.slug``
+    is set, and is recorded in :attr:`AgentDefinition.source_path`.  It does
+    not need to point to a real file on disk.
+
+    This is the loading path used when configs are fetched from remote storage
+    (for example Azure Blob Storage) rather than read from local disk.
+    """
+    document = tomllib.loads(content.decode("utf-8"))
+    return _parse_agent_definition(document, virtual_path)
+
+
+def _validate_no_duplicates(definitions: tuple[AgentDefinition, ...]) -> None:
+    """Raise :exc:`ValueError` if any slugs or Foundry agent names are duplicated."""
     seen_slugs: dict[str, Path] = {}
     seen_foundry_names: dict[str, Path] = {}
     seen_paths: set[Path] = set()
@@ -204,4 +230,93 @@ def load_agent_definitions(
             )
         seen_foundry_names[definition.foundry_agent_name] = definition.source_path
 
+
+def load_agent_definitions(
+    config_dir: str | None = None,
+) -> tuple[AgentDefinition, ...]:
+    definitions = tuple(
+        load_agent_definition(path)
+        for path in discover_agent_definition_paths(config_dir)
+    )
+    _validate_no_duplicates(definitions)
+    return definitions
+
+
+def load_agent_definitions_from_blob(
+    container_url: str,
+    *,
+    conn_str: str | None = None,
+) -> tuple[AgentDefinition, ...]:
+    """Download and load all ``*_agent.toml`` configs from an Azure Blob container.
+
+    Authentication is resolved in this order:
+
+    1. **Connection string** – if ``conn_str`` is provided (or the
+       ``A2A_AGENT_CONFIG_BLOB_CONN_STR`` environment variable is set), a
+       ``BlobServiceClient`` is built from it and the container name is
+       derived from the last path segment of *container_url*.  This is the
+       recommended approach for local testing with the Azurite emulator.
+
+    2. **DefaultAzureCredential** – used in all other cases, including managed
+       identity in Azure App Service.
+
+    Only blobs whose names end with ``_agent.toml`` are loaded.  Blobs ending
+    with ``_agent.sample.toml`` are silently skipped, matching the local
+    discovery convention.
+
+    Raises :exc:`FileNotFoundError` if no matching blobs are found.
+    Raises :exc:`ValueError` if duplicate slugs or Foundry agent names are
+    detected across the loaded definitions.
+    """
+    from azure.storage.blob import BlobServiceClient, ContainerClient
+
+    resolved_conn_str = (conn_str or os.getenv("A2A_AGENT_CONFIG_BLOB_CONN_STR") or "").strip() or None
+
+    if resolved_conn_str:
+        container_name = container_url.rstrip("/").rsplit("/", 1)[-1]
+        logger.debug(
+            "Connecting to blob container %r via connection string", container_name
+        )
+        client: ContainerClient = BlobServiceClient.from_connection_string(
+            resolved_conn_str
+        ).get_container_client(container_name)
+    else:
+        from azure.identity import DefaultAzureCredential
+
+        logger.debug(
+            "Connecting to blob container %r via DefaultAzureCredential", container_url
+        )
+        client = ContainerClient.from_container_url(
+            container_url, credential=DefaultAzureCredential()
+        )
+
+    paths_and_contents: list[tuple[Path, bytes]] = []
+    for blob in client.list_blobs():
+        name: str = blob.name  # type: ignore[assignment]
+        if not name.endswith("_agent.toml"):
+            continue
+        if name.endswith("_agent.sample.toml"):
+            continue
+        blob_client = client.get_blob_client(name)
+        raw = blob_client.download_blob().readall()
+        virtual_path = Path(name)
+        paths_and_contents.append((virtual_path, raw))
+        logger.debug("Downloaded agent config blob: %s", name)
+
+    if not paths_and_contents:
+        raise FileNotFoundError(
+            f"No agent config files matching `{AGENT_CONFIG_GLOB}` "
+            f"found in blob container: {container_url}"
+        )
+
+    definitions = tuple(
+        load_agent_definition_from_content(content, path)
+        for path, content in sorted(paths_and_contents, key=lambda x: x[0].name)
+    )
+    _validate_no_duplicates(definitions)
+    logger.info(
+        "Loaded %d agent definition(s) from blob storage: %s",
+        len(definitions),
+        container_url,
+    )
     return definitions
