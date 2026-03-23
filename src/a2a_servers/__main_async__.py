@@ -3,7 +3,7 @@ import logging
 
 import click
 import uvicorn
-from agent_definition import load_agent_definitions, load_agent_definitions_async, AGENT_CONFIG_GLOB
+from agent_definition import load_agent_definitions_async, AGENT_CONFIG_GLOB
 from app_factory import MountedAgent, create_app
 from config_loader import ConfigurationLoader, create_config_source
 from dotenv import load_dotenv
@@ -54,7 +54,7 @@ def main(
     use_azure_blob: bool,
     config_cache_ttl: int,
 ) -> None:
-    """Start a multi-agent A2A server backed by Azure AI Foundry."""
+    """Start a multi-agent A2A server backed by Azure AI Foundry with flexible config loading."""
     asyncio.run(
         async_main(
             host=host,

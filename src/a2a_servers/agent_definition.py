@@ -205,3 +205,145 @@ def load_agent_definitions(
         seen_foundry_names[definition.foundry_agent_name] = definition.source_path
 
     return definitions
+
+
+def _derive_agent_slug_from_filename(filename: str) -> str:
+    """Derive agent slug from filename (used for remote config sources)."""
+    stem = Path(filename).stem
+    for suffix in ("_agent", "-agent"):
+        if stem.lower().endswith(suffix):
+            stem = stem[: -len(suffix)]
+            break
+    return _normalize_agent_slug(stem)
+
+
+def _parse_agent_definition_from_toml(
+    document: dict[str, object], filename: str
+) -> AgentDefinition:
+    """Parse an AgentDefinition from a TOML document."""
+    a2a = document.get("a2a")
+    if not isinstance(a2a, dict):
+        raise ValueError("Agent config must define an `[a2a]` section")
+
+    foundry = document.get("foundry")
+    if not isinstance(foundry, dict):
+        raise ValueError("Agent config must define a `[foundry]` section")
+
+    skills_table = document.get("skills", [])
+    if not isinstance(skills_table, list) or not skills_table:
+        raise ValueError("Agent config must define at least one `[[skills]]` entry")
+
+    smoke_tests = document.get("smoke_tests")
+    if smoke_tests is None:
+        smoke_tests = {}
+    if not isinstance(smoke_tests, dict):
+        raise ValueError("`[smoke_tests]` must be a table if provided")
+
+    foundry_agent_name = _read_required_string(foundry, "agent_name", "foundry")
+
+    skills: list[AgentSkill] = []
+    for index, skill_data in enumerate(skills_table, start=1):
+        if not isinstance(skill_data, dict):
+            raise ValueError(f"`[[skills]]` entry #{index} must be a table")
+
+        skill = AgentSkill(
+            id=_read_required_string(skill_data, "id", f"skills[{index}]"),
+            name=_read_required_string(skill_data, "name", f"skills[{index}]"),
+            description=_read_required_string(
+                skill_data, "description", f"skills[{index}]"
+            ),
+            tags=list(_read_string_list(skill_data, "tags")),
+            examples=list(_read_string_list(skill_data, "examples")),
+        )
+        skills.append(skill)
+
+    streaming_value = a2a.get("streaming", True)
+    if not isinstance(streaming_value, bool):
+        raise ValueError("`a2a.streaming` must be a boolean")
+
+    slug_value = a2a.get("slug")
+    if slug_value is not None and not isinstance(slug_value, str):
+        raise ValueError("`a2a.slug` must be a string if provided")
+
+    slug = (
+        _normalize_agent_slug(slug_value)
+        if isinstance(slug_value, str) and slug_value.strip()
+        else _derive_agent_slug_from_filename(filename)
+    )
+
+    # Use filename as source_path for remote configs
+    return AgentDefinition(
+        slug=slug,
+        source_path=Path(filename),
+        public_name=_read_required_string(a2a, "name", "a2a"),
+        description=_read_required_string(a2a, "description", "a2a"),
+        version=_read_required_string(a2a, "version", "a2a"),
+        health_message=_read_required_string(a2a, "health_message", "a2a"),
+        foundry_agent_name=foundry_agent_name,
+        default_input_modes=_read_string_list(
+            a2a, "default_input_modes", default=["text"]
+        ),
+        default_output_modes=_read_string_list(
+            a2a, "default_output_modes", default=["text"]
+        ),
+        skills=tuple(skills),
+        smoke_test_prompts=_read_string_list(smoke_tests, "prompts"),
+        supports_streaming=streaming_value,
+    )
+
+
+async def load_agent_definitions_async(
+    loader: "ConfigurationLoader",
+    pattern: str = AGENT_CONFIG_GLOB,
+    use_cache: bool = True,
+) -> tuple[AgentDefinition, ...]:
+    """Load agent definitions asynchronously using a ConfigurationLoader.
+
+    This function supports both local filesystem and remote configuration sources
+    (e.g., Azure Blob Storage) through the ConfigurationLoader abstraction.
+    """
+    from config_loader import ConfigurationLoader
+
+    # List all matching config files
+    filenames = await loader.list_config_files(pattern, use_cache=use_cache)
+
+    if not filenames:
+        raise FileNotFoundError(
+            f"No agent config files matching `{pattern}` found in configuration source"
+        )
+
+    # Load each config file
+    definitions: list[AgentDefinition] = []
+    for filename in filenames:
+        document = await loader.read_config_file(filename, use_cache=use_cache)
+        definition = _parse_agent_definition_from_toml(document, filename)
+        definitions.append(definition)
+
+    # Validate for duplicates
+    seen_slugs: dict[str, str] = {}
+    seen_foundry_names: dict[str, str] = {}
+    seen_filenames: set[str] = set()
+
+    for definition in definitions:
+        filename = str(definition.source_path)
+
+        if filename in seen_filenames:
+            raise ValueError(f"Duplicate agent config detected: {filename}")
+        seen_filenames.add(filename)
+
+        previous_slug_file = seen_slugs.get(definition.slug)
+        if previous_slug_file is not None:
+            raise ValueError(
+                f"Duplicate agent slug `{definition.slug}` in {previous_slug_file} and {filename}"
+            )
+        seen_slugs[definition.slug] = filename
+
+        previous_foundry_file = seen_foundry_names.get(definition.foundry_agent_name)
+        if previous_foundry_file is not None:
+            raise ValueError(
+                f"Duplicate Foundry agent name `{definition.foundry_agent_name}` "
+                f"in {previous_foundry_file} and {filename}"
+            )
+        seen_foundry_names[definition.foundry_agent_name] = filename
+
+    return tuple(definitions)
