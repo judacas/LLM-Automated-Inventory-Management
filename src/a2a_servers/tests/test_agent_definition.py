@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent_definition import (
@@ -11,7 +12,9 @@ from agent_definition import (
     _derive_agent_slug,
     _normalize_agent_slug,
     load_agent_definition,
+    load_agent_definition_from_content,
     load_agent_definitions,
+    load_agent_definitions_from_blob,
 )
 
 # ---------------------------------------------------------------------------
@@ -349,3 +352,203 @@ def test_empty_config_dir_raises(tmp_path: Path) -> None:
 def test_nonexistent_config_dir_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="not found"):
         load_agent_definitions(str(tmp_path / "does_not_exist"))
+
+
+# ---------------------------------------------------------------------------
+# load_agent_definition_from_content
+# ---------------------------------------------------------------------------
+
+
+def test_load_from_content_happy_path() -> None:
+    """Content-based loading produces the same result as file-based loading."""
+    virtual_path = Path("math_agent.toml")
+    defn = load_agent_definition_from_content(_VALID_TOML.encode(), virtual_path)
+
+    assert isinstance(defn, AgentDefinition)
+    assert defn.slug == "math"
+    assert defn.public_name == "Math Agent"
+    assert defn.foundry_agent_name == "math-foundry-agent"
+    assert defn.source_path == virtual_path
+    assert len(defn.skills) == 1
+    assert defn.smoke_test_prompts == ("What is 1+1?",)
+
+
+def test_load_from_content_explicit_slug() -> None:
+    content = _VALID_TOML.replace("[a2a]", "[a2a]\nslug = \"custom\"", 1)
+    defn = load_agent_definition_from_content(content.encode(), Path("math_agent.toml"))
+    assert defn.slug == "custom"
+
+
+def test_load_from_content_invalid_toml_raises() -> None:
+    with pytest.raises(Exception):
+        load_agent_definition_from_content(b"this is not toml!!!", Path("bad_agent.toml"))
+
+
+def test_load_from_content_missing_a2a_section_raises() -> None:
+    content = textwrap.dedent("""\
+        [foundry]
+        agent_name = "x"
+
+        [[skills]]
+        id = "s"
+        name = "S"
+        description = "desc"
+    """)
+    with pytest.raises(ValueError, match=r"\[a2a\]"):
+        load_agent_definition_from_content(content.encode(), Path("bad_agent.toml"))
+
+
+# ---------------------------------------------------------------------------
+# load_agent_definitions_from_blob
+# ---------------------------------------------------------------------------
+
+_MATH_TOML = _VALID_TOML.encode()
+_QUOTE_TOML = textwrap.dedent("""\
+    [a2a]
+    name = "Quote Agent"
+    description = "Handles quotes"
+    version = "1.0.0"
+    health_message = "OK"
+
+    [foundry]
+    agent_name = "quote-foundry-agent"
+
+    [[skills]]
+    id = "quoting"
+    name = "Quoting"
+    description = "Creates quotes"
+""").encode()
+
+
+def _make_blob_mock(name: str) -> MagicMock:
+    blob = MagicMock()
+    blob.name = name
+    return blob
+
+
+def _make_blob_client_mock(content: bytes) -> MagicMock:
+    downloader = MagicMock()
+    downloader.readall.return_value = content
+    blob_client = MagicMock()
+    blob_client.download_blob.return_value = downloader
+    return blob_client
+
+
+def _build_container_client_mock(blobs: dict[str, bytes]) -> MagicMock:
+    """Build a ContainerClient mock that lists *blobs* and serves their content."""
+    container_mock = MagicMock()
+    container_mock.list_blobs.return_value = [_make_blob_mock(n) for n in blobs]
+
+    def get_blob_client(name: str) -> MagicMock:
+        return _make_blob_client_mock(blobs[name])
+
+    container_mock.get_blob_client.side_effect = get_blob_client
+    return container_mock
+
+
+def test_load_from_blob_with_default_credential() -> None:
+    """DefaultAzureCredential path is used when no connection string is set."""
+    container_mock = _build_container_client_mock({"math_agent.toml": _MATH_TOML})
+
+    with (
+        patch("azure.storage.blob.ContainerClient.from_container_url", return_value=container_mock),
+        patch("azure.identity.DefaultAzureCredential"),
+    ):
+        definitions = load_agent_definitions_from_blob("https://fake.blob.core.windows.net/configs")
+
+    assert len(definitions) == 1
+    assert definitions[0].slug == "math"
+    assert definitions[0].public_name == "Math Agent"
+
+
+def test_load_from_blob_with_conn_str() -> None:
+    """Connection-string path is used when conn_str is provided."""
+    container_mock = _build_container_client_mock(
+        {
+            "math_agent.toml": _MATH_TOML,
+            "quote_agent.toml": _QUOTE_TOML,
+        }
+    )
+
+    blob_service_mock = MagicMock()
+    blob_service_mock.get_container_client.return_value = container_mock
+
+    with patch(
+        "azure.storage.blob.BlobServiceClient.from_connection_string",
+        return_value=blob_service_mock,
+    ):
+        definitions = load_agent_definitions_from_blob(
+            "http://127.0.0.1:10000/devstoreaccount1/agent-configs",
+            conn_str="DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=fake",
+        )
+
+    assert len(definitions) == 2
+    slugs = {d.slug for d in definitions}
+    assert slugs == {"math", "quote"}
+    # Container name is derived from the last segment of the URL
+    blob_service_mock.get_container_client.assert_called_once_with("agent-configs")
+
+
+def test_load_from_blob_skips_sample_files() -> None:
+    """Blobs named *_agent.sample.toml are not loaded."""
+    container_mock = _build_container_client_mock(
+        {
+            "math_agent.toml": _MATH_TOML,
+            "example_agent.sample.toml": _QUOTE_TOML,
+        }
+    )
+
+    with (
+        patch("azure.storage.blob.ContainerClient.from_container_url", return_value=container_mock),
+        patch("azure.identity.DefaultAzureCredential"),
+    ):
+        definitions = load_agent_definitions_from_blob("https://fake.blob.core.windows.net/configs")
+
+    assert len(definitions) == 1
+    assert definitions[0].slug == "math"
+
+
+def test_load_from_blob_empty_container_raises() -> None:
+    """FileNotFoundError is raised when the container has no matching blobs."""
+    container_mock = _build_container_client_mock({})
+
+    with (
+        patch("azure.storage.blob.ContainerClient.from_container_url", return_value=container_mock),
+        patch("azure.identity.DefaultAzureCredential"),
+        pytest.raises(FileNotFoundError, match="No agent config files"),
+    ):
+        load_agent_definitions_from_blob("https://fake.blob.core.windows.net/empty-container")
+
+
+def test_load_from_blob_duplicate_slugs_raises() -> None:
+    """Duplicate slug detection works across blobs loaded remotely."""
+    duplicate_toml = textwrap.dedent("""\
+        [a2a]
+        name = "Math Agent 2"
+        description = "Another math agent"
+        version = "1.0.0"
+        health_message = "OK"
+        slug = "math"
+
+        [foundry]
+        agent_name = "different-foundry-agent"
+
+        [[skills]]
+        id = "math2"
+        name = "Math2"
+        description = "Also math"
+    """).encode()
+
+    container_mock = _build_container_client_mock(
+        {
+            "math_agent.toml": _MATH_TOML,
+            "math2_agent.toml": duplicate_toml,
+        }
+    )
+
+    with (
+        patch("azure.storage.blob.ContainerClient.from_container_url", return_value=container_mock),
+        patch("azure.identity.DefaultAzureCredential"),
+        pytest.raises(ValueError, match="Duplicate agent slug"),
+    ):
+        load_agent_definitions_from_blob("https://fake.blob.core.windows.net/configs")

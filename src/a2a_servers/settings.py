@@ -12,6 +12,8 @@ class ServerSettings:
     forwarded_base_url: str
     log_level_name: str
     project_endpoint: str | None = None
+    agent_config_blob_url: str | None = None
+    agent_config_blob_conn_str: str | None = None
 
     @property
     def public_base_url(self) -> str:
@@ -38,6 +40,8 @@ def load_server_settings(
     url_mode: str | None = None,
     forwarded_base_url: str | None = None,
     require_project_endpoint: bool = True,
+    agent_config_blob_url: str | None = None,
+    agent_config_blob_conn_str: str | None = None,
 ) -> ServerSettings:
     resolved_url_mode = (
         (url_mode or os.getenv("A2A_URL_MODE") or "local").strip().lower()
@@ -51,6 +55,16 @@ def load_server_settings(
             "Missing required environment variable: AZURE_AI_PROJECT_ENDPOINT"
         )
 
+    resolved_blob_url = (
+        agent_config_blob_url or os.getenv("A2A_AGENT_CONFIG_BLOB_URL") or ""
+    ).strip() or None
+
+    resolved_blob_conn_str = (
+        agent_config_blob_conn_str
+        or os.getenv("A2A_AGENT_CONFIG_BLOB_CONN_STR")
+        or ""
+    ).strip() or None
+
     return ServerSettings(
         host=(host if host is not None else os.getenv("A2A_HOST", "localhost")).strip(),
         port=port if port is not None else int(os.getenv("A2A_PORT", "10007")),
@@ -60,4 +74,6 @@ def load_server_settings(
         ).strip(),
         log_level_name=(os.getenv("LOG_LEVEL", "INFO")).strip().upper(),
         project_endpoint=project_endpoint,
+        agent_config_blob_url=resolved_blob_url,
+        agent_config_blob_conn_str=resolved_blob_conn_str,
     )
