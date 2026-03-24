@@ -31,7 +31,6 @@ build-backend = "hatchling.build"
 # This repo uses a `src/` layout. Hatchling expects package *paths*, not the
 # literal directory name.
 packages = [
-  "src/admin_orchestrator_agent",
   "src/inventory_mcp",
   "src/inventory_service",
 ]
@@ -53,11 +52,11 @@ ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests
 
 [tool.ruff.lint.isort]
 # Tell Ruff/isort which modules are part of this repo (src/ layout).
-known-first-party = ["admin_orchestrator_agent", "inventory_mcp", "inventory_service"]
+known-first-party = ["inventory_mcp", "inventory_service"]
 
 [tool.deptry]
 root = "src"
-known_first_party = ["inventory_service", "admin_orchestrator_agent", "inventory_mcp"]
+known_first_party = ["inventory_service", "inventory_mcp"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

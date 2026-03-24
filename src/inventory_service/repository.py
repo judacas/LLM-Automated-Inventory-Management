@@ -68,6 +68,34 @@ class InventoryRepository:
             item, quantity=new_quantity, status=new_status
         )
 
+    def list_items_v2(self) -> list[InventoryItem_v2]:
+        """Return inventory for all known products (mock implementation).
+
+        Notes:
+        - The in-memory repository is intentionally a lightweight stub.
+        - For local dev/tests, we seed a small deterministic set if nothing has
+          been requested yet.
+        """
+
+        self._ensure_state()
+        if not self._items_v2:
+            # Seed a few items so "list all" queries are meaningful in demos.
+            for product_id, name, qty in [
+                (1001, "Widget A", 0),
+                (1002, "Widget B", 8),
+                (1003, "Widget C", 2),
+            ]:
+                status = "in_stock" if qty > 0 else "out_of_stock"
+                self._items_v2[product_id] = InventoryItem_v2(
+                    product_id=product_id,
+                    product_name=name,
+                    quantity=qty,
+                    available_date=date(2026, 4, 1) if qty == 0 else None,
+                    status=status,
+                )
+
+        return [self._items_v2[k] for k in sorted(self._items_v2.keys())]
+
     # --- Legacy SKU-based methods for backward compatibility ---
     def get_item(self, sku: str) -> InventoryItem:
         """Return inventory for the given sku (mock implementation)."""

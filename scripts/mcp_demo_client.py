@@ -35,6 +35,7 @@ async def run_demo(url: str, product_id: int, qty: int) -> None:
                 tools = await session.list_tools()
                 tool_names = [t.name for t in tools.tools]
                 print("TOOLS:", tool_names)
+                tool_set = set(tool_names)
 
                 async def call(name: str, arguments: dict[str, Any]) -> Any:
                     # `call_tool` returns an object that may contain:
@@ -68,6 +69,20 @@ async def run_demo(url: str, product_id: int, qty: int) -> None:
 
                 print("\nget_inventory (after receive):")
                 print(await call("get_inventory", {"product_id": product_id}))
+
+                # --- Admin-facing tools (read-only) ---
+                # These may depend on schema/data (e.g., quotes) and can return empty lists.
+                if "inventory_admin_summary" in tool_set:
+                    print("\ninventory_admin_summary:")
+                    print(await call("inventory_admin_summary", {}))
+
+                if "get_all_inventory" in tool_set:
+                    print("\nget_all_inventory:")
+                    print(await call("get_all_inventory", {}))
+
+                if "inventory_unavailable_requested_items" in tool_set:
+                    print("\ninventory_unavailable_requested_items:")
+                    print(await call("inventory_unavailable_requested_items", {}))
     except McpError as exc:
         # This is the common failure mode when the URL is wrong (wrong port/app/path)
         # or the server isn't actually serving MCP Streamable HTTP at that endpoint.

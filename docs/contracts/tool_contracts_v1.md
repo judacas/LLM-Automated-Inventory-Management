@@ -22,6 +22,9 @@ These are the source-of-truth interfaces used for integration between agents/too
 - `get_inventory(product_id: int)`
 - `reserve_inventory(product_id: int, qty: int)`
 - `receive_inventory(product_id: int, qty: int)`
+- `inventory_admin_summary(low_stock_threshold: int = 5)`
+- `inventory_unavailable_requested_items(quote_status: str = "Pending", top_n: int = 20)`
+- `get_all_inventory()`
 
 ---
 
@@ -84,21 +87,10 @@ These are the source-of-truth interfaces used for integration between agents/too
 
 ---
 
-## Admin Orchestrator Intent Contract (v1)
+## Admin (Foundry) Notes
 
-**Purpose:** Classify admin requests and route them to the correct tool/agent.
-
-### Supported intents
-- `check_inventory`
-- `check_quotes` (delegates to quote agent)
-- `system_summary` (calls inventory + quote and combines results)
-- `unknown`
-
-### Requirements
-- Admin outputs must be tool-backed:
-  - Any totals/counts/current-state claims must come from deterministic tool calls
-- Quote path is currently under development and will be integrated via A2A
-- Inventory path calls the Inventory MCP tool surface (preferred)
+- The Admin experience is implemented as a Foundry prompt agent.
+- For tool allowlists and copy/paste prompt instructions, see: `docs/admin/foundry_prompt_agent_instructions.md`.
 
 ---
 

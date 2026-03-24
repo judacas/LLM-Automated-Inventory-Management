@@ -198,3 +198,17 @@ def inventory_unavailable_requested_items(
         "quote_status": quote_status,
         "items": [_unavailable_item_to_dict(i) for i in items],
     }
+
+
+@mcp.tool()
+def get_all_inventory() -> dict[str, Any]:
+    """List inventory levels for all products (read-only).
+
+    Supports admin requirements like:
+    - "Admin can see inventory levels for all products."
+
+    Output is shaped as a dict containing an `items` array.
+    """
+
+    items = _inventory_service.list_all_inventory()
+    return {"items": [_item_to_dict(i) for i in items]}

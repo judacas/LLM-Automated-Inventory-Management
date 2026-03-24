@@ -13,16 +13,14 @@ Use this page as the entry point, then jump to the relevant subfolder.
 - Deploy Inventory MCP to App Service (Linux) via container (WSL): [deploy/deploy_app_service_container.md](deploy/deploy_app_service_container.md)
 - Smoke test deployed Inventory MCP (MCP over HTTP): [deploy/test_deployed_inventory_mcp.md](deploy/test_deployed_inventory_mcp.md)
 
-### Admin Orchestrator (local)
+### Admin Agent (Foundry)
 - Admin docs landing page: [admin/README.md](admin/README.md)
-- Run the Admin Orchestrator HTTP API: [admin/run_admin_orchestrator.md](admin/run_admin_orchestrator.md)
-- Local E2E (Admin Orchestrator → Inventory MCP over HTTP): [admin/local_e2e_admin_orchestrator_inventory_mcp.md](admin/local_e2e_admin_orchestrator_inventory_mcp.md)
-- Foundry prompt agent instruction text (routing/intent): [admin/foundry_prompt_agent_instructions.md](admin/foundry_prompt_agent_instructions.md)
+- Foundry Admin agent instructions (copy/paste): [admin/foundry_prompt_agent_instructions.md](admin/foundry_prompt_agent_instructions.md)
 
 ## Folder map
 
 - [admin/](admin/)
-  - Admin orchestrator service runbooks and local E2E validation.
+  - Foundry Admin agent prompt + MCP allowlists.
 
 - [inventory/](inventory/)
   - Inventory MCP runbooks (local + real SQL validation).

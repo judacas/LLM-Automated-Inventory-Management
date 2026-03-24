@@ -123,6 +123,62 @@ class AzureSqlInventoryRepository(InventoryRepository):
                 """
                 cur.execute(ins_q, product_id, delta)
 
+    def list_items_v2(self) -> list[InventoryItem_v2]:
+        """List inventory for all products.
+
+        Implementation detail:
+        - We select the latest inventory row per product_id (by inventory_id).
+        - If a product has no inventory row, quantity is treated as 0.
+        """
+
+        query = """
+        WITH latest AS (
+            SELECT
+                i.product_id,
+                i.quantity_in_stock,
+                i.next_available_date,
+                ROW_NUMBER() OVER (PARTITION BY i.product_id ORDER BY i.inventory_id DESC) AS rn
+            FROM dbo.Inventory i
+        )
+        SELECT
+            p.product_id,
+            p.name AS product_name,
+            COALESCE(l.quantity_in_stock, 0) AS quantity_in_stock,
+            l.next_available_date
+        FROM dbo.Products p
+        LEFT JOIN latest l
+            ON l.product_id = p.product_id
+            AND l.rn = 1
+        ORDER BY p.product_id;
+        """
+
+        with self._connect() as conn:
+            cur = conn.cursor()
+            rows = cur.execute(query).fetchall()
+
+        items: list[InventoryItem_v2] = []
+        for row in rows:
+            qty = int(row.quantity_in_stock)
+            next_date = row.next_available_date
+            if qty > 0:
+                status = "in_stock"
+            elif next_date is not None:
+                status = "available_on_date"
+            else:
+                status = "out_of_stock"
+
+            items.append(
+                InventoryItem_v2(
+                    product_id=int(row.product_id),
+                    product_name=str(row.product_name),
+                    quantity=qty,
+                    available_date=next_date,
+                    status=status,
+                )
+            )
+
+        return items
+
     # --- Compatibility: keep existing interface methods if your service still uses sku ---
     # If your InventoryRepository requires get_item(sku) / update_quantity(sku, delta),
     # keep the mock repo for v1 and do NOT route v1 to SQL yet.

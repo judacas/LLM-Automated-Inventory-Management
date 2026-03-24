@@ -43,6 +43,24 @@ class InventoryService:
             raise ValueError("Quantity must be positive.")
         self.repository.update_quantity_v2(product_id, quantity)
 
+    def list_all_inventory(self) -> list[InventoryItem_v2]:
+        """Return inventory levels for all products.
+
+        This supports admin dashboard/reporting scenarios.
+        """
+
+        if hasattr(self.repository, "list_items_v2"):
+            # Both the mock repo and the SQL repo implement this.
+            return self.repository.list_items_v2()
+
+        # Backward-compatible fallback (should not happen in this repo).
+        # Return a small deterministic set.
+        return [
+            self.get_inventory_by_product_id(1001),
+            self.get_inventory_by_product_id(1002),
+            self.get_inventory_by_product_id(1003),
+        ]
+
     # Legacy SKU-based methods for backward compatibility
 
     def get_item_availability(self, sku: str) -> InventoryItem:

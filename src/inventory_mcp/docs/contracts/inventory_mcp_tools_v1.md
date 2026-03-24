@@ -104,6 +104,29 @@ Supports the requirement: “What currently unavailable items are being requeste
 }
 ```
 
+### 6) `get_all_inventory`
+List inventory levels for all products.
+
+Supports the requirement: “Admin can see inventory levels for all products”.
+
+**Arguments**
+- (none)
+
+**Structured output**
+```json
+{
+  "items": [
+    {
+      "product_id": 1001,
+      "product_name": "Widget A",
+      "quantity": 10,
+      "available_date": "2026-04-01",
+      "status": "in_stock"
+    }
+  ]
+}
+```
+
 ## Error behavior (integration expectations)
 
 - Invalid numeric inputs (e.g., `qty <= 0`) raise tool errors.

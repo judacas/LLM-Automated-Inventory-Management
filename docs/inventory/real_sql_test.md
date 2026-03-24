@@ -66,24 +66,12 @@ Expected:
 - Tool list prints
 - `get_inventory` returns data for your real DB product rows
 
-## Step 3 — End-to-end validation through Admin Orchestrator
+## Step 3 — Validate the additional admin tools
 
-Start the orchestrator with fallback disabled:
+The demo client validates `get_inventory`, `reserve_inventory`, and `receive_inventory`.
 
-```bash
-export PYTHONPATH=src
-export INVENTORY_MCP_URL=http://localhost:8000/mcp
-export INVENTORY_MCP_FALLBACK_IN_PROCESS=0
-uv run uvicorn admin_orchestrator_agent.app:app --reload --host 0.0.0.0 --port 8010
-```
-
-Then call it:
-
-```bash
-curl -s -X POST http://localhost:8010/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"Check inventory for product 1001"}'
-```
+To validate the **admin** tools (including the new `get_all_inventory`), see the updated local runbook:
+- `docs/inventory/run_inventory_mcp.md`
 
 ## Troubleshooting
 
