@@ -174,19 +174,41 @@ python -m a2a_servers.foundry_agent_tools rename-tools \
 
 ## Creating an agent fully in code (with pre-named A2A tools)
 
-You can create a Foundry prompt agent directly in code, avoiding duplicate tool names from the start. Supply the A2A endpoints inline:
+You can create a Foundry prompt agent directly in code, avoiding duplicate tool names from the start.
+
+By default, the command now matches the rest of the A2A package:
+
+- loads `AZURE_AI_PROJECT_ENDPOINT` from the environment
+- loads the shared A2A server URL settings from the environment
+- discovers `agents/*_agent.toml`
+- creates one A2A tool per discovered agent
+- resolves the shared remote-tool connection from `A2A_PROJECT_CONNECTION_NAME` (or `A2A_PROJECT_CONNECTION_ID` if you already have the ID)
+
+Example:
 
 ```bash
 python -m a2a_servers.foundry_agent_tools create-agent \
   --agent-name <desired-agent-name> \
   --model-deployment <model-deployment-name> \
   --instructions-path path/to/instructions.txt \
-  --a2a-tool "name=quote,base_url=https://<a2a-host>/quote,connection_id=<portal-connection-id>" \
-  --a2a-tool "name=purchase,base_url=https://<a2a-host>/purchase,connection_id=<portal-connection-id>" \
-  --endpoint "$AZURE_AI_PROJECT_ENDPOINT"
+  --connection-name "$A2A_PROJECT_CONNECTION_NAME"
 ```
 
-- Each `--a2a-tool` value is a comma-separated string with required `base_url` and `connection_id`, plus optional `name` and `agent_card_path`. Tool names are slugified and de-duplicated automatically (use `--tool-name-prefix` to control the generated prefix).
+- The generated tool names default to the configured A2A slugs and are normalized again before publish.
+- Use `--agent-slug <slug>` to limit the generated tools to a subset of configured agents.
+- Use `--host`, `--port`, `--url-mode`, and `--forwarded-base-url` only if you need to override the same server URL settings used by the regular A2A runtime.
+
+If you still need a one-off manual tool definition, `--a2a-tool` remains available:
+
+```bash
+python -m a2a_servers.foundry_agent_tools create-agent \
+  --agent-name <desired-agent-name> \
+  --model-deployment <model-deployment-name> \
+  --instructions-path path/to/instructions.txt \
+  --a2a-tool "name=quote,base_url=https://<a2a-host>/quote,connection_id=<portal-connection-id>"
+```
+
+- Each `--a2a-tool` value is a comma-separated string with required `base_url` and `connection_id`, plus optional `name` and `agent_card_path`.
 - The command creates or updates the agent by publishing a new version backed by the supplied model deployment and instructions file.
 
 ## How to test these changes yourself
