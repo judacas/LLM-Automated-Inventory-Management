@@ -49,14 +49,22 @@ class AzureSqlInventoryAdminRepository(InventoryAdminRepository):
 
     def get_admin_summary(self, *, low_stock_threshold: int) -> InventoryAdminSummary:
         query = """
-        WITH inv AS (
+        WITH latest AS (
+            SELECT
+                i.product_id,
+                i.quantity_in_stock,
+                i.last_updated,
+                ROW_NUMBER() OVER (PARTITION BY i.product_id ORDER BY i.inventory_id DESC) AS rn
+            FROM dbo.Inventory i
+        ), inv AS (
             SELECT
                 p.product_id,
-                COALESCE(i.quantity_in_stock, 0) AS quantity_in_stock,
-                i.last_updated
+                COALESCE(l.quantity_in_stock, 0) AS quantity_in_stock,
+                l.last_updated
             FROM dbo.Products p
-            LEFT JOIN dbo.Inventory i
-                ON i.product_id = p.product_id
+            LEFT JOIN latest l
+                ON l.product_id = p.product_id
+                AND l.rn = 1
         )
         SELECT
             COUNT(*) AS total_products,
@@ -112,15 +120,23 @@ class AzureSqlInventoryAdminRepository(InventoryAdminRepository):
                 q.status = ?
                 AND qi.product_id IS NOT NULL
             GROUP BY qi.product_id
+        ), latest AS (
+            SELECT
+                i.product_id,
+                i.quantity_in_stock,
+                i.next_available_date,
+                ROW_NUMBER() OVER (PARTITION BY i.product_id ORDER BY i.inventory_id DESC) AS rn
+            FROM dbo.Inventory i
         ), inv AS (
             SELECT
                 p.product_id,
                 p.name AS product_name,
-                COALESCE(i.quantity_in_stock, 0) AS in_stock_qty,
-                i.next_available_date
+                COALESCE(l.quantity_in_stock, 0) AS in_stock_qty,
+                l.next_available_date
             FROM dbo.Products p
-            LEFT JOIN dbo.Inventory i
-                ON i.product_id = p.product_id
+            LEFT JOIN latest l
+                ON l.product_id = p.product_id
+                AND l.rn = 1
         )
         SELECT TOP (?)
             r.product_id,
