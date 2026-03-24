@@ -1,6 +1,11 @@
 // server.js
 require('dotenv').config();
 
+const {
+  createConversation,
+  sendMessageToAgent,
+} = require("./utils/foundryClient");
+
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
@@ -45,7 +50,7 @@ function authenticateToken(req, res, next) {
 app.post('/auth/login', (req, res) => {
   const { username, password } = req.body;
   logger.info(`Login attempt for user: ${username}`);
-
+  
   if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
     const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: '1h' });
     res.cookie('token', token, { httpOnly: true });
@@ -57,11 +62,76 @@ app.post('/auth/login', (req, res) => {
   }
 });
 
-// Logout8
+// Logout
 app.post('/auth/logout', (req, res) => {
   res.clearCookie('token');
+  res.clearCookie('conversationId');
   logger.info('User logged out');
   res.json({ success: true });
+});
+
+app.post('/admin/chat', authenticateToken, async (req, res) => {
+  const { message } = req.body;
+  logger.info(`Admin chat from ${req.user.username}: ${message}`);
+
+  if (!message || !message.trim()) {
+    
+    return res.status(400).json({
+      success: false,
+      error: 'Message is required'
+    });
+  }
+
+  try {
+    let conversationId = req.cookies.conversationId;
+
+    // Create one conversation per logged-in browser session
+    if (!conversationId) {
+      const conversation = await createConversation();
+      conversationId = conversation.id;
+
+      res.cookie('conversationId', conversationId, {
+        httpOnly: true,
+        sameSite: 'lax'
+      });
+
+      logger.info(`Created Foundry conversation: ${conversationId}`);
+    }
+
+    const response = await sendMessageToAgent({
+      conversationId,
+      message
+    });
+
+    const extracted = (() => {
+      const out = response?.output;
+      if (!Array.isArray(out)) return '';
+      const parts = [];
+      for (const item of out) {
+        if (item?.type !== 'message' || !Array.isArray(item?.content)) continue;
+        for (const chunk of item.content) {
+          if (chunk?.type === 'output_text' && typeof chunk.text === 'string') {
+            parts.push(chunk.text);
+          }
+          if (chunk?.type === 'refusal' && typeof chunk.refusal === 'string') {
+            parts.push(chunk.refusal);
+          }
+        }
+      }
+      return parts.join('\n').trim();
+    })();
+
+    return res.json({
+      success: true,
+      reply: response?.output_text || extracted || 'No response returned by agent.'
+    });
+  } catch (err) {
+    logger.error(`Admin chat error: ${err?.message || err}`);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to process admin chat request.'
+    });
+  }
 });
 
 // Protect dashboard.html itself (prevents direct access without cookie)
@@ -117,7 +187,8 @@ app.get('/admin/dashboard', authenticateToken, async (req, res) => {
   }
 });
 
-app.post('/admin/chat', authenticateToken, async (req, res) => {
+// Tool-style admin commands endpoint (separate from the Foundry agent chat route)
+app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
   const { message } = req.body;
   logger.info(`Admin chat from ${req.user.username}: ${message}`);
 
@@ -310,10 +381,32 @@ app.post('/admin/chat', authenticateToken, async (req, res) => {
 });
 
 // Catch-all for frontend routing
-app.get('*', (req, res) => {
+app.get('/{*any}', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   logger.info(`Server running on http://localhost:${PORT}`);
+  console.log('PID:', process.pid);
+  console.log('server listening:', server.listening);
+});
+
+server.on('close', () => {
+  console.log('SERVER CLOSE EVENT FIRED');
+});
+
+process.on('exit', (code) => {
+  console.log('PROCESS EXIT EVENT. code =', code);
+});
+
+process.on('beforeExit', (code) => {
+  console.log('PROCESS BEFOREEXIT EVENT. code =', code);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION:', err);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION:', err);
 });

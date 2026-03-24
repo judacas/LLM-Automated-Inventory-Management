@@ -115,30 +115,80 @@
 
     fetchDashboardAnimated();
 
+    function escapeHtml(text) {
+      return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function formatTextHtml(text) {
+      // Preserve basic formatting (new lines) while remaining safe.
+      return escapeHtml(text).replace(/\n/g, '<br>');
+    }
+
+    function renderReplyHtml(reply) {
+      const replyText = typeof reply === 'string' ? reply : JSON.stringify(reply, null, 2);
+      const trimmed = replyText.trim();
+
+      // If the agent returns JSON as a string, pretty-print it.
+      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          return `<pre class="chat-json">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
+        } catch {
+          // fall through
+        }
+      }
+
+      return formatTextHtml(replyText);
+    }
+
     // ===== Admin Chat =====
     async function sendChat() {
       const input = document.getElementById('chatInput');
+      const sendBtn = document.getElementById('chatSendBtn');
       const message = input.value.trim();
       if (!message) return;
 
       const chat = document.getElementById('chatBox');
-      chat.innerHTML += `<div class="chat-line"><b>You:</b> ${message}</div>`;
+      chat.innerHTML += `<div class="chat-line"><b>You:</b> ${escapeHtml(message)}</div>`;
       input.value = '';
 
-      const res = await fetch('/admin/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      });
-
-      const data = await res.json();
-      chat.innerHTML += `
-        <div class="chat-line">
-          <b>Agent:</b>
-          <pre class="chat-json">${JSON.stringify(data, null, 2)}</pre>
-        </div>
-      `;
+      // Show a loading placeholder immediately.
+      const pending = document.createElement('div');
+      pending.className = 'chat-line';
+      pending.innerHTML = `<b>Agent:</b> Loading...`;
+      chat.appendChild(pending);
       chat.scrollTop = chat.scrollHeight;
+
+      // Prevent duplicate sends while request is in-flight.
+      input.disabled = true;
+      sendBtn.disabled = true;
+
+      try {
+        const res = await fetch('/admin/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          pending.innerHTML = `<b>Agent:</b> ${escapeHtml(data?.error || 'Request failed')}`;
+        } else {
+          pending.innerHTML = `<b>Agent:</b> ${renderReplyHtml(data.reply)}`;
+        }
+
+        chat.scrollTop = chat.scrollHeight;
+      } catch {
+        pending.innerHTML = `<b>Agent:</b> Request failed.`;
+        chat.scrollTop = chat.scrollHeight;
+      } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+      }
     }
 
     document.getElementById('chatSendBtn').addEventListener('click', sendChat);

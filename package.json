@@ -1,0 +1,35 @@
+{
+  "dependencies": {
+    "@azure/ai-projects": "^2.0.1",
+    "@azure/identity": "^4.13.1",
+    "cookie-parser": "^1.4.7",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "winston": "^3.19.0"
+  },
+  "name": "llm-automated-inventory-management",
+  "version": "1.0.0",
+  "description": "[![CI](https://github.com/judacas/LLM-Automated-Inventory-Management/actions/workflows/ci.yml/badge.svg)](https://github.com/judacas/LLM-Automated-Inventory-Management/actions/workflows/ci.yml)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/judacas/LLM-Automated-Inventory-Management.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/judacas/LLM-Automated-Inventory-Management/issues"
+  },
+  "homepage": "https://github.com/judacas/LLM-Automated-Inventory-Management#readme"
+}
