@@ -260,7 +260,9 @@ def test_missing_endpoint_env_for_alias_raises(
         load_agent_definition(p)
 
 
-def test_alias_uses_global_endpoint_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_alias_uses_global_endpoint_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.delenv("AZURE_AI_PROJECT_ENDPOINT_MATH", raising=False)
     monkeypatch.setenv(
         "AZURE_AI_PROJECT_ENDPOINT",
@@ -276,7 +278,9 @@ def test_alias_uses_global_endpoint_fallback(tmp_path: Path, monkeypatch: pytest
 
 
 def test_endpoint_alias_is_normalized(tmp_path: Path) -> None:
-    content = _VALID_TOML.replace('endpoint_alias = "math"', 'endpoint_alias = " Prod East "')
+    content = _VALID_TOML.replace(
+        'endpoint_alias = "math"', 'endpoint_alias = " Prod East "'
+    )
     p = _write_toml(tmp_path, "math_agent.toml", content)
     defn = load_agent_definition(p)
     assert defn.foundry_endpoint_alias == "prod_east"
@@ -371,7 +375,9 @@ def test_duplicate_foundry_names_raises(tmp_path: Path) -> None:
         load_agent_definitions(str(tmp_path))
 
 
-def test_duplicate_foundry_names_allowed_across_endpoint_aliases(tmp_path: Path) -> None:
+def test_duplicate_foundry_names_allowed_across_endpoint_aliases(
+    tmp_path: Path,
+) -> None:
     for name, alias in (("alpha_agent.toml", "east"), ("beta_agent.toml", "west")):
         toml_content = textwrap.dedent(f"""\
             [a2a]

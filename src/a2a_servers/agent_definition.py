@@ -149,8 +149,8 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
         raise ValueError("`[smoke_tests]` must be a table if provided")
 
     foundry_agent_name = _read_required_string(foundry, "agent_name", "foundry")
-    foundry_endpoint_alias, foundry_project_endpoint = _resolve_foundry_project_endpoint(
-        foundry
+    foundry_endpoint_alias, foundry_project_endpoint = (
+        _resolve_foundry_project_endpoint(foundry)
     )
 
     skills: list[AgentSkill] = []
