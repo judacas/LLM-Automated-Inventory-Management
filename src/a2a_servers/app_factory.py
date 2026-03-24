@@ -45,15 +45,12 @@ def create_agent_app(
     definition: AgentDefinition,
     settings: ServerSettings,
 ) -> tuple[Starlette, AgentCard, FoundryAgentExecutor]:
-    if settings.project_endpoint is None:
-        raise ValueError("Server settings must include project_endpoint")
-
     agent_card = build_agent_card(
         definition, settings.agent_card_url_for(definition.slug)
     )
     backend_factory = partial(
         create_foundry_agent_backend,
-        endpoint=settings.project_endpoint,
+        endpoint=definition.foundry_project_endpoint,
         agent_name=definition.foundry_agent_name,
     )
     agent_executor = create_foundry_agent_executor(agent_card, backend_factory)

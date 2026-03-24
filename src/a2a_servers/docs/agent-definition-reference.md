@@ -55,8 +55,23 @@ Behavior notes:
 Required key:
 
 - `agent_name`
+- `endpoint_alias`
 
-This must exactly match the portal-managed Azure AI Foundry agent name the server should call.
+`agent_name` must exactly match the portal-managed Azure AI Foundry agent name the
+server should call.
+
+`endpoint_alias` is a short nickname (for example `contoso_main` or
+`sales_eastus`) used to resolve the Foundry project endpoint from environment
+variables:
+
+- `AZURE_AI_PROJECT_ENDPOINT_<ENDPOINT_ALIAS_UPPER>`
+
+Example:
+
+- `endpoint_alias = "contoso_main"` -> `AZURE_AI_PROJECT_ENDPOINT_CONTOSO_MAIN`
+
+This avoids placing full endpoint URLs in TOML files while still allowing
+different agents to target different Foundry projects/endpoints.
 
 ## `[[skills]]` Blocks
 
@@ -117,7 +132,7 @@ Startup fails if:
 - `streaming` is not a boolean
 - `slug` is invalid
 - there are duplicate slugs
-- there are duplicate Foundry agent names
+- there are duplicate Foundry targets (same `foundry.agent_name` and same `foundry.endpoint_alias`)
 
 ## Conventions For New Agents
 

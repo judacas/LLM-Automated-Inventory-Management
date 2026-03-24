@@ -64,7 +64,7 @@ Optional but recommended:
 These settings must be present in the deployed app:
 
 ```dotenv
-AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
+AZURE_AI_PROJECT_ENDPOINT_<ALIAS_UPPER>=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
 A2A_AGENT_CONFIG_DIR=agents
 A2A_HOST=0.0.0.0
 A2A_PORT=8000
@@ -156,7 +156,7 @@ Set the required app settings listed earlier.
 
 Most importantly:
 
-- `AZURE_AI_PROJECT_ENDPOINT`
+- `AZURE_AI_PROJECT_ENDPOINT_<ALIAS_UPPER>` for every alias used by deployed agents
 - `A2A_URL_MODE=forwarded`
 - `A2A_FORWARDED_BASE_URL=https://<app-hostname>`
 

@@ -4,7 +4,7 @@
 
 Symptom:
 
-- startup raises a `ValueError` about `AZURE_AI_PROJECT_ENDPOINT`
+- startup raises a `ValueError` about missing `AZURE_AI_PROJECT_ENDPOINT_<ALIAS>`
 
 Cause:
 
@@ -12,7 +12,8 @@ Cause:
 
 Fix:
 
-- set `AZURE_AI_PROJECT_ENDPOINT` in `.env` or the deployment environment
+- set `AZURE_AI_PROJECT_ENDPOINT_<ALIAS_UPPER>` for each `foundry.endpoint_alias`
+  used by mounted agents (or set `AZURE_AI_PROJECT_ENDPOINT` fallback)
 
 ## Startup Fails Because No Agent Configs Were Found
 

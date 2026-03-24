@@ -11,7 +11,6 @@ class ServerSettings:
     url_mode: str
     forwarded_base_url: str
     log_level_name: str
-    project_endpoint: str | None = None
 
     @property
     def public_base_url(self) -> str:
@@ -37,19 +36,12 @@ def load_server_settings(
     port: int | None = None,
     url_mode: str | None = None,
     forwarded_base_url: str | None = None,
-    require_project_endpoint: bool = True,
 ) -> ServerSettings:
     resolved_url_mode = (
         (url_mode or os.getenv("A2A_URL_MODE") or "local").strip().lower()
     )
     if resolved_url_mode not in {"local", "forwarded"}:
         raise ValueError("A2A_URL_MODE must be either 'local' or 'forwarded'")
-
-    project_endpoint = (os.getenv("AZURE_AI_PROJECT_ENDPOINT") or "").strip() or None
-    if require_project_endpoint and project_endpoint is None:
-        raise ValueError(
-            "Missing required environment variable: AZURE_AI_PROJECT_ENDPOINT"
-        )
 
     return ServerSettings(
         host=(host if host is not None else os.getenv("A2A_HOST", "localhost")).strip(),
@@ -59,5 +51,4 @@ def load_server_settings(
             forwarded_base_url or os.getenv("A2A_FORWARDED_BASE_URL") or ""
         ).strip(),
         log_level_name=(os.getenv("LOG_LEVEL", "INFO")).strip().upper(),
-        project_endpoint=project_endpoint,
     )

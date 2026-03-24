@@ -9,6 +9,7 @@ streaming = false
 
 [foundry]
 agent_name = "userPurchaseOrder"
+endpoint_alias = "contoso_main"
 
 [smoke_tests]
 prompts = [

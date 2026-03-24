@@ -68,7 +68,7 @@ Key responsibilities:
 
 - bind host and port
 - resolve whether published URLs are local or proxy-facing
-- require `AZURE_AI_PROJECT_ENDPOINT`
+- require Foundry endpoint env vars matching configured aliases
 - generate per-agent base URLs and card URLs
 
 The published URL model is important because A2A agent cards must advertise a URL that external callers can actually reach.
@@ -157,7 +157,7 @@ There are two layers of configuration:
 
 Examples:
 
-- `AZURE_AI_PROJECT_ENDPOINT`
+- `AZURE_AI_PROJECT_ENDPOINT_<ALIAS_UPPER>` (per `foundry.endpoint_alias`)
 - `A2A_HOST`
 - `A2A_PORT`
 - `A2A_URL_MODE`

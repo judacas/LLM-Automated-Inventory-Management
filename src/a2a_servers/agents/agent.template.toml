@@ -9,6 +9,7 @@ streaming = false
 
 [foundry]
 agent_name = "Your-Foundry-Agent-Name"
+endpoint_alias = "your_endpoint_alias"
 
 [smoke_tests]
 prompts = [
