@@ -14,9 +14,10 @@ For the step-by-step workflow for adding a new mounted agent, use [adding-agents
 
 ## Core Mapping
 
-Each mounted A2A agent maps to one Foundry agent name:
+Each mounted A2A agent maps to one Foundry target:
 
 - TOML field: `foundry.agent_name`
+- TOML field: `foundry.endpoint_alias`
 - runtime call target: `agent_reference.name`
 
 Examples in this branch:
@@ -26,9 +27,21 @@ Examples in this branch:
 
 If the name is wrong, the runtime will fail when it verifies or calls that Foundry agent.
 
-## Required Environment Variable
+## Required Environment Variables
 
-The package requires:
+For each endpoint alias used in agent TOML, set:
+
+```dotenv
+AZURE_AI_PROJECT_ENDPOINT_<ALIAS_UPPER>=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
+```
+
+Example:
+
+```dotenv
+AZURE_AI_PROJECT_ENDPOINT_CONTOSO_MAIN=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
+```
+
+Optional backward-compatible fallback:
 
 ```dotenv
 AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
@@ -125,21 +138,15 @@ When another team member or agent asks "how do I call the Foundry model?", the c
 
 That keeps A2A identity, skills metadata, and route conventions in one place.
 
-## Important Design Constraint
+## Multi-Endpoint Behavior
 
-All mounted A2A agents in one process share the same `AZURE_AI_PROJECT_ENDPOINT`.
-
-Implications:
-
-- you can map different slugs to different Foundry agents
-- you cannot, in the current implementation, map different slugs to different Foundry projects without changing the code
-
-If that becomes necessary, the configuration model will need to move project endpoint selection down to the per-agent level.
+Mounted A2A agents can use different Foundry project endpoints by assigning
+different `foundry.endpoint_alias` values and configuring each alias with its own
+`AZURE_AI_PROJECT_ENDPOINT_<ALIAS_UPPER>` secret.
 
 ## Known Gaps
 
 - No persistent conversation store
-- No per-agent Foundry project override
 - No built-in validation of whether Foundry tools are configured correctly beyond agent lookup
 - No automated provisioning of Foundry agents from this package
 

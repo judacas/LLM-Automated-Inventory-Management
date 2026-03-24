@@ -29,6 +29,7 @@ _VALID_TOML = textwrap.dedent("""\
 
     [foundry]
     agent_name = "math-foundry-agent"
+    endpoint_alias = "math"
 
     [[skills]]
     id = "math"
@@ -113,6 +114,11 @@ def test_load_valid_definition(tmp_path: Path) -> None:
     assert defn.slug == "math"  # derived from filename
     assert defn.public_name == "Math Agent"
     assert defn.foundry_agent_name == "math-foundry-agent"
+    assert defn.foundry_endpoint_alias == "math"
+    assert (
+        defn.foundry_project_endpoint
+        == "https://math.services.ai.azure.com/api/projects/project-math"
+    )
     assert defn.version == "1.0.0"
     assert len(defn.skills) == 1
     assert defn.skills[0].id == "math"
@@ -132,6 +138,7 @@ def test_load_explicit_slug_overrides_filename(tmp_path: Path) -> None:
 
         [foundry]
         agent_name = "math-foundry-agent"
+        endpoint_alias = "math"
 
         [[skills]]
         id = "math"
@@ -236,6 +243,56 @@ def test_missing_foundry_agent_name_raises(tmp_path: Path) -> None:
         load_agent_definition(p)
 
 
+def test_missing_foundry_endpoint_alias_raises(tmp_path: Path) -> None:
+    content = _VALID_TOML.replace('endpoint_alias = "math"\n', "")
+    p = _write_toml(tmp_path, "math_agent.toml", content)
+    with pytest.raises(ValueError, match="foundry.endpoint_alias"):
+        load_agent_definition(p)
+
+
+def test_missing_endpoint_env_for_alias_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    content = _VALID_TOML.replace('endpoint_alias = "math"', 'endpoint_alias = "quote"')
+    p = _write_toml(tmp_path, "math_agent.toml", content)
+    monkeypatch.delenv("AZURE_AI_PROJECT_ENDPOINT", raising=False)
+    with pytest.raises(ValueError, match="AZURE_AI_PROJECT_ENDPOINT_QUOTE"):
+        load_agent_definition(p)
+
+
+def test_alias_uses_global_endpoint_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("AZURE_AI_PROJECT_ENDPOINT_MATH", raising=False)
+    monkeypatch.setenv(
+        "AZURE_AI_PROJECT_ENDPOINT",
+        "https://shared.services.ai.azure.com/api/projects/shared-project",
+    )
+    p = _write_toml(tmp_path, "math_agent.toml", _VALID_TOML)
+    defn = load_agent_definition(p)
+    assert defn.foundry_endpoint_alias == "math"
+    assert (
+        defn.foundry_project_endpoint
+        == "https://shared.services.ai.azure.com/api/projects/shared-project"
+    )
+
+
+def test_endpoint_alias_is_normalized(tmp_path: Path) -> None:
+    content = _VALID_TOML.replace(
+        'endpoint_alias = "math"', 'endpoint_alias = " Prod East "'
+    )
+    p = _write_toml(tmp_path, "math_agent.toml", content)
+    defn = load_agent_definition(p)
+    assert defn.foundry_endpoint_alias == "prod_east"
+
+
+def test_invalid_endpoint_alias_raises(tmp_path: Path) -> None:
+    content = _VALID_TOML.replace('endpoint_alias = "math"', 'endpoint_alias = "---"')
+    p = _write_toml(tmp_path, "math_agent.toml", content)
+    with pytest.raises(ValueError, match="endpoint alias"):
+        load_agent_definition(p)
+
+
 # ---------------------------------------------------------------------------
 # load_agent_definition – type validation
 # ---------------------------------------------------------------------------
@@ -281,6 +338,7 @@ def test_duplicate_slugs_raises(tmp_path: Path) -> None:
 
             [foundry]
             agent_name = "{foundry}"
+            endpoint_alias = "math"
 
             [[skills]]
             id = "s"
@@ -304,6 +362,7 @@ def test_duplicate_foundry_names_raises(tmp_path: Path) -> None:
 
             [foundry]
             agent_name = "shared-foundry-agent"
+            endpoint_alias = "shared"
 
             [[skills]]
             id = "s"
@@ -312,8 +371,34 @@ def test_duplicate_foundry_names_raises(tmp_path: Path) -> None:
         """)
         _write_toml(tmp_path, name, toml_content)
 
-    with pytest.raises(ValueError, match="Duplicate Foundry agent name"):
+    with pytest.raises(ValueError, match="Duplicate Foundry agent target"):
         load_agent_definitions(str(tmp_path))
+
+
+def test_duplicate_foundry_names_allowed_across_endpoint_aliases(
+    tmp_path: Path,
+) -> None:
+    for name, alias in (("alpha_agent.toml", "east"), ("beta_agent.toml", "west")):
+        toml_content = textwrap.dedent(f"""\
+            [a2a]
+            name = "Agent {alias}"
+            description = "desc"
+            version = "1.0.0"
+            health_message = "ok"
+
+            [foundry]
+            agent_name = "shared-foundry-agent"
+            endpoint_alias = "{alias}"
+
+            [[skills]]
+            id = "s"
+            name = "S"
+            description = "desc"
+        """)
+        _write_toml(tmp_path, name, toml_content)
+
+    definitions = load_agent_definitions(str(tmp_path))
+    assert len(definitions) == 2
 
 
 def test_load_multiple_valid_definitions(tmp_path: Path) -> None:
@@ -327,6 +412,7 @@ def test_load_multiple_valid_definitions(tmp_path: Path) -> None:
 
             [foundry]
             agent_name = "{foundry}"
+            endpoint_alias = "math"
 
             [[skills]]
             id = "skill-{slug}"
@@ -349,3 +435,15 @@ def test_empty_config_dir_raises(tmp_path: Path) -> None:
 def test_nonexistent_config_dir_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="not found"):
         load_agent_definitions(str(tmp_path / "does_not_exist"))
+
+
+@pytest.fixture(autouse=True)
+def _set_default_foundry_endpoint_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "AZURE_AI_PROJECT_ENDPOINT_MATH",
+        "https://math.services.ai.azure.com/api/projects/project-math",
+    )
+    monkeypatch.setenv(
+        "AZURE_AI_PROJECT_ENDPOINT",
+        "https://shared.services.ai.azure.com/api/projects/shared-project",
+    )

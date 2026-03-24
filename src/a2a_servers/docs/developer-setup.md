@@ -45,7 +45,13 @@ cp .env.template .env
 Minimum required value:
 
 ```dotenv
-AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
+AZURE_AI_PROJECT_ENDPOINT_<ALIAS_UPPER>=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
+```
+
+Example:
+
+```dotenv
+AZURE_AI_PROJECT_ENDPOINT_CONTOSO_MAIN=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
 ```
 
 Recommended development values:

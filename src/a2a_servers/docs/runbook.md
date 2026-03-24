@@ -116,7 +116,8 @@ When something seems wrong, check these in order:
 2. `GET /<slug>/health` returns the configured health message.
 3. `GET /<slug>/.well-known/agent-card.json` returns the expected public metadata.
 4. the TOML `foundry.agent_name` matches a real Foundry agent.
-5. `AZURE_AI_PROJECT_ENDPOINT` points to the correct Foundry project.
+5. each agent's `foundry.endpoint_alias` has a matching
+   `AZURE_AI_PROJECT_ENDPOINT_<ALIAS_UPPER>` environment variable.
 6. local Azure credentials are valid for that project.
 
 ## Shutdown Behavior

@@ -320,7 +320,7 @@ async def main() -> None:
     logger = logging.getLogger(__name__)
 
     definitions = load_agent_definitions(args.agent_config_dir)
-    settings = load_server_settings(require_project_endpoint=False)
+    settings = load_server_settings()
     if args.base_url:
         logger.info("Using explicit base URL override: %s", args.base_url.rstrip("/"))
     selected_definitions = definitions

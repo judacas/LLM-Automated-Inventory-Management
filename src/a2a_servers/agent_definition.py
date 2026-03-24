@@ -21,6 +21,8 @@ class AgentDefinition:
     version: str
     health_message: str
     foundry_agent_name: str
+    foundry_endpoint_alias: str
+    foundry_project_endpoint: str
     default_input_modes: tuple[str, ...]
     default_output_modes: tuple[str, ...]
     skills: tuple[AgentSkill, ...]
@@ -63,6 +65,36 @@ def _derive_agent_slug(path: Path) -> str:
             stem = stem[: -len(suffix)]
             break
     return _normalize_agent_slug(stem)
+
+
+def _normalize_foundry_endpoint_alias(raw_alias: str) -> str:
+    alias = re.sub(r"[^a-z0-9]+", "_", raw_alias.strip().lower()).strip("_")
+    if not alias:
+        raise ValueError(
+            "Foundry endpoint alias must contain at least one letter or number"
+        )
+    return alias
+
+
+def _resolve_foundry_project_endpoint(foundry: dict[str, object]) -> tuple[str, str]:
+    endpoint_alias = _normalize_foundry_endpoint_alias(
+        _read_required_string(foundry, "endpoint_alias", "foundry")
+    )
+    endpoint_env_var = f"AZURE_AI_PROJECT_ENDPOINT_{endpoint_alias.upper()}"
+    endpoint = (os.getenv(endpoint_env_var) or "").strip()
+    if endpoint:
+        return endpoint_alias, endpoint
+
+    # Backward compatibility: a shared endpoint can still be provided.
+    fallback_endpoint = (os.getenv("AZURE_AI_PROJECT_ENDPOINT") or "").strip()
+    if fallback_endpoint:
+        return endpoint_alias, fallback_endpoint
+
+    raise ValueError(
+        "Missing required environment variable for Foundry endpoint alias "
+        f"`{endpoint_alias}`: set `{endpoint_env_var}` "
+        "(or `AZURE_AI_PROJECT_ENDPOINT` as a shared fallback)."
+    )
 
 
 def resolve_agent_config_dir(config_dir: str | None = None) -> Path:
@@ -117,6 +149,9 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
         raise ValueError("`[smoke_tests]` must be a table if provided")
 
     foundry_agent_name = _read_required_string(foundry, "agent_name", "foundry")
+    foundry_endpoint_alias, foundry_project_endpoint = (
+        _resolve_foundry_project_endpoint(foundry)
+    )
 
     skills: list[AgentSkill] = []
     for index, skill_data in enumerate(skills_table, start=1):
@@ -156,6 +191,8 @@ def load_agent_definition(config_path: str | Path) -> AgentDefinition:
         version=_read_required_string(a2a, "version", "a2a"),
         health_message=_read_required_string(a2a, "health_message", "a2a"),
         foundry_agent_name=foundry_agent_name,
+        foundry_endpoint_alias=foundry_endpoint_alias,
+        foundry_project_endpoint=foundry_project_endpoint,
         default_input_modes=_read_string_list(
             a2a, "default_input_modes", default=["text"]
         ),
@@ -177,7 +214,7 @@ def load_agent_definitions(
     )
 
     seen_slugs: dict[str, Path] = {}
-    seen_foundry_names: dict[str, Path] = {}
+    seen_foundry_targets: dict[tuple[str, str], Path] = {}
     seen_paths: set[Path] = set()
 
     for definition in definitions:
@@ -195,13 +232,18 @@ def load_agent_definitions(
             )
         seen_slugs[definition.slug] = definition.source_path
 
-        previous_foundry_path = seen_foundry_names.get(definition.foundry_agent_name)
+        foundry_target = (
+            definition.foundry_endpoint_alias,
+            definition.foundry_agent_name,
+        )
+        previous_foundry_path = seen_foundry_targets.get(foundry_target)
         if previous_foundry_path is not None:
             raise ValueError(
-                "Duplicate Foundry agent name "
-                f"`{definition.foundry_agent_name}` in "
+                "Duplicate Foundry agent target "
+                f"`{definition.foundry_agent_name}` on endpoint alias "
+                f"`{definition.foundry_endpoint_alias}` in "
                 f"{previous_foundry_path} and {definition.source_path}"
             )
-        seen_foundry_names[definition.foundry_agent_name] = definition.source_path
+        seen_foundry_targets[foundry_target] = definition.source_path
 
     return definitions

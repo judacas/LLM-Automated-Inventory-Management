@@ -9,6 +9,7 @@ streaming = false
 
 [foundry]
 agent_name = "Math-Agent"
+endpoint_alias = "math_lab"
 
 [smoke_tests]
 prompts = [
