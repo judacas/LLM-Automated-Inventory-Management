@@ -69,7 +69,9 @@ def _log_agent_startup(mounted_agent: MountedAgent, settings: ServerSettings) ->
     logger.info("Agent slug: %s", definition.slug)
     logger.info("Loaded agent config from %s", definition.source_path)
     logger.info("Foundry agent name: %s", definition.foundry_agent_name)
-    endpoint_host = urlparse(definition.foundry_project_endpoint).netloc or "<invalid>"
+    endpoint_host = (
+        urlparse(definition.foundry_project_endpoint).netloc or "<invalid endpoint URL>"
+    )
     logger.info("Foundry endpoint alias: %s", definition.foundry_endpoint_alias)
     logger.info("Foundry endpoint host: %s", endpoint_host)
     logger.info("Agent card: %s", mounted_agent.agent_card.name)
