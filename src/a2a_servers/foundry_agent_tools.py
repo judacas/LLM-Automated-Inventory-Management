@@ -12,22 +12,33 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import os
 from pathlib import Path
-from typing import Any
 
 import click
+from agent_definition import AgentDefinition, load_agent_definitions
 from azure.ai.projects.aio import AIProjectClient
-from azure.ai.projects.models import AgentVersionDetails, PromptAgentDefinition
+from azure.ai.projects.models import (
+    A2APreviewTool,
+    AgentVersionDetails,
+    ConnectionType,
+    PromptAgentDefinition,
+)
 from azure.core.exceptions import HttpResponseError
 from azure.identity.aio import DefaultAzureCredential
-
+from dotenv import load_dotenv
 from foundry_tool_schema import (
     ensure_unique_tool_names,
     parse_a2a_tool_spec,
     summarize_tool,
 )
+from settings import ServerSettings, load_server_settings
 
 DEFAULT_CARD_PATH = "/.well-known/agent-card.json"
+
+load_dotenv()
+load_dotenv(Path(__file__).resolve().with_name(".env"))
 
 
 @click.group()
@@ -111,6 +122,7 @@ def rename_tools_command(
 )
 @click.option(
     "--model-deployment",
+    envvar="FOUNDRY_MODEL_DEPLOYMENT_NAME",
     required=True,
     help="Deployment name to back the prompt agent (for example: gpt-4o-mini).",
 )
@@ -124,11 +136,34 @@ def rename_tools_command(
     "--a2a-tool",
     "a2a_tools",
     multiple=True,
-    required=True,
     help=(
-        "Comma-separated spec for each A2A tool: "
+        "Optional manual spec for each A2A tool: "
         "name=<optional>,base_url=<required>,connection_id=<required>,agent_card_path=<optional>"
     ),
+)
+@click.option(
+    "--agent-config-dir",
+    type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=str),
+    default=None,
+    help="Directory containing `*_agent.toml` files. Defaults to the standard A2A config directory.",
+)
+@click.option(
+    "--agent-slug",
+    "agent_slugs",
+    multiple=True,
+    help="Optional slug filter. Repeat to include only selected configured A2A agents.",
+)
+@click.option(
+    "--connection-name",
+    envvar="A2A_PROJECT_CONNECTION_NAME",
+    default=None,
+    help="Foundry project connection name for the shared A2A server connection.",
+)
+@click.option(
+    "--connection-id",
+    envvar="A2A_PROJECT_CONNECTION_ID",
+    default=None,
+    help="Explicit Foundry project connection ID. If omitted, the command resolves it from --connection-name.",
 )
 @click.option(
     "--tool-name-prefix",
@@ -144,35 +179,58 @@ def rename_tools_command(
 @click.option(
     "--endpoint",
     envvar="AZURE_AI_PROJECT_ENDPOINT",
-    required=True,
+    default=None,
     help="Azure AI Project endpoint (https://<name>.services.ai.azure.com/api/projects/<project>).",
 )
+@click.option("--host", "host", default=None)
+@click.option("--port", "port", type=int, default=None)
+@click.option(
+    "--url-mode",
+    "url_mode",
+    type=click.Choice(["local", "forwarded"], case_sensitive=False),
+    default=None,
+)
+@click.option("--forwarded-base-url", "forwarded_base_url", default=None)
 def create_agent_command(
     agent_name: str,
     model_deployment: str,
     instructions_path: Path,
     a2a_tools: tuple[str, ...],
+    agent_config_dir: str | None,
+    agent_slugs: tuple[str, ...],
+    connection_name: str | None,
+    connection_id: str | None,
     tool_name_prefix: str | None,
     description: str,
-    endpoint: str,
+    endpoint: str | None,
+    host: str | None,
+    port: int | None,
+    url_mode: str | None,
+    forwarded_base_url: str | None,
 ) -> None:
-    """Create a prompt agent in code with pre-named A2A tools."""
+    """Create a prompt agent in code with either discovered or manual A2A tools."""
     asyncio.run(
         create_agent_with_tools(
             agent_name=agent_name,
             model_deployment=model_deployment,
             instructions_path=instructions_path,
             a2a_tools=a2a_tools,
+            agent_config_dir=agent_config_dir,
+            agent_slugs=agent_slugs,
+            connection_name=connection_name,
+            connection_id=connection_id,
             tool_name_prefix=tool_name_prefix,
             description=description,
             endpoint=endpoint,
+            host=host,
+            port=port,
+            url_mode=url_mode,
+            forwarded_base_url=forwarded_base_url,
         )
     )
 
 
-async def show_tools(
-    *, agent_name: str, version: str | None, endpoint: str
-) -> None:
+async def show_tools(*, agent_name: str, version: str | None, endpoint: str) -> None:
     client, credential = await _build_client(endpoint)
     try:
         agent = await client.agents.get(agent_name=agent_name)
@@ -249,21 +307,53 @@ async def create_agent_with_tools(
     model_deployment: str,
     instructions_path: Path,
     a2a_tools: tuple[str, ...],
+    agent_config_dir: str | None,
+    agent_slugs: tuple[str, ...],
+    connection_name: str | None,
+    connection_id: str | None,
     tool_name_prefix: str | None,
     description: str,
-    endpoint: str,
+    endpoint: str | None,
+    host: str | None,
+    port: int | None,
+    url_mode: str | None,
+    forwarded_base_url: str | None,
 ) -> None:
     instructions_text = instructions_path.read_text(encoding="utf-8")
-    tools = [
-        parse_a2a_tool_spec(spec, default_card_path=DEFAULT_CARD_PATH)
-        for spec in a2a_tools
-    ]
-    tools, rename_map = ensure_unique_tool_names(
-        tools, prefix=tool_name_prefix or agent_name
+    settings = load_server_settings(
+        host=host,
+        port=port,
+        url_mode=url_mode,
+        forwarded_base_url=forwarded_base_url,
+        require_project_endpoint=False,
     )
+    resolved_endpoint = (endpoint or settings.project_endpoint or "").strip()
+    if not resolved_endpoint:
+        raise ValueError(
+            "Missing required environment variable: AZURE_AI_PROJECT_ENDPOINT"
+        )
 
-    client, credential = await _build_client(endpoint)
+    client, credential = await _build_client(resolved_endpoint)
     try:
+        if a2a_tools:
+            tools = [
+                parse_a2a_tool_spec(spec, default_card_path=DEFAULT_CARD_PATH)
+                for spec in a2a_tools
+            ]
+        else:
+            tools = await _load_discovered_a2a_tools(
+                client=client,
+                settings=settings,
+                agent_config_dir=agent_config_dir,
+                agent_slugs=agent_slugs,
+                connection_name=connection_name,
+                connection_id=connection_id,
+            )
+
+        tools, rename_map = ensure_unique_tool_names(
+            tools, prefix=tool_name_prefix or agent_name
+        )
+
         await client.agents.create_version(
             agent_name=agent_name,
             definition=PromptAgentDefinition(
@@ -278,11 +368,119 @@ async def create_agent_with_tools(
         click.echo(
             f"Created/updated agent `{agent_name}` with {len(tools)} A2A tool(s)."
         )
+        if not a2a_tools:
+            click.echo("Configured A2A tools discovered from local agent definitions:")
+            for tool in tools:
+                click.echo(f"- {tool['name']}: {tool.base_url}")
         if rename_map:
             click.echo("Applied tool name normalisation:")
             click.echo(json.dumps(rename_map, indent=2))
     finally:
         await _safe_close(client, credential)
+
+
+async def _load_discovered_a2a_tools(
+    *,
+    client: AIProjectClient,
+    settings: ServerSettings,
+    agent_config_dir: str | None,
+    agent_slugs: tuple[str, ...],
+    connection_name: str | None,
+    connection_id: str | None,
+) -> list[A2APreviewTool]:
+    selected_definitions = _select_agent_definitions(
+        config_dir=agent_config_dir,
+        agent_slugs=agent_slugs,
+    )
+    resolved_connection_id = connection_id or await _resolve_connection_id(
+        client, connection_name
+    )
+    return [
+        _build_discovered_a2a_tool(
+            definition=definition,
+            settings=settings,
+            connection_id=resolved_connection_id,
+        )
+        for definition in selected_definitions
+    ]
+
+
+def _select_agent_definitions(
+    *,
+    config_dir: str | None,
+    agent_slugs: tuple[str, ...],
+) -> tuple[AgentDefinition, ...]:
+    definitions = load_agent_definitions(config_dir)
+    if not agent_slugs:
+        return definitions
+
+    requested_slugs = {slug.strip().lower() for slug in agent_slugs if slug.strip()}
+    selected_definitions = tuple(
+        definition for definition in definitions if definition.slug in requested_slugs
+    )
+    if len(selected_definitions) != len(requested_slugs):
+        found_slugs = {definition.slug for definition in selected_definitions}
+        missing = sorted(requested_slugs - found_slugs)
+        raise ValueError(
+            "No configured agent definition was found for slug(s): "
+            + ", ".join(missing)
+        )
+    return selected_definitions
+
+
+def _build_discovered_a2a_tool(
+    *,
+    definition: AgentDefinition,
+    settings: ServerSettings,
+    connection_id: str,
+) -> A2APreviewTool:
+    tool = A2APreviewTool(
+        base_url=settings.agent_base_url_for(definition.slug),
+        agent_card_path=DEFAULT_CARD_PATH,
+        project_connection_id=connection_id,
+    )
+    tool["name"] = definition.slug
+    return tool
+
+
+async def _resolve_connection_id(
+    client: AIProjectClient,
+    connection_name: str | None,
+) -> str:
+    resolved_name = (
+        connection_name or os.getenv("A2A_PROJECT_CONNECTION_NAME") or ""
+    ).strip()
+    if not resolved_name:
+        raise ValueError(
+            "Missing A2A project connection. Set A2A_PROJECT_CONNECTION_ID or "
+            "A2A_PROJECT_CONNECTION_NAME."
+        )
+
+    try:
+        connection = await client.connections.get(resolved_name)
+    except HttpResponseError as exc:
+        available_connections: list[str] = []
+        async for candidate in client.connections.list(
+            connection_type=ConnectionType.REMOTE_TOOL
+        ):
+            if candidate.name:
+                available_connections.append(str(candidate.name))
+        available_hint = ""
+        if available_connections:
+            available_hint = (
+                " Available remote tool connections: "
+                + ", ".join(sorted(available_connections))
+                + "."
+            )
+        raise RuntimeError(
+            f"Failed to resolve A2A project connection {resolved_name!r}.{available_hint}"
+        ) from exc
+
+    if not connection.id:
+        raise ValueError(
+            f"Connection {resolved_name!r} did not include an id in the Foundry response."
+        )
+    return str(connection.id)
 
 
 async def _build_client(
@@ -293,14 +491,16 @@ async def _build_client(
     return client, credential
 
 
-async def _safe_close(client: AIProjectClient, credential: DefaultAzureCredential) -> None:
+async def _safe_close(
+    client: AIProjectClient, credential: DefaultAzureCredential
+) -> None:
     try:
         await client.close()
     finally:
         try:
             await credential.close()
         except Exception:
-            pass
+            logging.exception("Failed to close credential")
 
 
 async def _get_agent_version(
