@@ -4,6 +4,7 @@ import click
 import uvicorn
 from agent_definition import load_agent_definitions
 from app_factory import MountedAgent, create_app
+from config_loader import AgentConfigLocation, prepare_agent_config_location
 from dotenv import load_dotenv
 from settings import ServerSettings, load_server_settings
 
@@ -28,12 +29,19 @@ logger = logging.getLogger(__name__)
     type=click.Path(exists=False, file_okay=False, dir_okay=True, path_type=str),
     default=None,
 )
+@click.option(
+    "--agent-config-url",
+    "agent_config_url",
+    type=str,
+    default=None,
+)
 def main(
     host: str | None,
     port: int | None,
     url_mode: str | None,
     forwarded_base_url: str | None,
     agent_config_dir: str | None,
+    agent_config_url: str | None,
 ) -> None:
     """Start a multi-agent A2A server backed by Azure AI Foundry."""
     settings = load_server_settings(
@@ -43,7 +51,11 @@ def main(
         forwarded_base_url=forwarded_base_url,
     )
 
-    definitions = load_agent_definitions(agent_config_dir)
+    config_location: AgentConfigLocation = prepare_agent_config_location(
+        config_dir=agent_config_dir,
+        config_url=agent_config_url,
+    )
+    definitions = load_agent_definitions(str(config_location.directory))
     app, mounted_agents = create_app(definitions, settings)
 
     log_level_name = settings.log_level_name
@@ -55,6 +67,7 @@ def main(
     )
     logger.info("Loaded %s agent definitions", len(mounted_agents))
     logger.info("Agent card URL mode: %s", settings.url_mode)
+    logger.info("Agent configs loaded from: %s", config_location.source)
     logger.info("Root index available at: %s/", settings.public_base_url)
 
     for mounted_agent in mounted_agents:

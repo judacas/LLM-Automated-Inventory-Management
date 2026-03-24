@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document is the source of truth for redeploying `src/a2a_servers` after changing agent definitions or server code.
+This document is the source of truth for redeploying `src/a2a_servers` after changing server code or when production still bakes agent definitions into the artifact.
 
 Use this after:
 
@@ -16,7 +16,7 @@ Do not use this for Azure hosting design decisions. For the broader deployment s
 
 Changing files in this repo does not update the running Azure service.
 
-If you add or edit an agent definition, you must redeploy the app before production will serve the new or updated agent.
+If production uses `A2A_AGENT_CONFIG_URL`, you can update agent definitions by replacing the hosted `agents.zip` and restarting the app (no redeploy needed). Use this document when you change server code or when production still relies on the baked-in `agents/` folder.
 
 You do not need local dev setup or Dev Tunnels to perform a production redeploy.
 
@@ -26,7 +26,7 @@ Confirm:
 
 - the target Foundry agent already exists in the Azure AI Foundry project used by production
 - every changed `foundry.agent_name` exactly matches the real portal-managed agent name
-- the deployment artifact includes the `agents/` directory
+- either the deployment artifact includes the `agents/` directory or `A2A_AGENT_CONFIG_URL` points at a valid archive
 - the deployed app settings still point at the correct Foundry project
 
 If you are deploying a newly added agent, complete [adding-agents.md](./adding-agents.md) first.
@@ -50,8 +50,9 @@ Deploy the flat `src/a2a_servers` app contents so the artifact root contains fil
 - `__main__.py`
 - `agent_definition.py`
 - `app_factory.py`
-- `agents/`
 - `pyproject.toml`
+
+If you are not using `A2A_AGENT_CONFIG_URL`, include the `agents/` directory. If you are using the hosted archive, you can omit it.
 
 > ⚠️ **CRITICAL**: When creating the artifact, navigate **into** the `a2a_servers` directory, select all contents, then zip. Do **not** zip from `/src` or the parent directory—this will create a nested structure and the app will fail to start.
 
