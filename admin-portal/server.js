@@ -149,11 +149,13 @@ app.post('/admin/chat', authenticateToken, async (req, res) => {
 
   try {
     let conversationId = req.cookies.conversationId;
+    let newConversation = false;
 
     // Create one conversation per logged-in browser session
     if (!conversationId) {
       const conversation = await createConversation();
       conversationId = conversation.id;
+      newConversation = true;
 
       res.cookie('conversationId', conversationId, {
         httpOnly: true,
@@ -170,30 +172,50 @@ app.post('/admin/chat', authenticateToken, async (req, res) => {
 
     const extracted = extractAgentTextFromResponse(response);
     const durationMs = Date.now() - startedAt;
+    const isDebug = req.get('x-client-debug') === '1';
+    const responseSummary = summarizeFoundryResponse(response);
 
     if (!extracted) {
-      const summary = summarizeFoundryResponse(response);
-      logger.warn(`[${requestId}] Foundry returned empty text output (${durationMs}ms): ${JSON.stringify(summary)}`);
+      logger.warn(`[${requestId}] Foundry returned empty text output (${durationMs}ms): ${JSON.stringify(responseSummary)}`);
       return res.json({
         success: true,
         empty: true,
         reply: '',
         requestId,
+        ...(isDebug && { debug: { conversationId, durationMs, newConversation, outputSummary: responseSummary, replyChars: 0 } }),
       });
     }
 
     logger.info(`[${requestId}] Admin chat success (${durationMs}ms, chars=${extracted.length})`);
+    if (isDebug) {
+      logger.info(
+        `[${requestId}] [DEBUG] conversationId=${conversationId} ` +
+        `newConversation=${newConversation} durationMs=${durationMs} ` +
+        `chars=${extracted.length} outputItems=${responseSummary.outputItems} ` +
+        `outputTypes=${JSON.stringify(responseSummary.outputTypes)}`
+      );
+    }
     return res.json({
       success: true,
       reply: extracted,
       requestId,
+      ...(isDebug && { debug: { conversationId, durationMs, newConversation, outputSummary: responseSummary, replyChars: extracted.length } }),
     });
   } catch (err) {
     const durationMs = Date.now() - startedAt;
     const errMsg = String(err?.message || err);
     logger.error(`[${requestId}] Admin chat error (${durationMs}ms): ${err?.stack || errMsg}`);
 
-    // If the agent requested MCP tool approval, we want a clear, non-scary message.
+    // Rate limit from Foundry — surface it clearly so the user knows to wait.
+    if (errMsg.includes('429') || errMsg.toLowerCase().includes('too many requests')) {
+      return res.status(429).json({
+        success: false,
+        error: 'The AI service is rate-limited right now. Wait 30–60 seconds and try again. Complex queries (system overview, full inventory) use multiple tool calls and consume more quota.',
+        requestId,
+      });
+    }
+
+    // MCP tool approval required — clear, non-scary message.
     if (errMsg.toLowerCase().includes('requires approval')) {
       return res.status(409).json({
         success: false,
@@ -456,6 +478,32 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
   }
 });
 
+// Debug info endpoint — returns server/env state; only accessible when authenticated
+app.get('/admin/debug/info', authenticateToken, (req, res) => {
+  const mem = process.memoryUsage();
+  res.json({
+    node: process.version,
+    platform: `${process.platform}/${process.arch}`,
+    pid: process.pid,
+    uptimeSec: Math.floor(process.uptime()),
+    memory: {
+      rss:       `${(mem.rss       / 1024 / 1024).toFixed(1)} MB`,
+      heapUsed:  `${(mem.heapUsed  / 1024 / 1024).toFixed(1)} MB`,
+      heapTotal: `${(mem.heapTotal / 1024 / 1024).toFixed(1)} MB`,
+    },
+    env: {
+      JWT_SECRET:       process.env.JWT_SECRET       ? '✓ set'    : '✗ MISSING',
+      PROJECT_ENDPOINT: process.env.PROJECT_ENDPOINT || '✗ MISSING',
+      AGENT_NAME:       process.env.AGENT_NAME       || '✗ MISSING',
+      MCP_BASE_URL:     process.env.MCP_BASE_URL     || '✗ MISSING',
+      MCP_API_KEY:      process.env.MCP_API_KEY      ? '✓ set'    : '— not set',
+      TOOL_API_BASE_URL:process.env.TOOL_API_BASE_URL|| '— not set',
+      TOOL_API_KEY:     process.env.TOOL_API_KEY     ? '✓ set'    : '— not set',
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Catch-all for frontend routing
 app.get('/{*any}', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
@@ -463,6 +511,16 @@ app.get('/{*any}', (req, res) => {
 
 const server = app.listen(PORT, () => {
   logger.info(`Server running on http://localhost:${PORT}`);
+  logger.info(`[startup] Node.js ${process.version} | PID ${process.pid} | PORT ${PORT}`);
+  logger.info(
+    `[startup] Config: ` +
+    `JWT_SECRET=${process.env.JWT_SECRET ? 'SET' : 'MISSING'} | ` +
+    `PROJECT_ENDPOINT=${process.env.PROJECT_ENDPOINT || 'MISSING'} | ` +
+    `AGENT_NAME=${process.env.AGENT_NAME || 'MISSING'} | ` +
+    `MCP_BASE_URL=${process.env.MCP_BASE_URL || 'MISSING'} | ` +
+    `MCP_API_KEY=${process.env.MCP_API_KEY ? 'SET' : 'not set'} | ` +
+    `TOOL_API_BASE_URL=${process.env.TOOL_API_BASE_URL || 'not set'}`
+  );
   console.log('PID:', process.pid);
   console.log('server listening:', server.listening);
 });
