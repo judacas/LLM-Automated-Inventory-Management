@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 from azure.ai.projects.models import A2APreviewTool
-
 from foundry_tool_schema import (
     ensure_unique_tool_names,
     parse_a2a_tool_spec,
@@ -11,7 +10,10 @@ from foundry_tool_schema import (
 
 
 def test_ensure_unique_tool_names_adds_missing_and_normalises() -> None:
-    tools = [A2APreviewTool(base_url="https://one"), A2APreviewTool(base_url="https://two")]
+    tools = [
+        A2APreviewTool(base_url="https://one"),
+        A2APreviewTool(base_url="https://two"),
+    ]
 
     updated, rename_map = ensure_unique_tool_names(tools, prefix="agent")
 
@@ -32,7 +34,10 @@ def test_ensure_unique_tool_names_updates_server_label() -> None:
 
 
 def test_ensure_unique_tool_names_no_changes_when_unique() -> None:
-    tools = [{"name": "alpha", "type": "a2a_preview"}, {"server_label": "beta", "type": "mcp"}]
+    tools = [
+        {"name": "alpha", "type": "a2a_preview"},
+        {"server_label": "beta", "type": "mcp"},
+    ]
 
     updated, rename_map = ensure_unique_tool_names(tools, prefix="ignored")
 
@@ -42,7 +47,9 @@ def test_ensure_unique_tool_names_no_changes_when_unique() -> None:
 
 def test_parse_a2a_tool_spec_validates_required_fields() -> None:
     with pytest.raises(ValueError):
-        parse_a2a_tool_spec("name=bad,connection_id=missing_base", default_card_path="/card")
+        parse_a2a_tool_spec(
+            "name=bad,connection_id=missing_base", default_card_path="/card"
+        )
 
     with pytest.raises(ValueError):
         parse_a2a_tool_spec("base_url=https://x", default_card_path="/card")

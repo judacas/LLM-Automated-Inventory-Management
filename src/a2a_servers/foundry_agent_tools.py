@@ -15,6 +15,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import cast
 
 import click
 from agent_definition import AgentDefinition, load_agent_definitions
@@ -236,7 +237,7 @@ async def show_tools(*, agent_name: str, version: str | None, endpoint: str) -> 
         agent = await client.agents.get(agent_name=agent_name)
         target_version = version or agent.versions.latest.version
         details = await _get_agent_version(client, agent.name, target_version)
-        tools = list(details.definition.tools or [])
+        tools = _extract_definition_tools(details)
         summaries = [summarize_tool(tool, index) for index, tool in enumerate(tools)]
         payload = {
             "agent": agent.name,
@@ -263,7 +264,7 @@ async def rename_tools(
         target_version = version or agent.versions.latest.version
         details = await _get_agent_version(client, agent.name, target_version)
 
-        tools = list(details.definition.tools or [])
+        tools = _extract_definition_tools(details)
         updated_tools, rename_map = ensure_unique_tool_names(
             tools, prefix=prefix or agent.name
         )
@@ -410,7 +411,7 @@ def _select_agent_definitions(
     config_dir: str | None,
     agent_slugs: tuple[str, ...],
 ) -> tuple[AgentDefinition, ...]:
-    definitions = load_agent_definitions(config_dir)
+    definitions = cast(tuple[AgentDefinition, ...], load_agent_definitions(config_dir))
     if not agent_slugs:
         return definitions
 
@@ -426,6 +427,13 @@ def _select_agent_definitions(
             + ", ".join(missing)
         )
     return selected_definitions
+
+
+def _extract_definition_tools(details: AgentVersionDetails) -> list[A2APreviewTool]:
+    raw_tools = details.definition.get("tools")
+    if not isinstance(raw_tools, list):
+        return []
+    return [cast(A2APreviewTool, tool) for tool in raw_tools]
 
 
 def _build_discovered_a2a_tool(

@@ -71,7 +71,7 @@ known_first_party = [
 
 [tool.pytest.ini_options]
 testpaths = ["src/a2a_servers/tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "src/a2a_servers"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"

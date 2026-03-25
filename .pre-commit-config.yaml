@@ -25,7 +25,7 @@ repos:
         entry: uv run mypy
         language: system
         types: [python]
-        args: [--config-file=pyproject.toml, src/]
+        args: [--config-file=pyproject.toml, --no-incremental, src/]
         pass_filenames: false
         # when this hook runs, mypy checks the whole src/ tree (pass_filenames=false + src/ arg);
         # pre-commit may still skip running the hook when no matching Python files are selected.
