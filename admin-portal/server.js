@@ -206,12 +206,16 @@ app.post('/admin/chat', authenticateToken, async (req, res) => {
     const errMsg = String(err?.message || err);
     logger.error(`[${requestId}] Admin chat error (${durationMs}ms): ${err?.stack || errMsg}`);
 
-    // Rate limit from Foundry — surface it clearly so the user knows to wait.
+    // Rate limit from Foundry — clear the conversation so the next message starts fresh.
+    // The accumulated tool-call context in long conversations is the most common cause.
     if (errMsg.includes('429') || errMsg.toLowerCase().includes('too many requests')) {
+      res.clearCookie('conversationId');
+      logger.warn(`[${requestId}] Rate limited by Foundry — conversation cookie cleared, next message will start a fresh conversation`);
       return res.status(429).json({
         success: false,
-        error: 'The AI service is rate-limited right now. Wait 30–60 seconds and try again. Complex queries (system overview, full inventory) use multiple tool calls and consume more quota.',
+        error: 'Rate limit reached — the conversation was too long. It has been reset automatically. Wait a moment and resend your message.',
         requestId,
+        conversationReset: true,
       });
     }
 

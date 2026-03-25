@@ -778,10 +778,12 @@
         const wasNearBottom = chatIsNearBottom(chat);
 
         if (res.status === 429) {
-          logDebug('rate_limited', { requestId: serverRequestId }, 'warn');
+          logDebug('rate_limited', { requestId: serverRequestId, conversationReset: Boolean(data?.conversationReset) }, 'warn');
           pending.innerHTML = `
             <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
-            <div class="chat-bubble chat-bubble-rate-limit">⏳ ${escapeHtml(data?.error || 'Rate limited — wait a moment and try again.')}</div>
+            <div class="chat-bubble chat-bubble-rate-limit">
+              ⏳ ${escapeHtml(data?.error || 'Rate limit reached — conversation reset. Wait a moment and resend your message.')}
+            </div>
           `;
         } else if (!res.ok || !data.success) {
           pending.innerHTML = `
