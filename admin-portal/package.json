@@ -15,6 +15,7 @@
     "dotenv": "^17.3.1",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
+    "mssql": "^12.2.1",
     "winston": "^3.19.0"
   },
   "devDependencies": {
