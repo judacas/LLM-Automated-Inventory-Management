@@ -4,10 +4,9 @@
 # This lets an Azure AI Foundry client (which can only connect to one remote A2A agent at
 # a time) interact with several Foundry agents through a single URL.
 #
-# Routing: when a message arrives the composite agent scans it for the first matching
-# `keywords` pattern (Python regex, case-insensitive) and forwards the request to that
-# member's Foundry backend.  If no pattern matches, the first member is used as the
-# default fallback.
+# Routing is automatic and name-based: each member is routed by message prefix
+# `Route to <agent name>`. The route patterns are generated from each member's
+# `[a2a].name` in its referenced `*_agent.toml`.
 #
 # Routing is sticky per conversation context: once a context is mapped to a member, all
 # subsequent messages in that context are handled by the same backend.
@@ -39,17 +38,5 @@ streaming = true
 # Path to the individual agent config (relative to this file).
 config = "first_agent.toml"
 
-# Regex patterns (Python re syntax, case-insensitive) used to route messages to this
-# member.  The first member whose patterns produce a match wins.  Leave empty ([]) to
-# use this member only as the default fallback (it should be listed last in that case).
-keywords = [
-    "\\bfirst\\b",
-    "example keyword",
-]
-
 [[composite.members]]
 config = "second_agent.toml"
-keywords = [
-    "\\bsecond\\b",
-    "another keyword",
-]

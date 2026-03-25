@@ -8,7 +8,7 @@ from functools import partial
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
-from a2a.types import AgentCapabilities, AgentCard
+from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from agent_definition import AgentDefinition
 from composite_agent_executor import CompositeAgentExecutor, CompositeMemberBackend
 from composite_definition import CompositeAgentDefinition
@@ -41,6 +41,44 @@ def build_agent_card(definition: AgentDefinition, agent_card_url: str) -> AgentC
         capabilities=AgentCapabilities(streaming=definition.supports_streaming),
         skills=list(definition.skills),
     )
+
+
+def _build_composite_description(definition: CompositeAgentDefinition) -> str:
+    route_hints = [f"Route to {member.route_label}" for member in definition.members]
+    route_lines = "\n".join(f"- {hint}" for hint in route_hints)
+    internal_agents = "\n".join(
+        f"- {member.agent_definition.public_name}" for member in definition.members
+    )
+
+    return (
+        f"{definition.description}\n\n"
+        "This is a composite endpoint that fronts multiple internal agents. "
+        "To route correctly, start your message with exactly one route directive:\n"
+        f"{route_lines}\n\n"
+        "Internal agents behind this composite endpoint:\n"
+        f"{internal_agents}"
+    )
+
+
+def _build_composite_skills(
+    definition: CompositeAgentDefinition,
+) -> list[AgentSkill]:
+    skills: list[AgentSkill] = []
+    for member in definition.members:
+        for skill in member.agent_definition.skills:
+            skills.append(
+                AgentSkill(
+                    id=skill.id,
+                    name=skill.name,
+                    description=(
+                        f"[Executed by: {member.agent_definition.public_name}] "
+                        f"{skill.description}"
+                    ),
+                    tags=list(skill.tags or []),
+                    examples=list(skill.examples or []),
+                )
+            )
+    return skills
 
 
 def create_agent_app(
@@ -84,8 +122,15 @@ def create_composite_agent_app(
     if settings.project_endpoint is None:
         raise ValueError("Server settings must include project_endpoint")
 
-    agent_card = build_agent_card(
-        definition, settings.agent_card_url_for(definition.slug)
+    agent_card = AgentCard(
+        name=definition.public_name,
+        description=_build_composite_description(definition),
+        url=settings.agent_card_url_for(definition.slug),
+        version=definition.version,
+        default_input_modes=list(definition.default_input_modes),
+        default_output_modes=list(definition.default_output_modes),
+        capabilities=AgentCapabilities(streaming=definition.supports_streaming),
+        skills=_build_composite_skills(definition),
     )
 
     members: list[CompositeMemberBackend] = []
@@ -99,6 +144,7 @@ def create_composite_agent_app(
             CompositeMemberBackend(
                 backend_factory=backend_factory,
                 keyword_patterns=member.keyword_patterns,
+                route_label=member.route_label,
             )
         )
 

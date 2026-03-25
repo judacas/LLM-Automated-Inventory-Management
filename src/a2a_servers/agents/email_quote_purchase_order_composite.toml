@@ -9,18 +9,9 @@ streaming = false
 
 [[composite.members]]
 config = "quote_agent.toml"
-keywords = [
-    "^\\s*Route to\\s+Quote\\s+Agent\\b",
-]
 
 [[composite.members]]
 config = "email_agent.toml"
-keywords = [
-    "^\\s*Route to\\s+Email\\s+Agent\\b",
-]
 
 [[composite.members]]
 config = "purchase_order_agent.toml"
-keywords = [
-    "^\\s*Route to\\s+Purchase[ _-]?Order\\s+Agent\\b",
-]

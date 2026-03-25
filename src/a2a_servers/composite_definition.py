@@ -3,7 +3,7 @@
 This module solves the Azure AI Foundry limitation where a Foundry agent can only connect
 to a single A2A remote agent at a time.  A composite agent presents all member agents'
 skills under one unified A2A endpoint and routes each incoming request to the correct
-Foundry backend based on keyword (regex) matching.
+Foundry backend based on name-derived route directives (``Route to <agent name>``).
 
 Config files matching ``agents/*_composite.toml`` are auto-discovered by
 :func:`discover_composite_agent_definition_paths`.
@@ -46,9 +46,10 @@ def _derive_composite_slug(path: Path) -> str:
 
 @dataclass(frozen=True)
 class CompositeMemberDefinition:
-    """One member of a composite agent: an underlying agent plus its routing keywords."""
+    """One member of a composite agent and its auto-derived routing metadata."""
 
     agent_definition: AgentDefinition
+    route_label: str
     # Compiled regex patterns; a message matching ANY pattern is routed to this member.
     keyword_patterns: tuple[re.Pattern[str], ...]
 
@@ -57,9 +58,8 @@ class CompositeMemberDefinition:
 class CompositeAgentDefinition:
     """A virtual agent that exposes multiple Foundry agents as a single A2A endpoint.
 
-    Skills are aggregated from all members.  Routing is determined by the first member
-    whose keyword patterns match the incoming message text.  If no member matches, the
-    first member is used as the default.
+    Skills are aggregated from all members. Routing directives are derived from member
+    names and matched against incoming messages.
     """
 
     slug: str
@@ -98,6 +98,47 @@ def _compile_keyword_patterns(
                 f"`{entry_label}` contains an invalid regex pattern {keyword!r}: {exc}"
             ) from exc
     return tuple(patterns)
+
+
+def _normalize_route_label(public_name: str) -> str:
+    """Return the user-facing route target for an agent's public name."""
+    normalized = " ".join(public_name.split())
+    prefix = "AI Foundry "
+    if normalized.lower().startswith(prefix.lower()):
+        normalized = normalized[len(prefix) :].strip()
+    return normalized
+
+
+def _name_to_route_pattern(name: str) -> str:
+    """Build a separator-flexible regex fragment from a human-readable name."""
+    parts = re.split(r"[\s_-]+", name.strip())
+    escaped = [re.escape(part) for part in parts if part]
+    if not escaped:
+        raise ValueError("Route target name must contain at least one token")
+    return r"[\s_-]+".join(escaped)
+
+
+def _build_route_patterns_for_agent_name(
+    public_name: str,
+) -> tuple[re.Pattern[str], ...]:
+    """Create route patterns for ``Route to <agent name>`` using full and short names."""
+    full_name = " ".join(public_name.split())
+    short_name = _normalize_route_label(public_name)
+
+    candidates = [full_name]
+    if short_name.lower() != full_name.lower():
+        candidates.append(short_name)
+
+    route_patterns: list[re.Pattern[str]] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        pattern_text = rf"^\s*Route\s+to\s+{_name_to_route_pattern(candidate)}\b"
+        pattern_key = pattern_text.lower()
+        if pattern_key in seen:
+            continue
+        seen.add(pattern_key)
+        route_patterns.append(re.compile(pattern_text, re.IGNORECASE))
+    return tuple(route_patterns)
 
 
 # ---------------------------------------------------------------------------
@@ -163,26 +204,13 @@ def load_composite_agent_definition(
         member_config_path = (path.parent / config_value.strip()).resolve()
         agent_def = load_agent_definition(member_config_path)
 
-        keywords_raw = member_data.get("keywords", [])
-        if not isinstance(keywords_raw, list):
-            raise ValueError(
-                f"`[[composite.members]]` entry #{index} "
-                "`keywords` must be a list of strings"
-            )
-        if any(not isinstance(k, str) or not k.strip() for k in keywords_raw):
-            raise ValueError(
-                f"`[[composite.members]]` entry #{index} "
-                "`keywords` must be a list of non-empty strings"
-            )
-
-        patterns = _compile_keyword_patterns(
-            [str(k) for k in keywords_raw],
-            f"composite.members[{index}].keywords",
-        )
+        route_label = _normalize_route_label(agent_def.public_name)
+        patterns = _build_route_patterns_for_agent_name(agent_def.public_name)
 
         members.append(
             CompositeMemberDefinition(
                 agent_definition=agent_def,
+                route_label=route_label,
                 keyword_patterns=patterns,
             )
         )

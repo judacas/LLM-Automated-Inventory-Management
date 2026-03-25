@@ -1,8 +1,8 @@
 """Composite AgentExecutor that routes requests across multiple Foundry backends.
 
 The executor selects the target Foundry backend by scanning the user's message
-for the first matching regex keyword pattern defined in the composite config.
-If no pattern matches, the first member is used as a fallback.
+for regex keyword patterns defined in the composite config.
+Exactly one member must match on the first message of a context.
 
 Routing is *sticky per context*: once a context (conversation) is mapped to a
 member, all subsequent messages in that context continue to use the same backend
@@ -37,6 +37,7 @@ class CompositeMemberBackend:
 
     backend_factory: Callable[[], Awaitable[StreamingConversationBackend]]
     keyword_patterns: tuple[re.Pattern[str], ...]
+    route_label: str
 
 
 class CompositeAgentExecutor(AgentExecutor):
@@ -66,24 +67,44 @@ class CompositeAgentExecutor(AgentExecutor):
     # ------------------------------------------------------------------
 
     def _route_message(self, message: str) -> int:
-        """Return the index of the first member whose keyword patterns match *message*.
+        """Return the unique member index selected by keyword matching.
 
-        Falls back to member 0 when nothing matches.
+        Raises ``ValueError`` when zero members match or when multiple members
+        match so callers can return an explicit routing error to the requester.
         """
+        matching_indices: list[int] = []
         for index, member in enumerate(self._members):
             for pattern in member.keyword_patterns:
                 if pattern.search(message):
+                    matching_indices.append(index)
                     logger.debug(
-                        "Message routed to member %d via pattern %r",
+                        "Message matched member %d via pattern %r",
                         index,
                         pattern.pattern,
                     )
-                    return index
-        logger.warning(
-            "No keyword pattern matched message %r…; defaulting to member 0",
-            message[:120],
+                    break
+
+        if len(matching_indices) == 1:
+            return matching_indices[0]
+
+        route_hints = [f"Route to {member.route_label}" for member in self._members]
+        hints_text = "; ".join(route_hints)
+
+        if not matching_indices:
+            logger.warning("No keyword pattern matched message %r", message[:120])
+            raise ValueError(
+                "Composite endpoint requires the target agent to be specified. "
+                f"No routing pattern matched. Use one of: {hints_text}."
+            )
+
+        matched_routes = ", ".join(
+            self._members[index].route_label for index in matching_indices
         )
-        return 0
+        raise ValueError(
+            "Composite endpoint requires exactly one target agent. "
+            f"Message matched multiple routes: {matched_routes}. "
+            f"Use only one route prefix. Valid options: {hints_text}."
+        )
 
     # ------------------------------------------------------------------
     # Lazy initialisation
@@ -124,7 +145,9 @@ class CompositeAgentExecutor(AgentExecutor):
         task_updater: TaskUpdater,
     ) -> None:
         try:
-            user_message = FoundryAgentExecutor._convert_parts_to_text(message_parts)
+            user_message = FoundryAgentExecutor._convert_parts_to_text(
+                list(message_parts)
+            )
             logger.info("💬 User message: %s", user_message)
 
             # Determine (and lock in) routing for this context

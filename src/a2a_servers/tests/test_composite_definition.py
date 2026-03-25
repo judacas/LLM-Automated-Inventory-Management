@@ -126,6 +126,9 @@ def test_load_valid_composite(tmp_path: Path) -> None:
     assert len(defn.members) == 2
     assert defn.members[0].agent_definition.slug == "email"
     assert defn.members[1].agent_definition.slug == "quote"
+    assert defn.members[0].route_label == "Email Agent"
+    assert defn.members[0].keyword_patterns[0].search("Route to Email Agent")
+    assert defn.members[0].keyword_patterns[0].search("Route to AI Foundry Email Agent")
 
 
 def test_composite_slug_derived_from_filename(tmp_path: Path) -> None:
@@ -228,7 +231,7 @@ def test_composite_skills_aggregated(tmp_path: Path) -> None:
 
 
 def test_composite_no_keywords_allowed(tmp_path: Path) -> None:
-    """Members with empty keywords lists are valid (they act as fallback defaults)."""
+    """Members without keywords are valid and get name-derived route patterns."""
     _write_agent(tmp_path, "email")
     content = textwrap.dedent("""\
         [composite]
@@ -243,7 +246,12 @@ def test_composite_no_keywords_allowed(tmp_path: Path) -> None:
     """)
     p = _write_composite(tmp_path, content)
     defn = load_composite_agent_definition(p)
-    assert defn.members[0].keyword_patterns == ()
+    assert defn.members[0].route_label == "Email Agent"
+    assert defn.members[0].keyword_patterns
+    assert any(
+        pattern.search("Route to Email Agent")
+        for pattern in defn.members[0].keyword_patterns
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +334,7 @@ def test_member_config_not_found_raises(tmp_path: Path) -> None:
         load_composite_agent_definition(p)
 
 
-def test_invalid_keyword_regex_raises(tmp_path: Path) -> None:
+def test_keywords_are_ignored_when_present(tmp_path: Path) -> None:
     _write_agent(tmp_path, "email")
     content = textwrap.dedent("""\
         [composite]
@@ -340,8 +348,8 @@ def test_invalid_keyword_regex_raises(tmp_path: Path) -> None:
         keywords = ["[unclosed"]
     """)
     p = _write_composite(tmp_path, content)
-    with pytest.raises(ValueError, match="invalid regex"):
-        load_composite_agent_definition(p)
+    defn = load_composite_agent_definition(p)
+    assert defn.members[0].keyword_patterns
 
 
 def test_streaming_must_be_bool_raises(tmp_path: Path) -> None:
@@ -498,7 +506,7 @@ def _make_test_card() -> AgentCard:
 
 
 def test_routing_first_match_wins() -> None:
-    """The first member whose patterns match the message is selected."""
+    """A message that matches exactly one member is routed to that member."""
     from unittest.mock import AsyncMock
 
     from composite_agent_executor import CompositeAgentExecutor, CompositeMemberBackend
@@ -512,10 +520,12 @@ def test_routing_first_match_wins() -> None:
         CompositeMemberBackend(
             backend_factory=dummy_factory,
             keyword_patterns=(re.compile(r"\bemail\b", re.IGNORECASE),),
+            route_label="Email Agent",
         ),
         CompositeMemberBackend(
             backend_factory=dummy_factory,
             keyword_patterns=(re.compile(r"\bquote\b", re.IGNORECASE),),
+            route_label="Quote Agent",
         ),
     ]
     executor = CompositeAgentExecutor(card=card, members=members)
@@ -524,7 +534,7 @@ def test_routing_first_match_wins() -> None:
     assert executor._route_message("Create a quote for the order") == 1
 
 
-def test_routing_defaults_to_first_member_when_no_match() -> None:
+def test_routing_raises_when_no_member_matches() -> None:
     from unittest.mock import AsyncMock
 
     from composite_agent_executor import CompositeAgentExecutor, CompositeMemberBackend
@@ -538,15 +548,17 @@ def test_routing_defaults_to_first_member_when_no_match() -> None:
         CompositeMemberBackend(
             backend_factory=dummy_factory,
             keyword_patterns=(re.compile(r"\bemail\b", re.IGNORECASE),),
+            route_label="Email Agent",
         ),
         CompositeMemberBackend(
             backend_factory=dummy_factory,
             keyword_patterns=(re.compile(r"\bquote\b", re.IGNORECASE),),
+            route_label="Quote Agent",
         ),
     ]
     executor = CompositeAgentExecutor(card=card, members=members)
-    # "hello" matches nothing → defaults to member 0
-    assert executor._route_message("hello there") == 0
+    with pytest.raises(ValueError, match="target agent to be specified"):
+        executor._route_message("hello there")
 
 
 def test_routing_is_case_insensitive() -> None:
@@ -563,11 +575,40 @@ def test_routing_is_case_insensitive() -> None:
         CompositeMemberBackend(
             backend_factory=dummy_factory,
             keyword_patterns=(re.compile(r"\bemail\b", re.IGNORECASE),),
+            route_label="Email Agent",
         ),
     ]
     executor = CompositeAgentExecutor(card=card, members=members)
     assert executor._route_message("EMAIL me the report") == 0
     assert executor._route_message("Please Email this") == 0
+
+
+def test_routing_raises_when_multiple_members_match() -> None:
+    from unittest.mock import AsyncMock
+
+    from composite_agent_executor import CompositeAgentExecutor, CompositeMemberBackend
+
+    card = _make_test_card()
+
+    async def dummy_factory() -> StreamingConversationBackend:
+        return AsyncMock()
+
+    members = [
+        CompositeMemberBackend(
+            backend_factory=dummy_factory,
+            keyword_patterns=(re.compile(r"route to", re.IGNORECASE),),
+            route_label="Email Agent",
+        ),
+        CompositeMemberBackend(
+            backend_factory=dummy_factory,
+            keyword_patterns=(re.compile(r"route to", re.IGNORECASE),),
+            route_label="Quote Agent",
+        ),
+    ]
+
+    executor = CompositeAgentExecutor(card=card, members=members)
+    with pytest.raises(ValueError, match="exactly one target agent"):
+        executor._route_message("Route to Email Agent")
 
 
 def test_composite_executor_requires_at_least_one_member() -> None:
