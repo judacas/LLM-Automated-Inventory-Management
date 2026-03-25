@@ -33,8 +33,11 @@ known_first_party = [
   "a2a_servers",
   "agent_definition",
   "app_factory",
+  "composite_agent_executor",
+  "composite_definition",
   "foundry_agent",
   "foundry_agent_executor",
+  "foundry_tool_schema",
   "settings",
 ]
 
