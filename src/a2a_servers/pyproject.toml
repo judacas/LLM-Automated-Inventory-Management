@@ -37,6 +37,7 @@ known_first_party = [
   "composite_definition",
   "foundry_agent",
   "foundry_agent_executor",
+  "foundry_tool_schema",
   "settings",
 ]
 
