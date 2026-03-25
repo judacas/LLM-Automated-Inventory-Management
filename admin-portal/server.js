@@ -237,51 +237,36 @@ app.get('/dashboard.html', authenticateToken, (req, res) => {
   logger.info(`dashboard.html served to: ${req.user.username}`);
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
+const sql = require('mssql');
+
+const sqlConfig = {
+  user: process.env.AZURE_SQL_USERNAME,
+  password: process.env.AZURE_SQL_PASSWORD,
+  database: process.env.AZURE_SQL_DATABASE,
+  server: process.env.AZURE_SQL_SERVER,
+  options: { encrypt: true, trustServerCertificate: false }
+};
 
 app.get('/admin/dashboard', authenticateToken, async (req, res) => {
   try {
-    logger.info(`Dashboard data accessed by: ${req.user.username}`);
-
-    const mcpBase = process.env.MCP_BASE_URL;
-    const apiKey = process.env.MCP_API_KEY || '';
-
-    const metricsResp = await fetch(`${mcpBase}/quotes/admin/dashboard`, {
-      headers: apiKey ? { 'x-api-key': apiKey } : {}
-    });
-
-    if (!metricsResp.ok) {
-      const txt = await metricsResp.text();
-      return res.status(502).json({ error: `MCP dashboard failed: ${metricsResp.status} ${txt}` });
-    }
-
-    const metrics = await metricsResp.json();
-
-    const outResp = await fetch(`${mcpBase}/quotes/admin/out-of-stock`, {
-      headers: apiKey ? { 'x-api-key': apiKey } : {}
-    });
-
-    if (!outResp.ok) {
-      const txt = await outResp.text();
-      return res.status(502).json({ error: `MCP out-of-stock failed: ${outResp.status} ${txt}` });
-    }
-
-    const out = await outResp.json();
-    const unavailableItems = Array.isArray(out) ? out.length : 0;
-
+    const pool = await sql.connect(sqlConfig);
+    const metrics = await pool.request().query(
+      `SELECT COUNT(*) AS outstanding_quotes_count,
+              COALESCE(SUM(total_amount), 0) AS outstanding_total_amount
+       FROM Quotes WHERE status = 'active'`
+    );
+    const oos = await pool.request().query(
+      `SELECT COUNT(*) AS cnt FROM Inventory WHERE quantity_in_stock = 0`
+    );
     return res.json({
       message: `Welcome ${req.user.username}!`,
-      outstandingCount: metrics.outstanding_quotes_count ?? 0,
-      outstandingTotal: `$${Number(metrics.outstanding_total_amount ?? 0).toFixed(2)}`,
-      unavailableItems
+      outstandingCount: metrics.recordset[0].outstanding_quotes_count,
+      outstandingTotal: `$${Number(metrics.recordset[0].outstanding_total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      unavailableItems: oos.recordset[0].cnt
     });
   } catch (err) {
-    logger.error(`Dashboard fetch error: ${err?.message || err}`);
-    return res.status(500).json({
-      message: `Welcome ${req.user.username}!`,
-      outstandingCount: 0,
-      outstandingTotal: '$0.00',
-      unavailableItems: 0
-    });
+    logger.error(`Dashboard DB error: ${err.message}`);
+    return res.status(500).json({ outstandingCount: 0, outstandingTotal: '$0.00', unavailableItems: 0 });
   }
 });
 
