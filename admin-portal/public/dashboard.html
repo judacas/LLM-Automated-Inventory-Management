@@ -39,9 +39,14 @@
       <div id="chatBox" class="chat-box"></div>
 
       <div class="chat-input-row">
-        <input id="chatInput" type="text" placeholder="Try: show outstanding quotes" />
+        <input id="chatInput" type="text" placeholder="Try: what can you do?" />
         <button id="chatSendBtn" class="chat-send-btn">Send</button>
       </div>
+
+      <details id="chatDebug" class="chat-debug" style="display:none;">
+        <summary>Debug</summary>
+        <pre id="chatDebugLog" class="chat-debug-log"></pre>
+      </details>
     </div>
 
     <!-- Logout -->
@@ -115,16 +120,426 @@
 
     fetchDashboardAnimated();
 
+    const DEBUG_ENABLED = (() => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        return params.has('debug') || params.get('debug') === '1';
+      } catch {
+        return false;
+      }
+    })();
+
+    const debugDetails = document.getElementById('chatDebug');
+    const debugLogEl = document.getElementById('chatDebugLog');
+    const debugBuffer = [];
+
+    function logDebug(event, data = {}) {
+      if (!DEBUG_ENABLED) return;
+      const entry = {
+        ts: new Date().toISOString(),
+        event,
+        ...data,
+      };
+      debugBuffer.push(entry);
+      if (debugBuffer.length > 200) debugBuffer.shift();
+      if (debugLogEl) debugLogEl.textContent = debugBuffer.map((e) => JSON.stringify(e)).join('\n');
+    }
+
+    if (DEBUG_ENABLED && debugDetails) {
+      debugDetails.style.display = '';
+      logDebug('debug_enabled');
+    }
+
     function escapeHtml(text) {
       return String(text ?? '')
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
-    function formatTextHtml(text) {
-      // Preserve basic formatting (new lines) while remaining safe.
-      return escapeHtml(text).replace(/\n/g, '<br>');
+    function createRequestId() {
+      try {
+        if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+      } catch {
+        // ignore
+      }
+      // Fallback: not cryptographically strong, but good enough for correlation.
+      return `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    }
+
+    function formatAgentTextToSafeHtml(text) {
+      // Structured, safe formatting (“markdown-lite”):
+      // - Escapes HTML
+      // - Supports **bold**, inline `code`, fenced ```code blocks```
+      // - Supports headings (#, ##, ###), separators (---), bullet + numbered lists
+      // - Adds a nicer layout for domain-specific section titles (e.g., "Quote #5 (...)")
+      const raw = String(text ?? '');
+
+      // Pull out fenced code blocks first so list/heading parsing can ignore them.
+      const codeBlocks = [];
+      const withPlaceholders = raw.replace(/```([\s\S]*?)```/g, (_m, code) => {
+        const html = `<pre class="chat-code"><code>${escapeHtml(code)}</code></pre>`;
+        codeBlocks.push(html);
+        return `@@CODEBLOCK_${codeBlocks.length - 1}@@`;
+      });
+
+      function renderInline(markupText) {
+        // Escape first, then apply inline transforms on already-escaped text.
+        let escaped = escapeHtml(markupText);
+        escaped = escaped.replace(/`([^`\n]+)`/g, (_m, code) => `<code>${code}</code>`);
+        escaped = escaped.replace(/\*\*([^*\n]+?)\*\*/g, (_m, boldText) => `<strong>${boldText}</strong>`);
+
+        // Key/value highlight: "Label: value" -> bold label
+        // (Works nicely inside list items and paragraphs.)
+        escaped = escaped.replace(
+          /^([A-Za-z][A-Za-z0-9 ()/_-]{0,50}):\s+/,
+          (_m, label) => `<strong>${label}:</strong> `
+        );
+
+        // Standalone section label: "Line Items:" -> bold entire label
+        escaped = escaped.replace(
+          /^([A-Za-z][A-Za-z0-9 ()\/_-]{0,50}):\s*$/,
+          (_m, label) => `<strong>${label}:</strong>`
+        );
+        return escaped;
+      }
+
+      function renderMarkdownLite(blockText) {
+        const lines = String(blockText ?? '').split(/\r?\n/);
+        const htmlParts = [];
+
+        // Nested list support
+        // We build a small tree so nested bullet indentation renders correctly.
+        /** @type {{ type: 'ul'|'ol', items: Array<{ html: string, child: any | null }> } | null} */
+        let listRoot = null;
+        /** @type {Array<{ node: any, level: number }> } */
+        let listPath = [];
+        let listRootType = null;
+
+        // Heuristic nesting: if we see a bullet that ends with ':' (and has no value),
+        // treat subsequent bullets at the same indentation as children until a new
+        // section bullet appears.
+        let implicitChildMode = false;
+        let implicitBaseLevel = 0;
+
+        let paragraphLines = [];
+
+        let kvPairs = []; // array of { key: string, valueHtml: string }
+
+        // "Auto-list" lines: many agents return capability/action lists as plain lines
+        // (no '-' bullet markers). We detect short, imperative-style lines and render
+        // them as a list when there are 2+ in a row.
+        let autoBulletLines = [];
+
+        function looksLikePlainHeading(t) {
+          // Examples we want: "Inventory Management", "Business Metrics", "Discounts", "Admin Usage Tips"
+          if (!t) return false;
+          if (t.length > 48) return false;
+          if (t.endsWith(':')) return false;
+          if (/[.?!]$/.test(t)) return false;
+          if (/^#{1,3}\s+/.test(t)) return false;
+          if (/^\s*([-*•])\s+/.test(t)) return false;
+          if (/^\s*\d+\.\s+/.test(t)) return false;
+          if (/^https?:\/\//i.test(t)) return false;
+          if (!/^[A-Za-z0-9][A-Za-z0-9 &'()\/_-]*$/.test(t)) return false;
+          if (t.toLowerCase() === t) return false; // all-lowercase is unlikely a section title
+          return true;
+        }
+
+        function looksLikeAutoBulletLine(t) {
+          if (!t) return false;
+          if (t.length > 140) return false;
+          if (/^@@CODEBLOCK_\d+@@$/.test(t)) return false;
+          if (/^(---|\*\*\*|___)\s*$/.test(t)) return false;
+          if (/^#{1,3}\s+/.test(t)) return false;
+          if (/^\s*([-*•])\s+/.test(t)) return false;
+          if (/^\s*\d+\.\s+/.test(t)) return false;
+          if (/^quote\s+#\d+/i.test(t)) return false;
+          // Exclude key/value rows
+          if (/^[A-Za-z][A-Za-z0-9 ()\/_-]{0,50}:\s*\S+/.test(t)) return false;
+          // Exclude obvious sentences that are actually "normal" paragraphs.
+          // Heuristic: capability/action lines tend to start with a capital verb.
+          if (!/^[A-Z]/.test(t)) return false;
+          return true;
+        }
+
+        function renderListNode(node) {
+          const itemsHtml = node.items
+            .map((it) => {
+              const childHtml = it.child ? renderListNode(it.child) : '';
+              return `<li>${it.html}${childHtml}</li>`;
+            })
+            .join('');
+          return `<${node.type} class="chat-list">${itemsHtml}</${node.type}>`;
+        }
+
+        function flushList() {
+          if (!listRoot || !listRoot.items.length) {
+            listRoot = null;
+            listPath = [];
+            listRootType = null;
+            return;
+          }
+          htmlParts.push(renderListNode(listRoot));
+          listRoot = null;
+          listPath = [];
+          listRootType = null;
+        }
+
+        function startNewList(rootType) {
+          listRoot = { type: rootType, items: [] };
+          listPath = [{ node: listRoot, level: 0 }];
+          listRootType = rootType;
+        }
+
+        function getLeadingSpacesCount(s) {
+          const m = String(s ?? '').match(/^(\s*)/);
+          if (!m) return 0;
+          const ws = m[1] || '';
+          // Treat a tab as 2 spaces for our purposes.
+          return ws.replace(/\t/g, '  ').length;
+        }
+
+        function isSectionBullet(text) {
+          // Bullet that ends with ':' and has no value after it
+          return /^[A-Za-z][A-Za-z0-9 ()\/_-]{0,50}:\s*$/.test(text);
+        }
+
+        function addListItem(rootType, level, itemHtml, rawItemText) {
+          if (!listRoot) startNewList(rootType);
+
+          // If the root type changes (ul vs ol), flush and restart.
+          if (listRootType && listRootType !== rootType && level === 0) {
+            flushList();
+            startNewList(rootType);
+          }
+
+          // Clamp level to avoid creating children without a parent item.
+          level = Math.max(0, level);
+
+          // Ensure listPath ends at requested level.
+          while (listPath.length - 1 > level) listPath.pop();
+
+          while (listPath.length - 1 < level) {
+            const parentNode = listPath[listPath.length - 1].node;
+            const parentItems = parentNode.items;
+            const lastItem = parentItems[parentItems.length - 1];
+            if (!lastItem) break;
+            if (!lastItem.child) {
+              lastItem.child = { type: rootType, items: [] };
+            }
+            listPath.push({ node: lastItem.child, level: listPath.length });
+          }
+
+          const targetNode = listPath[listPath.length - 1].node;
+          targetNode.items.push({ html: itemHtml, child: null });
+
+          // Update implicit nesting mode.
+          if (isSectionBullet(rawItemText)) {
+            implicitChildMode = true;
+            implicitBaseLevel = level;
+          }
+        }
+
+        function flushParagraph() {
+          if (!paragraphLines.length) return;
+          const rendered = paragraphLines.map((l) => renderInline(l.trim())).join('<br>');
+          htmlParts.push(`<div class="chat-paragraph">${rendered}</div>`);
+          paragraphLines = [];
+        }
+
+        function flushAutoBullets() {
+          if (!autoBulletLines.length) return;
+          if (autoBulletLines.length >= 2) {
+            const itemsHtml = autoBulletLines
+              .map((l) => `<li>${renderInline(l.trim())}</li>`)
+              .join('');
+            htmlParts.push(`<ul class="chat-list">${itemsHtml}</ul>`);
+          } else {
+            // Single line: treat as a normal paragraph.
+            htmlParts.push(
+              `<div class="chat-paragraph">${renderInline(autoBulletLines[0].trim())}</div>`
+            );
+          }
+          autoBulletLines = [];
+        }
+
+        function flushKv() {
+          if (!kvPairs.length) return;
+          const rows = kvPairs
+            .map((pair) => {
+              const keyHtml = escapeHtml(pair.key);
+              return `<dt>${keyHtml}</dt><dd>${pair.valueHtml}</dd>`;
+            })
+            .join('');
+          htmlParts.push(`<dl class="chat-kv">${rows}</dl>`);
+          kvPairs = [];
+        }
+
+        for (let i = 0; i < lines.length; i++) {
+          const line = String(lines[i] ?? '');
+          const trimmed = line.trim();
+          const nextTrimmed = String(lines[i + 1] ?? '').trim();
+
+          // Code-block placeholders become standalone blocks.
+          const codeMatch = trimmed.match(/^@@CODEBLOCK_(\d+)@@$/);
+          if (codeMatch) {
+            flushAutoBullets();
+            flushParagraph();
+            flushKv();
+            flushList();
+            implicitChildMode = false;
+            htmlParts.push(codeBlocks[Number(codeMatch[1])] || '');
+            continue;
+          }
+
+          // Blank line -> spacing (and ends any active list)
+          if (!trimmed) {
+            flushAutoBullets();
+            flushParagraph();
+            flushKv();
+            flushList();
+            implicitChildMode = false;
+            htmlParts.push('<div class="chat-gap"></div>');
+            continue;
+          }
+
+          // Horizontal rule
+          if (/^(---|\*\*\*|___)\s*$/.test(trimmed)) {
+            flushAutoBullets();
+            flushParagraph();
+            flushKv();
+            flushList();
+            implicitChildMode = false;
+            htmlParts.push('<hr class="chat-hr">');
+            continue;
+          }
+
+          // Headings (#, ##, ###)
+          const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
+          if (headingMatch) {
+            flushAutoBullets();
+            flushParagraph();
+            flushKv();
+            flushList();
+            implicitChildMode = false;
+            const level = headingMatch[1].length;
+            htmlParts.push(
+              `<div class="chat-heading chat-h${level}">${renderInline(headingMatch[2])}</div>`
+            );
+            continue;
+          }
+
+          // Plain headings (no leading '#') for capability-style output.
+          if (
+            looksLikePlainHeading(trimmed) &&
+            (nextTrimmed === '' || looksLikeAutoBulletLine(nextTrimmed))
+          ) {
+            flushAutoBullets();
+            flushParagraph();
+            flushKv();
+            flushList();
+            implicitChildMode = false;
+            htmlParts.push(`<div class="chat-heading chat-h2">${renderInline(trimmed)}</div>`);
+            continue;
+          }
+
+          // Domain section title: Quote #N (...)
+          if (/^quote\s+#\d+/i.test(trimmed)) {
+            flushAutoBullets();
+            flushParagraph();
+            flushKv();
+            flushList();
+            implicitChildMode = false;
+            htmlParts.push(`<div class="chat-heading chat-h2">${renderInline(trimmed)}</div>`);
+            continue;
+          }
+
+          // Key/value rows (non-list): group consecutive "Key: value" lines
+          const kvMatch = trimmed.match(/^([A-Za-z][A-Za-z0-9 ()/_-]{0,50}):\s*(.+)$/);
+          if (kvMatch) {
+            flushAutoBullets();
+            flushParagraph();
+            flushList();
+            implicitChildMode = false;
+            kvPairs.push({
+              key: kvMatch[1],
+              valueHtml: renderInline(kvMatch[2]),
+            });
+            continue;
+          }
+          // If we were in a KV block and we hit a non-KV line, flush it.
+          flushKv();
+
+          // Auto-bullet lines (plain action lists)
+          if (looksLikeAutoBulletLine(trimmed)) {
+            flushParagraph();
+            flushList();
+            implicitChildMode = false;
+            autoBulletLines.push(trimmed);
+            continue;
+          }
+          // If we were collecting auto bullets and this line breaks the run, flush them.
+          flushAutoBullets();
+
+          // Bullet list items: - item, * item, • item (with optional indentation)
+          const bulletMatch = line.match(/^\s*([-*•])\s+(.+)$/);
+          if (bulletMatch) {
+            flushParagraph();
+            const rawItemText = bulletMatch[2].trim();
+            const baseLevel = Math.floor(getLeadingSpacesCount(line) / 2);
+
+            let effectiveLevel = baseLevel;
+            if (implicitChildMode && baseLevel === implicitBaseLevel) {
+              // If this is another section bullet at the same level, keep it as a sibling
+              // and switch the implicit base to this new section.
+              if (isSectionBullet(rawItemText)) {
+                effectiveLevel = baseLevel;
+              } else {
+                effectiveLevel = baseLevel + 1;
+              }
+            }
+
+            addListItem('ul', effectiveLevel, renderInline(rawItemText), rawItemText);
+            continue;
+          }
+
+          // Numbered list items: 1. item
+          const numMatch = line.match(/^\s*(\d+)\.\s+(.+)$/);
+          if (numMatch) {
+            flushParagraph();
+            const rawItemText = numMatch[2].trim();
+            const baseLevel = Math.floor(getLeadingSpacesCount(line) / 2);
+
+            let effectiveLevel = baseLevel;
+            if (implicitChildMode && baseLevel === implicitBaseLevel) {
+              if (isSectionBullet(rawItemText)) {
+                effectiveLevel = baseLevel;
+              } else {
+                effectiveLevel = baseLevel + 1;
+              }
+            }
+
+            addListItem('ol', effectiveLevel, renderInline(rawItemText), rawItemText);
+            continue;
+          }
+
+          // Normal paragraph line (group consecutive lines)
+          flushList();
+          implicitChildMode = false;
+          paragraphLines.push(trimmed);
+        }
+
+        flushAutoBullets();
+        flushParagraph();
+        flushKv();
+        flushList();
+        return htmlParts.join('');
+      }
+
+      return renderMarkdownLite(withPlaceholders);
     }
 
     function renderReplyHtml(reply) {
@@ -141,8 +556,10 @@
         }
       }
 
-      return formatTextHtml(replyText);
+      return formatAgentTextToSafeHtml(replyText);
     }
+
+    const AGENT_LABEL = 'Contoso Admin Agent';
 
     // ===== Admin Chat =====
     async function sendChat() {
@@ -152,13 +569,18 @@
       if (!message) return;
 
       const chat = document.getElementById('chatBox');
-      chat.innerHTML += `<div class="chat-line"><b>You:</b> ${escapeHtml(message)}</div>`;
+      chat.innerHTML += `<div class="chat-line chat-user"><div class="chat-meta"><b>You</b></div><div class="chat-bubble">${escapeHtml(message)}</div></div>`;
       input.value = '';
 
       // Show a loading placeholder immediately.
       const pending = document.createElement('div');
-      pending.className = 'chat-line';
-      pending.innerHTML = `<b>Agent:</b> Loading...`;
+      pending.className = 'chat-line chat-agent';
+      pending.innerHTML = `
+        <div class="chat-meta"><b>${AGENT_LABEL}</b> <span class="chat-status">Thinking</span></div>
+        <div class="chat-bubble">
+          <span class="chat-loading"><span class="chat-spinner" aria-hidden="true"></span> Loading</span>
+        </div>
+      `;
       chat.appendChild(pending);
       chat.scrollTop = chat.scrollHeight;
 
@@ -166,25 +588,66 @@
       input.disabled = true;
       sendBtn.disabled = true;
 
+      const requestId = createRequestId();
+      logDebug('chat_request_start', { requestId, messageLength: message.length });
+
+      const controller = new AbortController();
+      const timeoutMs = 60000;
+      const timeout = setTimeout(() => controller.abort('timeout'), timeoutMs);
+
       try {
         const res = await fetch('/admin/chat', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message })
+          body: JSON.stringify({ message }),
+          signal: controller.signal,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-request-id': requestId,
+            ...(DEBUG_ENABLED ? { 'x-client-debug': '1' } : {})
+          }
         });
         const data = await res.json();
 
+        const serverRequestId = data?.requestId || requestId;
+        const metaSuffix = DEBUG_ENABLED ? ` <span class="chat-request">(${escapeHtml(serverRequestId)})</span>` : '';
+
+        logDebug('chat_response_received', {
+          requestId: serverRequestId,
+          ok: res.ok,
+          success: Boolean(data?.success),
+          empty: Boolean(data?.empty),
+          status: res.status,
+        });
+
         if (!res.ok || !data.success) {
-          pending.innerHTML = `<b>Agent:</b> ${escapeHtml(data?.error || 'Request failed')}`;
+          pending.innerHTML = `
+            <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
+            <div class="chat-bubble chat-bubble-error">${escapeHtml(data?.error || 'Request failed')}</div>
+          `;
+        } else if (data?.empty || !String(data?.reply || '').trim()) {
+          // The agent returned successfully but did not provide any text output.
+          pending.innerHTML = `
+            <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
+            <div class="chat-bubble chat-bubble-warn">No text response from agent. Try rephrasing, or check server logs with the request ID.</div>
+          `;
         } else {
-          pending.innerHTML = `<b>Agent:</b> ${renderReplyHtml(data.reply)}`;
+          pending.innerHTML = `
+            <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
+            <div class="chat-bubble">${renderReplyHtml(data.reply)}</div>
+          `;
         }
 
         chat.scrollTop = chat.scrollHeight;
       } catch {
-        pending.innerHTML = `<b>Agent:</b> Request failed.`;
+        const metaSuffix = DEBUG_ENABLED ? ` <span class="chat-request">(${escapeHtml(requestId)})</span>` : '';
+        pending.innerHTML = `
+          <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
+          <div class="chat-bubble chat-bubble-error">Request failed (network/timeout). Check server logs with the request ID.</div>
+        `;
+        logDebug('chat_request_failed', { requestId });
         chat.scrollTop = chat.scrollHeight;
       } finally {
+        clearTimeout(timeout);
         input.disabled = false;
         sendBtn.disabled = false;
         input.focus();

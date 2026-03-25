@@ -10,6 +10,7 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const path = require('path');
+const crypto = require('crypto');
 const logger = require('./utils/logger');
 
 const app = express();
@@ -46,6 +47,68 @@ function authenticateToken(req, res, next) {
 
 // ===== Routes ===== //
 
+function extractAgentTextFromResponse(response) {
+  // Prefer output_text when available; it is typically the canonical, already-assembled text.
+  // Combining it with parsed output items can lead to duplicated content.
+  if (typeof response?.output_text === 'string') {
+    const trimmed = response.output_text.trim();
+    if (trimmed) return trimmed;
+  }
+
+  const parts = [];
+
+  const out = response?.output;
+  if (Array.isArray(out)) {
+    for (const item of out) {
+      if (item?.type !== 'message') continue;
+      const content = item?.content;
+      if (!Array.isArray(content)) continue;
+
+      for (const chunk of content) {
+        // Azure AI Projects / Responses API can use output_text, text, or refusal.
+        if (typeof chunk?.text === 'string') {
+          parts.push(chunk.text);
+          continue;
+        }
+        if (chunk?.type === 'output_text' && typeof chunk?.text === 'string') {
+          parts.push(chunk.text);
+          continue;
+        }
+        if (chunk?.type === 'text' && typeof chunk?.text === 'string') {
+          parts.push(chunk.text);
+          continue;
+        }
+        if (chunk?.type === 'refusal' && typeof chunk?.refusal === 'string') {
+          parts.push(chunk.refusal);
+          continue;
+        }
+      }
+    }
+  }
+
+  return parts
+    .map((p) => String(p))
+    .join('\n')
+    .trim();
+}
+
+function summarizeFoundryResponse(response) {
+  const out = response?.output;
+  const types = [];
+
+  if (Array.isArray(out)) {
+    for (const item of out) {
+      if (item?.type) types.push(item.type);
+    }
+  }
+
+  return {
+    hasOutputText: typeof response?.output_text === 'string',
+    outputItems: Array.isArray(out) ? out.length : 0,
+    outputTypes: [...new Set(types)],
+  };
+}
+
 // Login endpoint
 app.post('/auth/login', (req, res) => {
   const { username, password } = req.body;
@@ -72,13 +135,15 @@ app.post('/auth/logout', (req, res) => {
 
 app.post('/admin/chat', authenticateToken, async (req, res) => {
   const { message } = req.body;
-  logger.info(`Admin chat from ${req.user.username}: ${message}`);
+  const requestId = req.get('x-request-id') || crypto.randomUUID();
+  const startedAt = Date.now();
+  logger.info(`[${requestId}] Admin chat from ${req.user.username}: ${message}`);
 
   if (!message || !message.trim()) {
-    
     return res.status(400).json({
       success: false,
-      error: 'Message is required'
+      error: 'Message is required',
+      requestId,
     });
   }
 
@@ -95,7 +160,7 @@ app.post('/admin/chat', authenticateToken, async (req, res) => {
         sameSite: 'lax'
       });
 
-      logger.info(`Created Foundry conversation: ${conversationId}`);
+      logger.info(`[${requestId}] Created Foundry conversation: ${conversationId}`);
     }
 
     const response = await sendMessageToAgent({
@@ -103,33 +168,44 @@ app.post('/admin/chat', authenticateToken, async (req, res) => {
       message
     });
 
-    const extracted = (() => {
-      const out = response?.output;
-      if (!Array.isArray(out)) return '';
-      const parts = [];
-      for (const item of out) {
-        if (item?.type !== 'message' || !Array.isArray(item?.content)) continue;
-        for (const chunk of item.content) {
-          if (chunk?.type === 'output_text' && typeof chunk.text === 'string') {
-            parts.push(chunk.text);
-          }
-          if (chunk?.type === 'refusal' && typeof chunk.refusal === 'string') {
-            parts.push(chunk.refusal);
-          }
-        }
-      }
-      return parts.join('\n').trim();
-    })();
+    const extracted = extractAgentTextFromResponse(response);
+    const durationMs = Date.now() - startedAt;
 
+    if (!extracted) {
+      const summary = summarizeFoundryResponse(response);
+      logger.warn(`[${requestId}] Foundry returned empty text output (${durationMs}ms): ${JSON.stringify(summary)}`);
+      return res.json({
+        success: true,
+        empty: true,
+        reply: '',
+        requestId,
+      });
+    }
+
+    logger.info(`[${requestId}] Admin chat success (${durationMs}ms, chars=${extracted.length})`);
     return res.json({
       success: true,
-      reply: response?.output_text || extracted || 'No response returned by agent.'
+      reply: extracted,
+      requestId,
     });
   } catch (err) {
-    logger.error(`Admin chat error: ${err?.message || err}`);
+    const durationMs = Date.now() - startedAt;
+    const errMsg = String(err?.message || err);
+    logger.error(`[${requestId}] Admin chat error (${durationMs}ms): ${err?.stack || errMsg}`);
+
+    // If the agent requested MCP tool approval, we want a clear, non-scary message.
+    if (errMsg.toLowerCase().includes('requires approval')) {
+      return res.status(409).json({
+        success: false,
+        error: `${errMsg} (Approve it in Foundry portal, then retry.)`,
+        requestId,
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      error: 'Failed to process admin chat request.'
+      error: 'Failed to process admin chat request.',
+      requestId,
     });
   }
 });

@@ -15,12 +15,13 @@ const PROJECT_ENDPOINT = process.env.PROJECT_ENDPOINT;
 const AGENT_NAME = process.env.AGENT_NAME;
 
 // MCP tool calls can require explicit approval. When approvals are required and not
-// provided, the Responses API returns a 400 listing pending approval request IDs
-// (e.g., "mcpr_...").
+// provided, the Responses API may:
+// - throw a 400 listing pending approval request IDs (e.g., "mcpr_...")
+// - OR return a normal response that includes an output item of type
+//   "mcp_approval_request".
 //
-// For a demo/admin portal experience we default to auto-approving those requests.
-// You can disable this by setting MCP_AUTO_APPROVE=false.
-const MCP_AUTO_APPROVE = String(process.env.MCP_AUTO_APPROVE ?? 'true').toLowerCase() !== 'false';
+// This project intentionally does NOT auto-approve MCP tool calls. Approvals should
+// be handled in the Foundry portal for visibility and control.
 
 if (!PROJECT_ENDPOINT) {
   throw new Error('Missing PROJECT_ENDPOINT in .env');
@@ -65,44 +66,56 @@ async function sendMessageToAgent({ conversationId, message }) {
     });
   }
 
-  async function approveMcpRequests(approvalRequestIds) {
-    const inputItems = approvalRequestIds.map((approvalRequestId) => ({
-      type: 'mcp_approval_response',
-      approval_request_id: approvalRequestId,
-      approve: true,
-    }));
+  function extractMcpApprovalRequestIdsFromResponse(response) {
+    const out = response?.output;
+    if (!Array.isArray(out)) return [];
 
-    return await createAgentResponse(inputItems);
+    const ids = [];
+    for (const item of out) {
+      if (item?.type !== 'mcp_approval_request') continue;
+      const candidateIds = [item?.approval_request_id, item?.approvalRequestId, item?.id]
+        .filter((v) => typeof v === 'string');
+      for (const id of candidateIds) ids.push(id);
+    }
+
+    return [...new Set(ids)];
+  }
+
+  function extractMcpApprovalRequestIdsFromErrorMessage(message) {
+    // Example:
+    // "400 The following MCP approval requests do not have an approval: mcpr_..."
+    const ids = Array.from(String(message).matchAll(/\bmcpr_[a-z0-9]+\b/gi)).map((m) => m[0]);
+    return [...new Set(ids)];
   }
 
   try {
-    return await createAgentResponse(message);
+    const response = await createAgentResponse(message);
+
+    const approvalIds = extractMcpApprovalRequestIdsFromResponse(response);
+    if (approvalIds.length) {
+      const approvalList = approvalIds.join(', ');
+      throw new Error(
+        `MCP tool call requires approval in Foundry portal. Pending approval request(s): ${approvalList}`
+      );
+    }
+
+    return response;
   } catch (err) {
     const msg = String(err?.message || err);
 
-    // Example:
-    // "400 The following MCP approval requests do not have an approval: mcpr_..."
     if (!msg.toLowerCase().includes('mcp approval')) {
       throw err;
     }
 
-    const approvalIds = Array.from(msg.matchAll(/\bmcpr_[a-z0-9]+\b/gi)).map((m) => m[0]);
-    const uniqueApprovalIds = [...new Set(approvalIds)];
-
-    if (!uniqueApprovalIds.length) {
+    const approvalIds = extractMcpApprovalRequestIdsFromErrorMessage(msg);
+    if (!approvalIds.length) {
       throw err;
     }
 
-    if (!MCP_AUTO_APPROVE) {
-      const approvalList = uniqueApprovalIds.join(', ');
-      throw new Error(
-        `MCP tool call requires approval (set MCP_AUTO_APPROVE=true to auto-approve). Pending approval request(s): ${approvalList}`
-      );
-    }
-
-    // Approve pending tool call(s) for this conversation, then retry the user's message.
-    await approveMcpRequests(uniqueApprovalIds);
-    return await createAgentResponse(message);
+    const approvalList = approvalIds.join(', ');
+    throw new Error(
+      `MCP tool call requires approval in Foundry portal. Pending approval request(s): ${approvalList}`
+    );
   }
 }
 
