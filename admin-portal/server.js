@@ -239,7 +239,7 @@ app.get('/admin/dashboard', authenticateToken, async (req, res) => {
     return res.json({
       message: `Welcome ${req.user.username}!`,
       outstandingCount: metrics.recordset[0].outstanding_quotes_count,
-      outstandingTotal: `$${Number(metrics.recordset[0].outstanding_total_amount).toFixed(2)}`,
+      outstandingTotal: `$${Number(metrics.recordset[0].outstanding_total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       unavailableItems: oos.recordset[0].cnt
     });
   } catch (err) {
