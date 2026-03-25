@@ -45,8 +45,14 @@
       </div>
 
       <details id="chatDebug" class="chat-debug" style="display:none;">
-        <summary>Debug</summary>
-        <pre id="chatDebugLog" class="chat-debug-log"></pre>
+        <summary>🐛 Debug</summary>
+        <div id="debugSystemInfo" class="debug-system-info">Loading system info…</div>
+        <div class="debug-toolbar">
+          <span id="debugEntryCount" class="debug-entry-count">0 entries</span>
+          <button class="debug-action-btn" id="debugCopyBtn">Copy log</button>
+          <button class="debug-action-btn" id="debugClearBtn">Clear</button>
+        </div>
+        <div id="chatDebugLog" class="chat-debug-log"></div>
       </details>
     </div>
 
@@ -77,6 +83,7 @@
     }
 
     async function fetchDashboardAnimated() {
+      const dashStart = Date.now();
       try {
         const res = await fetch('/admin/dashboard');
         if (res.status === 401) {
@@ -84,6 +91,7 @@
           return;
         }
         const data = await res.json();
+        const dashMs = Date.now() - dashStart;
 
         // Welcome message fade in
         const welcomeEl = document.getElementById('welcomeMessage');
@@ -114,8 +122,16 @@
           setTimeout(() => btn.style.opacity = 1, 200);
         });
 
-      } catch {
+        logDebug('dashboard_loaded', {
+          loadMs: dashMs,
+          outstandingCount: data.outstandingCount,
+          outstandingTotal: data.outstandingTotal,
+          unavailableItems: data.unavailableItems,
+        }, 'success');
+
+      } catch (err) {
         document.getElementById('welcomeMessage').textContent = 'Failed to load dashboard';
+        logDebug('dashboard_error', { error: String(err?.message || err), loadMs: Date.now() - dashStart }, 'error');
       }
     }
 
@@ -131,24 +147,78 @@
     })();
 
     const debugDetails = document.getElementById('chatDebug');
-    const debugLogEl = document.getElementById('chatDebugLog');
+    const debugLogEl  = document.getElementById('chatDebugLog');
     const debugBuffer = [];
 
-    function logDebug(event, data = {}) {
+    const DEBUG_LEVEL_CLASS = {
+      info:    'debug-info',
+      success: 'debug-success',
+      warn:    'debug-warn',
+      error:   'debug-error',
+    };
+
+    function logDebug(event, data = {}, level = 'info') {
       if (!DEBUG_ENABLED) return;
-      const entry = {
-        ts: new Date().toISOString(),
-        event,
-        ...data,
-      };
+      const ts = new Date().toISOString();
+      const entry = { ts, level, event, ...data };
       debugBuffer.push(entry);
-      if (debugBuffer.length > 200) debugBuffer.shift();
-      if (debugLogEl) debugLogEl.textContent = debugBuffer.map((e) => JSON.stringify(e)).join('\n');
+      if (debugBuffer.length > 500) debugBuffer.shift();
+
+      if (debugLogEl) {
+        const line = document.createElement('div');
+        line.className = `debug-entry ${DEBUG_LEVEL_CLASS[level] || 'debug-info'}`;
+        const timeStr = ts.slice(11, 23); // HH:MM:SS.mmm
+        const { ts: _t, level: _l, event: _e, ...rest } = entry;
+        const dataStr = Object.keys(rest).length ? ' ' + JSON.stringify(rest) : '';
+        line.innerHTML =
+          `<span class="debug-ts">${escapeHtml(timeStr)}</span>` +
+          `<span class="debug-lvl">${escapeHtml(level.toUpperCase())}</span>` +
+          `<span class="debug-evt">${escapeHtml(event)}</span>` +
+          (dataStr ? `<span class="debug-data">${escapeHtml(dataStr)}</span>` : '');
+        debugLogEl.appendChild(line);
+        debugLogEl.scrollTop = debugLogEl.scrollHeight;
+      }
+
+      const countEl = document.getElementById('debugEntryCount');
+      if (countEl) countEl.textContent = `${debugBuffer.length} entr${debugBuffer.length === 1 ? 'y' : 'ies'}`;
+    }
+
+    async function loadDebugSystemInfo() {
+      const infoEl = document.getElementById('debugSystemInfo');
+      if (!infoEl) return;
+      try {
+        const res = await fetch('/admin/debug/info');
+        if (!res.ok) { infoEl.textContent = `System info unavailable (HTTP ${res.status})`; return; }
+        const d = await res.json();
+        const envRows = Object.entries(d.env).map(([k, v]) => {
+          const cls = v.startsWith('✗') ? 'debug-env-missing'
+                    : v.startsWith('✓') ? 'debug-env-ok'
+                    : 'debug-env-opt';
+          return `<tr><td>${escapeHtml(k)}</td><td class="${cls}">${escapeHtml(v)}</td></tr>`;
+        }).join('');
+        infoEl.innerHTML =
+          `<div class="debug-sysinfo-grid">` +
+            `<div><strong>Runtime</strong><table class="debug-sysinfo-table">` +
+              `<tr><td>Node.js</td><td>${escapeHtml(d.node)}</td></tr>` +
+              `<tr><td>Platform</td><td>${escapeHtml(d.platform)}</td></tr>` +
+              `<tr><td>PID</td><td>${d.pid}</td></tr>` +
+              `<tr><td>Uptime</td><td>${d.uptimeSec}s</td></tr>` +
+              `<tr><td>RSS memory</td><td>${escapeHtml(d.memory.rss)}</td></tr>` +
+              `<tr><td>Heap used</td><td>${escapeHtml(d.memory.heapUsed)} / ${escapeHtml(d.memory.heapTotal)}</td></tr>` +
+            `</table></div>` +
+            `<div><strong>Environment</strong><table class="debug-sysinfo-table">${envRows}</table></div>` +
+          `</div>`;
+        logDebug('system_info_loaded', { node: d.node, uptimeSec: d.uptimeSec, pid: d.pid }, 'info');
+      } catch (err) {
+        infoEl.textContent = `Failed to fetch system info: ${err.message}`;
+        logDebug('system_info_error', { error: err.message }, 'error');
+      }
     }
 
     if (DEBUG_ENABLED && debugDetails) {
       debugDetails.style.display = '';
-      logDebug('debug_enabled');
+      logDebug('debug_mode_enabled', { url: window.location.href });
+      loadDebugSystemInfo();
     }
 
     function escapeHtml(text) {
@@ -191,6 +261,7 @@
         let escaped = escapeHtml(markupText);
         escaped = escaped.replace(/`([^`\n]+)`/g, (_m, code) => `<code>${code}</code>`);
         escaped = escaped.replace(/\*\*([^*\n]+?)\*\*/g, (_m, boldText) => `<strong>${boldText}</strong>`);
+        escaped = escaped.replace(/\*([^*\n]+?)\*/g, (_m, italicText) => `<em>${italicText}</em>`);
 
         // Key/value highlight: "Label: value" -> bold label
         // (Works nicely inside list items and paragraphs.)
@@ -233,6 +304,7 @@
         // (no '-' bullet markers). We detect short, imperative-style lines and render
         // them as a list when there are 2+ in a row.
         let autoBulletLines = [];
+        let tableLines = [];
 
         function looksLikePlainHeading(t) {
           // Examples we want: "Inventory Management", "Business Metrics", "Discounts", "Admin Usage Tips"
@@ -379,6 +451,51 @@
           kvPairs = [];
         }
 
+        function flushTable() {
+          if (!tableLines.length) return;
+          const rows = tableLines.map(line =>
+            line.replace(/^\||\|$/g, '').split('|').map(cell => cell.trim())
+          );
+          let headerRow = null;
+          let separatorIdx = -1;
+          let alignments = [];
+          if (rows.length >= 2 && rows[1].every(cell => /^[-: ]+$/.test(cell))) {
+            headerRow = rows[0];
+            separatorIdx = 1;
+            alignments = rows[1].map(cell => {
+              const c = cell.trim();
+              if (c.startsWith(':') && c.endsWith(':')) return 'center';
+              if (c.endsWith(':')) return 'right';
+              return 'left';
+            });
+          }
+          const bodyRows = headerRow ? rows.slice(separatorIdx + 1) : rows;
+          let tableHtml = '<div class="chat-table-wrap"><table class="chat-table">';
+          if (headerRow) {
+            tableHtml += '<thead><tr>';
+            headerRow.forEach((cell, idx) => {
+              tableHtml += `<th style="text-align:${alignments[idx] || 'left'}">${renderInline(cell)}</th>`;
+            });
+            tableHtml += '</tr></thead>';
+          }
+          if (bodyRows.length) {
+            const colCount = headerRow ? headerRow.length : (bodyRows[0] ? bodyRows[0].length : 0);
+            tableHtml += '<tbody>';
+            bodyRows.forEach(row => {
+              tableHtml += '<tr>';
+              for (let ci = 0; ci < colCount; ci++) {
+                const cell = row[ci] != null ? row[ci] : '';
+                tableHtml += `<td style="text-align:${alignments[ci] || 'left'}">${renderInline(cell)}</td>`;
+              }
+              tableHtml += '</tr>';
+            });
+            tableHtml += '</tbody>';
+          }
+          tableHtml += '</table></div>';
+          htmlParts.push(tableHtml);
+          tableLines = [];
+        }
+
         for (let i = 0; i < lines.length; i++) {
           const line = String(lines[i] ?? '');
           const trimmed = line.trim();
@@ -390,6 +507,7 @@
             flushAutoBullets();
             flushParagraph();
             flushKv();
+            flushTable();
             flushList();
             implicitChildMode = false;
             htmlParts.push(codeBlocks[Number(codeMatch[1])] || '');
@@ -401,6 +519,7 @@
             flushAutoBullets();
             flushParagraph();
             flushKv();
+            flushTable();
             flushList();
             implicitChildMode = false;
             htmlParts.push('<div class="chat-gap"></div>');
@@ -412,6 +531,7 @@
             flushAutoBullets();
             flushParagraph();
             flushKv();
+            flushTable();
             flushList();
             implicitChildMode = false;
             htmlParts.push('<hr class="chat-hr">');
@@ -424,6 +544,7 @@
             flushAutoBullets();
             flushParagraph();
             flushKv();
+            flushTable();
             flushList();
             implicitChildMode = false;
             const level = headingMatch[1].length;
@@ -441,6 +562,7 @@
             flushAutoBullets();
             flushParagraph();
             flushKv();
+            flushTable();
             flushList();
             implicitChildMode = false;
             htmlParts.push(`<div class="chat-heading chat-h2">${renderInline(trimmed)}</div>`);
@@ -452,11 +574,25 @@
             flushAutoBullets();
             flushParagraph();
             flushKv();
+            flushTable();
             flushList();
             implicitChildMode = false;
             htmlParts.push(`<div class="chat-heading chat-h2">${renderInline(trimmed)}</div>`);
             continue;
           }
+
+          // Markdown table rows: | col | col |
+          if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 1) {
+            flushAutoBullets();
+            flushParagraph();
+            flushKv();
+            flushList();
+            implicitChildMode = false;
+            tableLines.push(trimmed);
+            continue;
+          }
+          // If we were building a table and hit a non-table line, flush it.
+          flushTable();
 
           // Key/value rows (non-list): group consecutive "Key: value" lines
           const kvMatch = trimmed.match(/^([A-Za-z][A-Za-z0-9 ()/_-]{0,50}):\s*(.+)$/);
@@ -536,6 +672,7 @@
         flushAutoBullets();
         flushParagraph();
         flushKv();
+        flushTable();
         flushList();
         return htmlParts.join('');
       }
@@ -562,6 +699,17 @@
 
     const AGENT_LABEL = 'Contoso Admin Agent';
 
+    // ===== Scroll helpers =====
+    function chatScrollToBottom(chat, behavior = 'smooth') {
+      chat.scrollTo({ top: chat.scrollHeight, behavior });
+    }
+
+    // Returns true when the user is close enough to the bottom that
+    // auto-scrolling won't feel intrusive.
+    function chatIsNearBottom(chat, threshold = 100) {
+      return chat.scrollHeight - chat.scrollTop - chat.clientHeight <= threshold;
+    }
+
     // ===== Admin Chat =====
     async function sendChat() {
       const input = document.getElementById('chatInput');
@@ -583,14 +731,15 @@
         </div>
       `;
       chat.appendChild(pending);
-      chat.scrollTop = chat.scrollHeight;
+      // Always scroll when the user sends — they initiated the action.
+      chatScrollToBottom(chat, 'instant');
 
       // Prevent duplicate sends while request is in-flight.
       input.disabled = true;
       sendBtn.disabled = true;
 
       const requestId = createRequestId();
-      logDebug('chat_request_start', { requestId, messageLength: message.length });
+      logDebug('chat_request_start', { requestId, messageLength: message.length }, 'info');
 
       const controller = new AbortController();
       const timeoutMs = 60000;
@@ -614,13 +763,28 @@
 
         logDebug('chat_response_received', {
           requestId: serverRequestId,
+          status: res.status,
           ok: res.ok,
           success: Boolean(data?.success),
           empty: Boolean(data?.empty),
-          status: res.status,
-        });
+          durationMs: data?.debug?.durationMs,
+          conversationId: data?.debug?.conversationId,
+          newConversation: data?.debug?.newConversation,
+          replyChars: data?.debug?.replyChars,
+          outputTypes: data?.debug?.outputSummary?.outputTypes,
+        }, res.ok && data?.success ? 'success' : 'warn');
 
-        if (!res.ok || !data.success) {
+        // Capture scroll position before swapping content so the check
+        // reflects where the user actually was while waiting.
+        const wasNearBottom = chatIsNearBottom(chat);
+
+        if (res.status === 429) {
+          logDebug('rate_limited', { requestId: serverRequestId }, 'warn');
+          pending.innerHTML = `
+            <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
+            <div class="chat-bubble chat-bubble-rate-limit">⏳ ${escapeHtml(data?.error || 'Rate limited — wait a moment and try again.')}</div>
+          `;
+        } else if (!res.ok || !data.success) {
           pending.innerHTML = `
             <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
             <div class="chat-bubble chat-bubble-error">${escapeHtml(data?.error || 'Request failed')}</div>
@@ -638,15 +802,18 @@
           `;
         }
 
-        chat.scrollTop = chat.scrollHeight;
+        // Only scroll if the user was already near the bottom — don't
+        // yank them away if they scrolled up to re-read something.
+        if (wasNearBottom) chatScrollToBottom(chat);
       } catch {
         const metaSuffix = DEBUG_ENABLED ? ` <span class="chat-request">(${escapeHtml(requestId)})</span>` : '';
         pending.innerHTML = `
           <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
           <div class="chat-bubble chat-bubble-error">Request failed (network/timeout). Check server logs with the request ID.</div>
         `;
-        logDebug('chat_request_failed', { requestId });
-        chat.scrollTop = chat.scrollHeight;
+        logDebug('chat_request_failed', { requestId }, 'error');
+        // Always surface errors — smooth scroll to make it obvious.
+        chatScrollToBottom(chat);
       } finally {
         clearTimeout(timeout);
         input.disabled = false;
@@ -664,6 +831,34 @@
     document.getElementById('logoutBtn').addEventListener('click', async () => {
       await fetch('/auth/logout', { method: 'POST' });
       window.location.href = '/';
+    });
+
+    // Debug panel — Clear button
+    document.getElementById('debugClearBtn')?.addEventListener('click', () => {
+      debugBuffer.length = 0;
+      if (debugLogEl) debugLogEl.innerHTML = '';
+      const countEl = document.getElementById('debugEntryCount');
+      if (countEl) countEl.textContent = '0 entries';
+      logDebug('log_cleared');
+    });
+
+    // Debug panel — Copy log button
+    document.getElementById('debugCopyBtn')?.addEventListener('click', async () => {
+      const text = debugBuffer.map(e => JSON.stringify(e)).join('\n');
+      const btn = document.getElementById('debugCopyBtn');
+      const reset = () => { if (btn) btn.textContent = 'Copy log'; };
+      try {
+        await navigator.clipboard.writeText(text);
+        if (btn) { btn.textContent = 'Copied!'; setTimeout(reset, 2000); }
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (btn) { btn.textContent = 'Copied!'; setTimeout(reset, 2000); }
+      }
     });
   </script>
 </body>

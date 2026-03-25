@@ -1,193 +1,237 @@
-## Admin Portal (USF Capstone – Microsoft Project #1)
+# Contoso Admin Portal
 
-This folder contains the **Contoso Admin Portal** (Node.js + Express + static HTML/CSS/JS).
+**USF Capstone — Microsoft Project #1**
 
-It currently supports:
-
-- Admin login (temporary hard-coded credentials)
-- A protected dashboard page (`/dashboard.html`)
-- An Admin Chat UI backed by an **Azure AI Foundry** agent (via `@azure/ai-projects` + `DefaultAzureCredential`)
-- Lightweight tracing + log correlation for the chat flow
+A Node.js / Express web application that gives Contoso administrators a protected dashboard and an AI-powered chat interface backed by an **Azure AI Foundry** agent.
 
 ---
 
-## What Works Now
+## What it does
 
-### 1) Auth + basic portal
-
-- `POST /auth/login` issues a JWT (cookie, HTTP-only, 1 hour)
-- `POST /auth/logout` clears auth + chat conversation cookie
-- `GET /dashboard.html` is protected (requires the auth cookie)
-
-**Default credentials (temporary):**
-
-- Username: `admin`
-- Password: `contoso123`
-
-### 2) Admin Chat (Foundry agent)
-
-- Chat UI lives in `public/dashboard.html`.
-- The UI shows a **Thinking / Loading** placeholder while waiting.
-- Responses are rendered using a safe “markdown-lite” formatter:
-    - headings (`#`, `##`, `###`)
-    - bold (`**text**`)
-    - inline code (`` `code` ``)
-    - fenced code blocks (```...```)
-    - bullet/numbered lists (including nested indentation)
-    - key/value formatting (`Label: value`) and quote-style sections
-
-### 3) Debugging + tracing (request correlation)
-
-- UI debug mode: open `http://localhost:3000/dashboard.html?debug=1`
-    - Shows a Debug panel with a rolling log of chat request/response events.
-    - Displays a `requestId` next to the agent label for correlation.
-
-- Every `/admin/chat` request includes an `x-request-id` header (generated in the browser).
-- The server logs the same ID and returns it in the JSON response.
-
-### 4) Dashboard stats (data-source dependent)
-
-The dashboard calls `GET /admin/dashboard`, which **currently expects** an external service to provide metrics.
-
-- If the upstream API is available and configured, the dashboard will show:
-    - Outstanding Quotes
-    - Outstanding Total (currency string)
-    - Unavailable Items Requested
-- If the upstream API is missing/unreachable, the server falls back to `0` values.
+| Feature | Details |
+|---|---|
+| **Login / logout** | Hard-coded admin credentials, JWT cookie (HTTP-only, 1 h) |
+| **Dashboard** | Live stat cards: outstanding quotes, total outstanding value, unavailable-but-requested items |
+| **Admin Chat** | Full conversation with the Foundry agent; responses rendered as rich markdown (headings, tables, bold/italic, code, lists) |
+| **Smooth scrolling** | Smart auto-scroll that respects manual scroll position |
+| **MCP tool routing** | Separate `/admin/chat/tools` endpoint for keyword-dispatched tool calls (quotes, inventory, out-of-stock) |
+| **Request tracing** | Every chat request carries a `requestId` logged server-side and shown in debug mode |
 
 ---
 
-## What Still Needs Work
+## Prerequisites
 
-- UI polish (spacing/visual tweaks). Functionality is in good shape.
-- Dashboard “summary” is not truly complete until it has a reliable data source.
-    - Right now `GET /admin/dashboard` relies on upstream endpoints (see **Environment variables** below).
-    - If MCP cannot provide the metrics in your environment, you’ll need a real API (or a different backend integration) to supply those values.
-- The “View All Quotes” / “View Inventory” buttons are currently UI placeholders (no navigation wired).
+| Tool | Notes |
+|---|---|
+| Node.js 20+ | Required locally |
+| Azure CLI (`az`) | Required for deployment |
+| Docker Desktop | Required for building / pushing the container image |
+| WSL (Windows) | Deployment script must run in WSL |
+| An Azure account | With access to the shared `CapstoneSpring2026` resource group |
 
 ---
 
-## Running Locally
+## Running locally
 
-From the repo root:
-
-1) Install dependencies
+### 1. Install dependencies
 
 ```bash
 cd admin-portal
 npm install
 ```
 
-2) Create `admin-portal/.env`
-
-Minimum required:
+### 2. Create `admin-portal/.env`
 
 ```ini
-# Required for JWT signing
+# Required — JWT signing key (any long random string)
 JWT_SECRET=replace_me_with_a_long_random_string
 
-# Required for Admin Chat (Azure AI Foundry)
-PROJECT_ENDPOINT=https://<your-foundry-project-endpoint>
-AGENT_NAME=<your-agent-name>
+# Required — Azure AI Foundry agent
+PROJECT_ENDPOINT=https://test-agentusf1-resource.services.ai.azure.com/api/projects/test-agentusf1
+AGENT_NAME=AdminOrchestrator
 
-# Required for dashboard metrics + tool-style commands (if used)
-MCP_BASE_URL=http://localhost:<port>
-```
+# Required — MCP service base URL (for dashboard metrics and tool endpoints)
+MCP_BASE_URL=https://seniorproject-mcp-container.azurewebsites.net/mcp
 
-Optional:
-
-```ini
+# Optional — API keys if the MCP / tool API requires them
 MCP_API_KEY=
-
-# Optional: only used by /admin/chat/tools for SKU lookups
-TOOL_API_BASE_URL=http://localhost:<port>
+TOOL_API_BASE_URL=
 TOOL_API_KEY=
 ```
 
-3) Ensure `DefaultAzureCredential` can authenticate
+### 3. Authenticate to Azure
 
-- Local dev typically uses Azure CLI auth (example):
+`DefaultAzureCredential` is used to call the Foundry agent. Locally this resolves to your Azure CLI session:
 
 ```bash
 az login
 ```
 
-Your signed-in identity must have access to the Foundry project/agent.
+Your signed-in identity must have the **Azure AI User** role on the Foundry resource (`test-agentusf1-resource`). Ask a subscription owner to assign it if you see a `401` when using the chat.
 
-4) Start the server
+### 4. Start the server
 
 ```bash
 npm start
 ```
 
-5) Open:
+Open `http://localhost:3000` and log in with:
 
-- `http://localhost:3000`
-
----
-
-## Key Endpoints
-
-- `POST /auth/login` (body: `{ "username": "admin", "password": "..." }`)
-- `POST /auth/logout`
-- `GET /dashboard.html` (protected)
-- `GET /admin/dashboard` (protected; calls upstream metrics endpoints)
-- `POST /admin/chat` (protected; calls Foundry agent)
-- `POST /admin/chat/tools` (protected; optional “tool-style” routing to upstream APIs)
+- **Username:** `admin`
+- **Password:** `contoso123`
 
 ---
 
-## Chat Debugging (Complete Notes)
+## Deployment
+
+The app is deployed as a Linux container on **Azure App Service**, pulling from **Azure Container Registry (ACR)**.
+
+Full first-time setup and troubleshooting steps are in:
+
+> [`docs/deploy-acr-appservice.md`](docs/deploy-acr-appservice.md)
+
+### Redeploying after a code change
+
+```bash
+# From the admin-portal/ directory in WSL:
+./redeploy.sh
+```
+
+`redeploy.sh` builds a new image, pushes it to ACR with a timestamp tag, and updates the App Service container config so Azure pulls the new image immediately.
+
+**Environment variables are managed in the Azure Portal** (App Service → Settings → Environment variables) and are never touched by the script.
+
+---
+
+## Key endpoints
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| `POST` | `/auth/login` | — | Issue JWT cookie |
+| `POST` | `/auth/logout` | — | Clear cookies |
+| `GET` | `/dashboard.html` | ✔ | Protected dashboard page |
+| `GET` | `/admin/dashboard` | ✔ | Live stat cards (calls MCP) |
+| `POST` | `/admin/chat` | ✔ | Foundry agent conversation |
+| `POST` | `/admin/chat/tools` | ✔ | Keyword-dispatched MCP tool calls |
+
+---
+
+## Debugging
 
 ### UI debug mode
 
-Open the dashboard with:
+Add `?debug=1` to the dashboard URL:
 
-- `http://localhost:3000/dashboard.html?debug=1`
+```
+http://localhost:3000/dashboard.html?debug=1
+https://<app-service-hostname>/dashboard.html?debug=1
+```
 
-When enabled:
+When active, a **🐛 Debug** panel opens below the chat box showing:
 
-- The chat UI shows a **Debug** panel with a rolling log of request/response events.
-- Each agent response shows a `requestId` for correlation.
+| Section | What it shows |
+|---|---|
+| **Runtime** | Node.js version, platform, PID, server uptime, RSS and heap memory |
+| **Environment** | Status of every required env var (✓ set / ✗ MISSING / — not set) |
+| **Event log** | Color-coded rolling log of every client and server event |
+
+**Log entry colors:**
+
+| Color | Level | When |
+|---|---|---|
+| Blue | INFO | Request sent, system info loaded |
+| Green | SUCCESS | Dashboard loaded, chat response received OK |
+| Yellow | WARN | Empty agent response, non-2xx from server |
+| Red | ERROR | Network failure, missing modules, request timeout |
+
+Each successful chat response also shows: `durationMs`, `conversationId`, `newConversation`, `replyChars`, and `outputTypes` from the Foundry response — all pulled live from the server.
+
+**Toolbar buttons:** Copy log (copies all entries as JSON to clipboard) · Clear (resets the log).
 
 ### Server logs
 
-Logs are written to:
+On startup the server logs its full configuration status — useful for verifying env vars are set correctly in both local and deployed environments:
 
-- `admin-portal/logs/server.log`
+```
+[startup] Node.js v20.x | PID 12345 | PORT 3000
+[startup] Config: JWT_SECRET=SET | PROJECT_ENDPOINT=https://... | AGENT_NAME=AdminOrchestrator | ...
+```
 
-Search for the request ID shown in the UI:
+Logs are written to `logs/server.log` (local) and to the App Service log stream (deployed).
 
-- `[<requestId>] Admin chat ...`
-- `[<requestId>] Admin chat success ...`
-- `[<requestId>] Admin chat error ...`
+Stream live logs from Azure:
 
-### “Empty response” vs “Failure”
+```bash
+az webapp log tail --name "<WEBAPP>" --resource-group "CapstoneSpring2026"
+```
 
-- **Empty agent response**: request succeeded but no text was extractable from the Foundry response.
-    - Server returns `{ success: true, empty: true }`.
-- **Failure**: request failed due to network/server/Foundry errors.
-    - Server returns `{ success: false }` and an HTTP 4xx/5xx.
+Search for a specific request by ID:
 
-If you see frequent **empty** responses, it usually indicates the text extraction logic needs to be updated to match the current Foundry response schema.
+```
+[<requestId>] Admin chat from admin: ...
+[<requestId>] Admin chat success (1234ms, chars=456)
+[<requestId>] [DEBUG] conversationId=conv_abc newConversation=false outputTypes=["message"]
+[<requestId>] Admin chat error (67ms): ...
+```
+
+### Debug info API
+
+`GET /admin/debug/info` (auth required) returns a JSON snapshot of the server's current state — the same data shown in the UI debug panel:
+
+```json
+{
+  "node": "v20.11.0",
+  "platform": "linux/x64",
+  "pid": 12345,
+  "uptimeSec": 3600,
+  "memory": { "rss": "85.2 MB", "heapUsed": "42.1 MB", "heapTotal": "60.0 MB" },
+  "env": {
+    "JWT_SECRET": "✓ set",
+    "PROJECT_ENDPOINT": "https://...",
+    "AGENT_NAME": "AdminOrchestrator",
+    "MCP_BASE_URL": "https://...",
+    "MCP_API_KEY": "✓ set"
+  },
+  "timestamp": "2026-03-25T19:00:00.000Z"
+}
+```
+
+### MCP tool approvals
+
+Some prompts trigger MCP tool calls that require manual approval in the Foundry portal. When this happens, `POST /admin/chat` returns HTTP `409`:
+
+```
+MCP tool call requires approval in Foundry portal. Pending approval request(s): mcpr_...
+```
+
+Approve the request in the [Foundry portal](https://ai.azure.com), then retry the prompt.
 
 ---
 
-## MCP Tool Approvals (Manual)
+## Project structure
 
-Some prompts trigger MCP tool calls that require explicit approval.
-
-- This project intentionally does **not** auto-approve MCP tool calls.
-- If approval is required, `POST /admin/chat` returns HTTP `409` and an error like:
-    - `MCP tool call requires approval in Foundry portal. Pending approval request(s): mcpr_...`
-
-Approve the request in the Foundry portal, then retry the same prompt in the Admin Chat UI.
+```
+admin-portal/
+├── docs/
+│   └── deploy-acr-appservice.md   # Full deployment guide
+├── public/
+│   ├── index.html                 # Login page
+│   ├── dashboard.html             # Dashboard + chat UI
+│   └── style.css                  # All styles
+├── utils/
+│   ├── foundryClient.js           # Azure AI Foundry conversation client
+│   └── logger.js                  # Winston logger
+├── server.js                      # Express app + all routes
+├── Dockerfile                     # Container image definition
+├── redeploy.sh                    # One-command redeploy script (WSL)
+├── package.json
+└── .env                           # Local only — never committed
+```
 
 ---
 
-## Notes / Caveats
+## Known limitations
 
-- This is a capstone prototype:
-    - Admin credentials are hard-coded.
-    - JWT secret must be provided in `.env`.
-- `node_modules/` and `logs/` should remain ignored by git.
+- Admin credentials (`admin` / `contoso123`) are hard-coded. This is intentional for the capstone prototype.
+- The **View All Quotes** and **View Inventory** nav buttons on the dashboard are UI placeholders — no pages are wired behind them yet.
+- The Foundry agent requires an admin to grant the **Azure AI User** role to the App Service Managed Identity before the deployed chat will work (see `docs/deploy-acr-appservice.md` § Foundry authentication).
