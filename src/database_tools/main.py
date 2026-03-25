@@ -9,7 +9,9 @@ from mcp.server.transport_security import TransportSecuritySettings
 
 from database_tools.services.business_service import (
     BusinessAccount,
+    RegisteredUserSummary,
     create_business_account,
+    get_all_registered_users,
     get_business_by_email,
 )
 from database_tools.services.purchase_service import (
@@ -29,6 +31,7 @@ from database_tools.services.quote_service import (
     OutOfStockItem,
     QuoteDetailResponse,
     QuoteSummary,
+    RequestedUnavailableItem,
     UserQuoteSummary,
     confirm_quote,
     confirm_quote_by_product_name,
@@ -41,6 +44,7 @@ from database_tools.services.quote_service import (
     get_outstanding_quotes,
     get_product_id_by_name,
     get_quote_by_id,
+    get_requested_unavailable_items,
 )
 
 scheduler = BackgroundScheduler()
@@ -94,6 +98,14 @@ async def create_business_account_tool(
         billing_method,
         email,
     )
+
+
+@mcp.tool()
+async def get_all_registered_users_tool() -> list[RegisteredUserSummary]:
+    """
+    Return all registered business accounts in the system.
+    """
+    return await asyncio.to_thread(get_all_registered_users)
 
 
 @mcp.tool()
@@ -177,6 +189,14 @@ async def confirm_quote_tool(request: ConfirmQuoteRequest) -> ConfirmQuoteRespon
     fulfillment information.
     """
     return await asyncio.to_thread(confirm_quote, request)
+
+
+@mcp.tool()
+async def get_requested_unavailable_items_tool() -> list[RequestedUnavailableItem]:
+    """
+    Return items from active quotes that cannot currently be fully fulfilled.
+    """
+    return await asyncio.to_thread(get_requested_unavailable_items)
 
 
 @mcp.tool()

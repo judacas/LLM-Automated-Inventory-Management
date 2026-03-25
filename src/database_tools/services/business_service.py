@@ -13,6 +13,14 @@ class BusinessAccount(TypedDict):
     email: str
 
 
+class RegisteredUserSummary(TypedDict):
+    account_id: int
+    company_name: str
+    email: str
+    business_type: str
+    billing_method: str
+
+
 APPROVED_BILLING_METHODS = {
     "credit card": "credit_card",
     "mailed invoice": "mailed_invoice",
@@ -169,5 +177,34 @@ def create_business_account(
         conn.rollback()
         raise
 
+    finally:
+        conn.close()
+
+
+def get_all_registered_users() -> list[RegisteredUserSummary]:
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT account_id, company_name, email, business_type, billing_method
+            FROM BusinessAccounts
+            ORDER BY account_id
+            """
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "account_id": row.account_id,
+                "company_name": row.company_name,
+                "email": row.email,
+                "business_type": row.business_type,
+                "billing_method": row.billing_method,
+            }
+            for row in rows
+        ]
     finally:
         conn.close()

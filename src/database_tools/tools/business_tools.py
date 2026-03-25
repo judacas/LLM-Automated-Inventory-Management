@@ -1,6 +1,8 @@
 from database_tools.services.business_service import (
     BusinessAccount,
+    RegisteredUserSummary,
     create_business_account,
+    get_all_registered_users,
     get_business_by_email,
 )
 
@@ -23,3 +25,7 @@ def tool_create_business_account(
 
 def tool_get_business_by_email(email: str) -> BusinessAccount | None:
     return get_business_by_email(email=email)
+
+
+def tool_get_all_registered_users() -> list[RegisteredUserSummary]:
+    return get_all_registered_users()

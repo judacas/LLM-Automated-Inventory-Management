@@ -156,14 +156,27 @@ def create_purchase_order(data: CreatePurchaseOrderInput) -> PurchaseOrderResult
 
                 # Deduct fulfilled quantity
                 if quantity_fulfilled > 0:
-                    cursor.execute(
-                        """
-                        UPDATE Inventory
-                        SET quantity_in_stock = quantity_in_stock - ?
-                        WHERE product_id = ?
-                        """,
-                        (quantity_fulfilled, product_id),
-                    )
+                    new_quantity = quantity_available - quantity_fulfilled
+
+                    if new_quantity == 0:
+                        cursor.execute(
+                            """
+                            UPDATE Inventory
+                            SET quantity_in_stock = ?,
+                                next_available_date = DATEADD(day, 7, CAST(SYSDATETIME() AS date))
+                            WHERE product_id = ?
+                            """,
+                            (new_quantity, product_id),
+                        )
+                    else:
+                        cursor.execute(
+                            """
+                            UPDATE Inventory
+                            SET quantity_in_stock = ?
+                            WHERE product_id = ?
+                            """,
+                            (new_quantity, product_id),
+                        )
 
                 order_items.append(
                     {

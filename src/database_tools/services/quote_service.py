@@ -104,6 +104,15 @@ class ConfirmQuoteByNameRequest(TypedDict):
     items: list[QuoteItemByNameInput]
 
 
+class RequestedUnavailableItem(TypedDict):
+    quote_id: int
+    product_id: int
+    product_name: str
+    quantity_requested: int
+    quantity_in_stock: int
+    shortage_quantity: int
+
+
 # Quote Agent - User methods
 # Helper: Add Business Days
 def add_business_days(start: date, days: int) -> date:
@@ -212,12 +221,18 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
 
     expire_quotes()
 
+    MAX_QUANTITY_PER_ITEM = 100
+
     if not request["items"]:
         raise ValueError("Quote must contain at least one item.")
 
     for item in request["items"]:
         if item["quantity"] <= 0:
             raise ValueError("Quantity must be greater than zero.")
+        if item["quantity"] > MAX_QUANTITY_PER_ITEM:
+            raise ValueError(
+                f"Quantity for product {item['product_id']} exceeds the maximum allowed per item ({MAX_QUANTITY_PER_ITEM})."
+            )
 
     normalized_email = request["email"].strip().lower()
 
@@ -642,7 +657,7 @@ def get_inventory_status_by_name(name: str) -> InventoryStatusResponse:
 
         cursor.execute(
             """
-            SELECT p.product_id, p.name, i.quantity_in_stock, i.next_available_date
+            SELECT p.product_id, p.name, p.description,i.quantity_in_stock, i.next_available_date
             FROM Products p
             INNER JOIN Inventory i
                 ON p.product_id = i.product_id
@@ -670,3 +685,46 @@ def get_inventory_status_by_name(name: str) -> InventoryStatusResponse:
             "quantity_in_stock": quantity,
             "status": status,
         }
+
+
+def get_requested_unavailable_items() -> list[RequestedUnavailableItem]:
+    expire_quotes()
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+
+        cursor.execute(
+            """
+            SELECT
+                q.quote_id,
+                qi.product_id,
+                p.name,
+                qi.quantity,
+                COALESCE(i.quantity_in_stock, 0) AS quantity_in_stock
+            FROM Quotes q
+            INNER JOIN QuoteItems qi
+                ON q.quote_id = qi.quote_id
+            INNER JOIN Products p
+                ON qi.product_id = p.product_id
+            LEFT JOIN Inventory i
+                ON qi.product_id = i.product_id
+            WHERE q.status = 'active'
+              AND qi.product_id IS NOT NULL
+              AND COALESCE(i.quantity_in_stock, 0) < qi.quantity
+            ORDER BY q.quote_id, p.name
+            """
+        )
+
+        rows = cursor.fetchall()
+
+        return [
+            {
+                "quote_id": row.quote_id,
+                "product_id": row.product_id,
+                "product_name": row.name,
+                "quantity_requested": int(row.quantity),
+                "quantity_in_stock": int(row.quantity_in_stock),
+                "shortage_quantity": int(row.quantity - row.quantity_in_stock),
+            }
+            for row in rows
+        ]

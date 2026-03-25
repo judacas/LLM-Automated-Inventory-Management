@@ -8,6 +8,7 @@ from database_tools.services.quote_service import (
     OutOfStockItem,
     QuoteDetailResponse,
     QuoteSummary,
+    RequestedUnavailableItem,
     UserQuoteSummary,
     confirm_quote,
     confirm_quote_by_product_name,
@@ -19,6 +20,7 @@ from database_tools.services.quote_service import (
     get_outstanding_quotes,
     get_product_id_by_name,
     get_quote_by_id,
+    get_requested_unavailable_items,
 )
 
 
@@ -62,3 +64,7 @@ def tool_get_all_inventory() -> list[InventoryItem]:
 
 def tool_get_inventory_status(name: str) -> InventoryStatusResponse:
     return get_inventory_status_by_name(name=name)
+
+
+def tool_get_requested_unavailable_items() -> list[RequestedUnavailableItem]:
+    return get_requested_unavailable_items()
