@@ -8,8 +8,10 @@ from functools import partial
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryTaskStore
-from a2a.types import AgentCapabilities, AgentCard
+from a2a.types import AgentCapabilities, AgentCard, AgentSkill
 from agent_definition import AgentDefinition
+from composite_agent_executor import CompositeAgentExecutor, CompositeMemberBackend
+from composite_definition import CompositeAgentDefinition
 from foundry_agent import create_foundry_agent_backend
 from foundry_agent_executor import (
     FoundryAgentExecutor,
@@ -24,7 +26,7 @@ from starlette.routing import Mount, Route
 
 @dataclass(frozen=True)
 class MountedAgent:
-    definition: AgentDefinition
+    definition: AgentDefinition | CompositeAgentDefinition
     agent_card: AgentCard
 
 
@@ -39,6 +41,44 @@ def build_agent_card(definition: AgentDefinition, agent_card_url: str) -> AgentC
         capabilities=AgentCapabilities(streaming=definition.supports_streaming),
         skills=list(definition.skills),
     )
+
+
+def _build_composite_description(definition: CompositeAgentDefinition) -> str:
+    route_hints = [f"Route to {member.route_label}" for member in definition.members]
+    route_lines = "\n".join(f"- {hint}" for hint in route_hints)
+    internal_agents = "\n".join(
+        f"- {member.agent_definition.public_name}" for member in definition.members
+    )
+
+    return (
+        f"{definition.description}\n\n"
+        "This is a composite endpoint that fronts multiple internal agents. "
+        "To route correctly, start your message with exactly one route directive:\n"
+        f"{route_lines}\n\n"
+        "Internal agents behind this composite endpoint:\n"
+        f"{internal_agents}"
+    )
+
+
+def _build_composite_skills(
+    definition: CompositeAgentDefinition,
+) -> list[AgentSkill]:
+    skills: list[AgentSkill] = []
+    for member in definition.members:
+        for skill in member.agent_definition.skills:
+            skills.append(
+                AgentSkill(
+                    id=skill.id,
+                    name=skill.name,
+                    description=(
+                        f"[Executed by: {member.agent_definition.public_name}] "
+                        f"{skill.description}"
+                    ),
+                    tags=list(skill.tags or []),
+                    examples=list(skill.examples or []),
+                )
+            )
+    return skills
 
 
 def create_agent_app(
@@ -75,12 +115,66 @@ def create_agent_app(
     return Starlette(routes=routes), agent_card, agent_executor
 
 
+def create_composite_agent_app(
+    definition: CompositeAgentDefinition,
+    settings: ServerSettings,
+) -> tuple[Starlette, AgentCard, CompositeAgentExecutor]:
+    if settings.project_endpoint is None:
+        raise ValueError("Server settings must include project_endpoint")
+
+    agent_card = AgentCard(
+        name=definition.public_name,
+        description=_build_composite_description(definition),
+        url=settings.agent_card_url_for(definition.slug),
+        version=definition.version,
+        default_input_modes=list(definition.default_input_modes),
+        default_output_modes=list(definition.default_output_modes),
+        capabilities=AgentCapabilities(streaming=definition.supports_streaming),
+        skills=_build_composite_skills(definition),
+    )
+
+    members: list[CompositeMemberBackend] = []
+    for member in definition.members:
+        backend_factory = partial(
+            create_foundry_agent_backend,
+            endpoint=settings.project_endpoint,
+            agent_name=member.agent_definition.foundry_agent_name,
+        )
+        members.append(
+            CompositeMemberBackend(
+                backend_factory=backend_factory,
+                keyword_patterns=member.keyword_patterns,
+                route_label=member.route_label,
+            )
+        )
+
+    executor = CompositeAgentExecutor(card=agent_card, members=members)
+    request_handler = DefaultRequestHandler(
+        agent_executor=executor,
+        task_store=InMemoryTaskStore(),
+    )
+    a2a_app = A2AStarletteApplication(
+        agent_card=agent_card,
+        http_handler=request_handler,
+    )
+    routes = a2a_app.routes()
+
+    async def health_check(_: Request) -> PlainTextResponse:
+        return PlainTextResponse(definition.health_message)
+
+    routes.append(Route(path="/health", methods=["GET"], endpoint=health_check))
+
+    return Starlette(routes=routes), agent_card, executor
+
+
 def create_app(
     definitions: tuple[AgentDefinition, ...],
     settings: ServerSettings,
+    composite_definitions: tuple[CompositeAgentDefinition, ...] = (),
 ) -> tuple[Starlette, tuple[MountedAgent, ...]]:
     mounted_agents: list[MountedAgent] = []
-    executors: list[FoundryAgentExecutor] = []
+    regular_executors: list[FoundryAgentExecutor] = []
+    composite_executors: list[CompositeAgentExecutor] = []
     routes: list[Route | Mount] = []
 
     async def root_index(_: Request) -> JSONResponse:
@@ -117,12 +211,30 @@ def create_app(
         mounted_agents.append(
             MountedAgent(definition=definition, agent_card=agent_card)
         )
-        executors.append(agent_executor)
+        regular_executors.append(agent_executor)
+
+    for comp_definition in composite_definitions:
+        sub_app, agent_card, comp_executor = create_composite_agent_app(
+            comp_definition, settings
+        )
+        routes.append(
+            Mount(
+                path=f"/{comp_definition.slug}",
+                app=sub_app,
+                name=f"agent-{comp_definition.slug}",
+            )
+        )
+        mounted_agents.append(
+            MountedAgent(definition=comp_definition, agent_card=agent_card)
+        )
+        composite_executors.append(comp_executor)
 
     @asynccontextmanager
     async def lifespan(_: Starlette) -> AsyncIterator[None]:
         yield
-        for agent_executor in executors:
+        for agent_executor in regular_executors:
             await agent_executor.cleanup()
+        for comp_executor in composite_executors:
+            await comp_executor.cleanup()
 
     return Starlette(routes=routes, lifespan=lifespan), tuple(mounted_agents)

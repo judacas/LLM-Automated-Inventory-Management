@@ -143,6 +143,12 @@ If that becomes necessary, the configuration model will need to move project end
 - No built-in validation of whether Foundry tools are configured correctly beyond agent lookup
 - No automated provisioning of Foundry agents from this package
 
+## Test Boundary In This Branch
+
+The `src/a2a_servers/tests` suite is intentionally unit-level. It validates local config loading, routing metadata, and app wiring without making live Foundry or LLM calls.
+
+End-to-end behavior that depends on real Foundry agents should be validated with smoke tests (`test_client.py`) or integration environments.
+
 ## Recommended Team Workflow
 
 For stable collaboration:
@@ -151,3 +157,72 @@ For stable collaboration:
 - treat `*_agent.toml` as the source of truth for live A2A identity and discovery metadata
 - keep the Foundry agent name and TOML config in sync
 - add smoke-test prompts whenever a new agent is introduced
+
+## Fixing duplicate A2A tool names
+
+When multiple A2A server connections are added in the Foundry portal, each tool is created with the default name `remote protocol`, which triggers a “duplicate tool argument name” error when one client connects to more than one server. Use the helper commands to inspect and fix the schema:
+
+```bash
+# Inspect the current schema
+python -m a2a_servers.foundry_agent_tools show-tools \
+  --agent-name <foundry-agent-name-or-id> \
+  --endpoint "$AZURE_AI_PROJECT_ENDPOINT"
+
+# Rename tools so each gets a unique name (use --dry-run to preview)
+python -m a2a_servers.foundry_agent_tools rename-tools \
+  --agent-name <foundry-agent-name-or-id> \
+  --prefix <short-prefix> \
+  --endpoint "$AZURE_AI_PROJECT_ENDPOINT"
+```
+
+- The command fetches the latest version (or a specific `--version`), applies unique names to every tool (and `server_label` when present), and publishes a new agent version.
+- Use `show-tools` after renaming to verify the schema that Foundry exposes to clients.
+
+## Creating an agent fully in code (with pre-named A2A tools)
+
+You can create a Foundry prompt agent directly in code, avoiding duplicate tool names from the start.
+
+By default, the command now matches the rest of the A2A package:
+
+- loads `AZURE_AI_PROJECT_ENDPOINT` from the environment
+- loads the shared A2A server URL settings from the environment
+- discovers `agents/*_agent.toml`
+- creates one A2A tool per discovered agent
+- resolves the shared remote-tool connection from `A2A_PROJECT_CONNECTION_NAME` (or `A2A_PROJECT_CONNECTION_ID` if you already have the ID)
+
+Example:
+
+```bash
+python -m a2a_servers.foundry_agent_tools create-agent \
+  --agent-name <desired-agent-name> \
+  --model-deployment <model-deployment-name> \
+  --instructions-path path/to/instructions.txt \
+  --connection-name "$A2A_PROJECT_CONNECTION_NAME"
+```
+
+- The generated tool names default to the configured A2A slugs and are normalized again before publish.
+- Use `--agent-slug <slug>` to limit the generated tools to a subset of configured agents.
+- Use `--host`, `--port`, `--url-mode`, and `--forwarded-base-url` only if you need to override the same server URL settings used by the regular A2A runtime.
+
+If you still need a one-off manual tool definition, `--a2a-tool` remains available:
+
+```bash
+python -m a2a_servers.foundry_agent_tools create-agent \
+  --agent-name <desired-agent-name> \
+  --model-deployment <model-deployment-name> \
+  --instructions-path path/to/instructions.txt \
+  --a2a-tool "name=quote,base_url=https://<a2a-host>/quote,connection_id=<portal-connection-id>"
+```
+
+- Each `--a2a-tool` value is a comma-separated string with required `base_url` and `connection_id`, plus optional `name` and `agent_card_path`.
+- The command creates or updates the agent by publishing a new version backed by the supplied model deployment and instructions file.
+
+## How to test these changes yourself
+
+1. Export `AZURE_AI_PROJECT_ENDPOINT` and sign in with `az login` (or another `DefaultAzureCredential` source).
+2. Run `python -m a2a_servers.foundry_agent_tools show-tools --agent-name <name> --endpoint "$AZURE_AI_PROJECT_ENDPOINT"` to confirm connectivity.
+3. Use `rename-tools --dry-run` first, then run without `--dry-run` to publish the fixed schema.
+4. For code-first creation, point `--instructions-path` to your instructions and pass one `--a2a-tool` per A2A endpoint.
+5. Re-run `show-tools` to verify the published tool schema.
+
+These commands only call the Azure AI Projects SDK; they do not need access to your A2A servers from this repository. Run them in an environment that has credentials for your Foundry project.

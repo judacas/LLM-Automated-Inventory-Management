@@ -5,6 +5,7 @@ import uvicorn
 from agent_definition import load_agent_definitions
 from app_factory import MountedAgent, create_app
 from config_loader import AgentConfigLocation, prepare_agent_config_location
+from composite_definition import load_composite_agent_definitions
 from dotenv import load_dotenv
 from settings import ServerSettings, load_server_settings
 
@@ -55,8 +56,12 @@ def main(
         config_dir=agent_config_dir,
         config_url=agent_config_url,
     )
-    definitions = load_agent_definitions(str(config_location.directory))
-    app, mounted_agents = create_app(definitions, settings)
+    config_dir_path = str(config_location.directory)
+    definitions = load_agent_definitions(config_dir_path)
+    composite_definitions = load_composite_agent_definitions(config_dir_path)
+    app, mounted_agents = create_app(
+        definitions, settings, composite_definitions=composite_definitions
+    )
 
     log_level_name = settings.log_level_name
     log_level = getattr(logging, log_level_name, logging.INFO)
@@ -77,10 +82,12 @@ def main(
 
 
 def _log_agent_startup(mounted_agent: MountedAgent, settings: ServerSettings) -> None:
+    from agent_definition import AgentDefinition
+    from composite_definition import CompositeAgentDefinition
+
     definition = mounted_agent.definition
     logger.info("Agent slug: %s", definition.slug)
     logger.info("Loaded agent config from %s", definition.source_path)
-    logger.info("Foundry agent name: %s", definition.foundry_agent_name)
     logger.info("Agent card: %s", mounted_agent.agent_card.name)
     logger.info("Agent card URL: %s", mounted_agent.agent_card.url)
     logger.info("Skills: %s", [skill.name for skill in definition.skills])
@@ -88,6 +95,17 @@ def _log_agent_startup(mounted_agent: MountedAgent, settings: ServerSettings) ->
         "Health check available at: %s/health",
         settings.agent_base_url_for(definition.slug),
     )
+
+    if isinstance(definition, AgentDefinition):
+        logger.info("Foundry agent name: %s", definition.foundry_agent_name)
+    elif isinstance(definition, CompositeAgentDefinition):
+        for i, member in enumerate(definition.members):
+            logger.info(
+                "  Composite member %d: %s → %s",
+                i,
+                member.agent_definition.slug,
+                member.agent_definition.foundry_agent_name,
+            )
 
 
 if __name__ == "__main__":
