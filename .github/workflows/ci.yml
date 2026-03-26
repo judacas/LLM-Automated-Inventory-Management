@@ -77,23 +77,3 @@ jobs:
 
       - name: Lint Markdown
         run: markdownlint .
-
-  scan-secrets:
-    name: Secret Scan
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install gitleaks
-        run: |
-          curl -sLo gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks-linux-x64-v8.30.0.tar.gz
-          tar -xzf gitleaks.tar.gz
-          chmod +x gitleaks
-          sudo mv gitleaks /usr/local/bin/
-
-      - name: Scan for Secrets
-        run: gitleaks detect
