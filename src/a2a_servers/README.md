@@ -28,12 +28,12 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 
 ## Current State
 
-- Multi-agent mounting is implemented and working locally along with manual deployment to azure.
+- Multi-agent mounting is implemented and working locally, with manual deployment to Azure App Service.
 - Foundry integration is dynamic by agent name, not hardcoded per route.
-- Local smoke testing is included.
+- Composite agents are implemented to route one endpoint to multiple internal Foundry agents.
+- Local smoke testing is included through `test_client.py`.
 - Azure deployment infrastructure is not checked into this branch yet, so deployment is currently a documented manual process rather than an automated IaC workflow.
-- each server can be easily added as a remote agent in foundry
-- pytest not updated and currently fails to do import overhaul
+- This package is transport/integration infrastructure; it does not implement the full business workflows from `projectOverview.md`.
 
 ## Most Important Conventions
 
@@ -48,12 +48,12 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 ## Current Limitations
 
 - Conversation tracking is in-memory only. Restarting the process loses the A2A-to-Foundry conversation map.
-- **each client can only connect to one remote agent at a time, this is believed to be a foundry support of a2a issue, not how the servers are set up**
+- One Foundry-side client connection can only bind to a single remote A2A endpoint at a time (platform behavior). Composite endpoints are the current workaround for multi-skill exposure through one connection.
 - Foundry conversations remain open until cleanup or process shutdown.
 - There is no checked-in Azure IaC for this package in the current branch.
 - There is no built-in authentication or network restriction layer in this package itself; deployment must provide that boundary.
 - The server assumes Foundry agents already exist and are correctly configured in Azure AI Foundry.
-- need to redeploy to add new agents
+- Adding or changing mounted agents in production requires a redeploy.
 
 ## What To Extend Next
 
@@ -63,4 +63,4 @@ The most natural future extension points are:
 - deployment automation for Azure
 - stronger auth and ingress controls
 - richer health checks that validate Foundry connectivity
-- better process for adding and removeing agents, potentially with a gui
+- better process for adding and removing agents, potentially with a gui

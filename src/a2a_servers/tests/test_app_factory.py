@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from a2a.types import AgentSkill
 from agent_definition import AgentDefinition
-from app_factory import _build_composite_description, _build_composite_skills
+from app_factory import (
+    _build_composite_description,
+    _build_composite_skills,
+    create_app,
+)
 from composite_definition import CompositeAgentDefinition, CompositeMemberDefinition
+from settings import ServerSettings
+from starlette.testclient import TestClient
 
 
 def _make_agent_definition(name: str, slug: str, skill_id: str) -> AgentDefinition:
@@ -100,3 +107,32 @@ def test_composite_skills_include_internal_agent_owner() -> None:
     assert len(skills) == 1
     assert skills[0].id == "email-skill"
     assert "Executed by: AI Foundry Email Agent" in skills[0].description
+
+
+def test_create_app_mounts_agent_route_and_health() -> None:
+    # a2a-sdk's Starlette server wrapper requires optional http-server extras.
+    pytest.importorskip("sse_starlette")
+
+    quote = _make_agent_definition("AI Foundry Quote Agent", "quote", "quote-skill")
+    settings = ServerSettings(
+        host="localhost",
+        port=10007,
+        url_mode="local",
+        forwarded_base_url="",
+        log_level_name="INFO",
+        project_endpoint="https://example.services.ai.azure.com/api/projects/demo",
+    )
+
+    app, mounted = create_app((quote,), settings)
+
+    assert len(mounted) == 1
+    with TestClient(app) as client:
+        root_response = client.get("/")
+        assert root_response.status_code == 200
+        payload = root_response.json()
+        assert payload["agents"][0]["slug"] == "quote"
+        assert payload["agents"][0]["health_url"].endswith("/quote/health")
+
+        health_response = client.get("/quote/health")
+        assert health_response.status_code == 200
+        assert health_response.text == "ok"

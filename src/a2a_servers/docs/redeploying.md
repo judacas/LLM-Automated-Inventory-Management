@@ -40,6 +40,7 @@ The deployed app needs:
 - the required environment variables
 
 Required runtime settings are documented in [deployment-azure.md](./deployment-azure.md) and should already be there. you shouldn't have to touch anything besides uploading a new zip
+Required runtime settings are documented in [deployment-azure.md](./deployment-azure.md) and should already be present. In most redeploys, the only change needed is uploading a new zip artifact.
 
 ## Redeploy Procedure
 
@@ -78,9 +79,8 @@ zip -r a2a_servers.zip a2a_servers/
 4. select publish files as your code source
 5. click upload and select the `a2a_servers.zip` artifact
 ![Azure portal showing upload zip option](./images/uploadZip.png)
-6. press save  
-    > if you don't press save you'll waste time thinking it was deploying when it actually wasn't, trust
-7. wait, like honestly a good 10+ minutes. But check the log stream periodically to see when it finishes
+6. press save to start deployment
+7. wait for deployment completion and monitor the log stream periodically
 
 ### 3. Verify the deployment
 
@@ -91,7 +91,7 @@ After deployment, verify:
 3. `GET /<slug>/.well-known/agent-card.json` returns the expected metadata.
 4. the published card URLs use the real Azure hostname, not `localhost`.
 
-### 5. Run a smoke test against the deployed host
+### 4. Run a smoke test against the deployed host
 
 From `src/a2a_servers` or another trusted environment with the repo available:
 

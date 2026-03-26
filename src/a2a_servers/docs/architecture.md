@@ -187,3 +187,5 @@ In this branch, `src/a2a_servers` is best understood as enabling infrastructure 
 - it can expose quote-oriented and admin-oriented agents over A2A
 - it can make Foundry-managed agents callable by other software components
 - it does not yet implement the entire domain workflow end to end inside this package
+
+This means requirement-level workflows (for example, quote persistence rules, onboarding, and full admin analytics) should be validated in their owning modules or integration environments, not in this package's unit tests.

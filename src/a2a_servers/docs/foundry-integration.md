@@ -143,6 +143,12 @@ If that becomes necessary, the configuration model will need to move project end
 - No built-in validation of whether Foundry tools are configured correctly beyond agent lookup
 - No automated provisioning of Foundry agents from this package
 
+## Test Boundary In This Branch
+
+The `src/a2a_servers/tests` suite is intentionally unit-level. It validates local config loading, routing metadata, and app wiring without making live Foundry or LLM calls.
+
+End-to-end behavior that depends on real Foundry agents should be validated with smoke tests (`test_client.py`) or integration environments.
+
 ## Recommended Team Workflow
 
 For stable collaboration:

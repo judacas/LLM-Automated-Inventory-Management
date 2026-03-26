@@ -60,16 +60,16 @@ LOG_LEVEL=INFO
 
 ## Running Tests
 
-From the repository root:
-
-```bash
-uv run pytest src/a2a_servers/tests
-```
-
 From `src/a2a_servers`:
 
 ```bash
 uv run pytest tests
+```
+
+If you prefer running from the repository root, pass the package project explicitly so pytest uses `src/a2a_servers/pyproject.toml` settings:
+
+```bash
+uv run --project src/a2a_servers pytest src/a2a_servers/tests
 ```
 
 ## Running The Server
