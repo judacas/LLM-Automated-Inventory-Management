@@ -20,6 +20,14 @@ repos:
   - repo: local
   # switched to local to have it run with synced dependencies in the venv
     hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        types: [python]
+        args: [-v]
+        pass_filenames: false
+        always_run: true
       - id: mypy
         name: mypy
         entry: uv run mypy

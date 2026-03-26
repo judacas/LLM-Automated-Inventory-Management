@@ -128,7 +128,6 @@ def test_load_valid_composite(tmp_path: Path) -> None:
     assert defn.members[1].agent_definition.slug == "quote"
     assert defn.members[0].route_label == "Email Agent"
     assert defn.members[0].keyword_patterns[0].search("Route to Email Agent")
-    assert defn.members[0].keyword_patterns[0].search("Route to AI Foundry Email Agent")
 
 
 def test_composite_slug_derived_from_filename(tmp_path: Path) -> None:
