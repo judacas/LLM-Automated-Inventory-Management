@@ -65,7 +65,12 @@ These settings must be present in the deployed app:
 
 ```dotenv
 AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-services>.services.ai.azure.com/api/projects/<your-project>
-A2A_AGENT_CONFIG_DIR=agents
+# Prefer: pull configs from storage
+# A2A_AGENT_CONFIG_URL=https://<storage-account>.blob.core.windows.net/agent-configs/agents.zip?<sas>
+
+# Fallback: baked-in configs in the artifact
+# A2A_AGENT_CONFIG_DIR=agents
+
 A2A_HOST=0.0.0.0
 A2A_PORT=8000
 A2A_URL_MODE=forwarded
@@ -97,7 +102,6 @@ Deploy the flat contents of `src/a2a_servers` so the artifact root contains file
 - `__main__.py`
 - `agent_definition.py`
 - `app_factory.py`
-- `agents/`
 - `pyproject.toml`
 
 Use a script-based startup command:
@@ -110,13 +114,15 @@ You may add runtime flags if needed:
 
 ```bash
 python __main__.py --host 0.0.0.0 --port 8000 --url-mode forwarded --forwarded-base-url https://<your-app-hostname>
+# or to pull configs from storage:
+# python __main__.py --agent-config-url https://<storage-account>.blob.core.windows.net/agent-configs/agents.zip?<sas>
 ```
 
 You must ensure:
 
 - dependencies are installed for `src/a2a_servers/pyproject.toml`
 - the working directory is the deployed flat app root
-- the `agents/` folder is included in the deployment artifact
+- either `A2A_AGENT_CONFIG_URL` is reachable or the `agents/` folder is included in the deployment artifact
 
 ## Suggested App Service Deployment Procedure
 
@@ -159,6 +165,7 @@ Most importantly:
 - `AZURE_AI_PROJECT_ENDPOINT`
 - `A2A_URL_MODE=forwarded`
 - `A2A_FORWARDED_BASE_URL=https://<app-hostname>`
+- `A2A_AGENT_CONFIG_URL` pointing at your blob-hosted `agents.zip` if you want to avoid redeploying code for config changes
 
 ### 6. Verify routing
 

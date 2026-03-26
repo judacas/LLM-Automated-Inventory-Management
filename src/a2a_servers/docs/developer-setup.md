@@ -51,7 +51,7 @@ AZURE_AI_PROJECT_ENDPOINT=https://<your-ai-services>.services.ai.azure.com/api/p
 Recommended development values:
 
 ```dotenv
-A2A_AGENT_CONFIG_DIR=agents
+A2A_AGENT_CONFIG_DIR=agents  # or set A2A_AGENT_CONFIG_URL to a hosted agents.zip
 A2A_HOST=localhost
 A2A_PORT=10007
 A2A_URL_MODE=local
@@ -84,6 +84,7 @@ Useful variants:
 
 ```bash
 uv run python __main__.py --agent-config-dir custom_agents
+uv run python __main__.py --agent-config-url http://localhost:8000/agents.zip
 uv run python __main__.py --url-mode forwarded --forwarded-base-url https://example.com
 ```
 
