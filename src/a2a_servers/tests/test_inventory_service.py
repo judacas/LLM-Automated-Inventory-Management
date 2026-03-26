@@ -30,6 +30,17 @@ def test_receive_shipment_updates_quantity_with_positive_delta() -> None:
     assert repo.calls == [("SKU-1", 5)]
 
 
+def test_get_item_availability_returns_current_repository_stub_item() -> None:
+    svc = InventoryService(InventoryRepository())
+
+    item = svc.get_item_availability("SKU-1")
+
+    assert item.sku == "SKU-1"
+    assert item.name == "Test Item"
+    assert item.quantity == 10
+    assert item.status == "in_stock"
+
+
 def test_reserve_item_rejects_zero_quantity() -> None:
     repo = RecordingRepo()
     svc = InventoryService(repo)

@@ -5,15 +5,41 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
-  
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.45.0
     hooks:
-      - id: mypy
-        additional_dependencies: [pytest>=8.0.0]
-        args: [--config-file=pyproject.toml]
+      - id: markdownlint
+        args: [--fix]
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.0
     hooks:
       - id: gitleaks
+
+  - repo: local
+  # switched to local to have it run with synced dependencies in the venv
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: uv run pytest
+        language: system
+        types: [python]
+        args: [-v]
+        pass_filenames: false
+        always_run: true
+      - id: mypy
+        name: mypy
+        entry: uv run mypy
+        language: system
+        types: [python]
+        args: [--config-file=pyproject.toml, --no-incremental, src/]
+        pass_filenames: false
+        # when this hook runs, mypy checks the whole src/ tree (pass_filenames=false + src/ arg);
+        # pre-commit may still skip running the hook when no matching Python files are selected.
+      - id: deptry
+        name: deptry
+        entry: uv run deptry .
+        language: system
+        pass_filenames: false
+        always_run: true

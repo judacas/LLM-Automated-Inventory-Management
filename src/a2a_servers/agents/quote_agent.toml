@@ -1,0 +1,53 @@
+[a2a]
+name = "AI Foundry Quote Agent"
+description = "A user-side quote agent for the Contoso customer email workflow. It validates the customer request, supports onboarding when needed, checks product availability through connected tools, prepares customer-ready quotes with pricing and availability notes, and supports saved-quote follow-up within the 5-day quote window."
+version = "1.0.0"
+health_message = "AI Foundry Quote Agent is running!"
+default_input_modes = ["text"]
+default_output_modes = ["text"]
+streaming = false
+
+[foundry]
+agent_name = "userQuote"
+
+[smoke_tests]
+prompts = [
+    "A customer emailed asking for a quote on 25 blue widgets and 10 monitor stands. Check availability, prepare a quote with per-item pricing, note any unavailable items, and mention whether they want to proceed with a purchase order.",
+    "A customer from a new email domain wants a quote for office chairs. Respond appropriately for the Contoso workflow before delivering the quote.",
+    "A customer wants to revisit a saved quote that is still within the 5-day validity window and decide whether to proceed.",
+    "A customer asks to save another quote, but they already have 5 saved quotes on file. Respond according to the Contoso quote rules.",
+]
+
+[[skills]]
+id = "quote_request_handling"
+name = "Quote Request Handling"
+description = "Handle user-side quote requests by gathering needed item and quantity details, validating the customer request, checking availability through connected systems, and preparing a customer-ready quote that lists available items, pricing for each available item, and notes for unavailable items."
+tags = ["quote", "customer", "availability", "email-workflow"]
+examples = [
+    "Prepare a quote for 40 standing desks and 20 task chairs.",
+    "A customer wants a quote for replacement monitors and docking stations.",
+    "Check availability and quote the requested products from the customer's email.",
+]
+
+[[skills]]
+id = "quote_validity_and_saving"
+name = "Quote Validity And Saving"
+description = "Explain the 5-day quote validity window, support saved-quote follow-up, and preserve quotes for later purchase completion when the customer is not ready to buy immediately, while enforcing the limit of up to 5 saved quotes per customer."
+tags = ["quote", "saved-quote", "follow-up", "purchase-readiness"]
+examples = [
+    "Save this quote so the customer can decide later.",
+    "The customer wants to come back tomorrow and use their saved quote.",
+    "Show the customer that the quote remains valid for 5 days.",
+    "The customer already has 5 saved quotes. Explain what happens next.",
+]
+
+[[skills]]
+id = "customer_quote_clarification"
+name = "Customer Quote Clarification"
+description = "Ask for missing details or explain gating requirements when a quote cannot yet be completed, including missing item details, customer authorization checks, or customer onboarding requirements for unknown domains."
+tags = ["quote", "clarification", "onboarding", "customer-workflow"]
+examples = [
+    "I need a quote for office equipment.",
+    "Can you quote this order if some items are only available on a future date?",
+    "What information do you still need before you can send the quote?",
+]
