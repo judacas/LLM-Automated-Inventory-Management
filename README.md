@@ -28,5 +28,3 @@ If you plan to contribute, follow the additional developer workflow steps in [CO
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development workflow, coding standards, and how to submit pull requests.
-
-
