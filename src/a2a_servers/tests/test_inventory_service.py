@@ -1,3 +1,5 @@
+"""Unit tests for `inventory_service.service.InventoryService` (legacy SKU API)."""
+
 from inventory_service.repository import InventoryRepository
 from inventory_service.service import InventoryService
 

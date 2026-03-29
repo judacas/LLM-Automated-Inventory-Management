@@ -1,3 +1,9 @@
+"""Heuristic intent classification for admin messages.
+
+This is a deterministic baseline (keyword matching). It is intentionally simple
+so the orchestrator behavior is predictable for unit tests and demos.
+"""
+
 from enum import Enum
 
 

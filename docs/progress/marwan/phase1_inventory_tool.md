@@ -2,32 +2,32 @@
 
 ## Overview
 
-Phase 1 implements a deterministic inventory service layer and exposes it via a FastAPI tool surface.
+Phase 1 implemented a deterministic inventory service layer and exposed it via a FastAPI tool surface.
 
-This tool will be called by the Admin Orchestrator agent and later integrated with Azure SQL and MCP.
+That legacy FastAPI API is retained in the repo for reference/backward compatibility, but the current integration boundary (Phase 2) is the Inventory MCP server, which calls the same service layer and talks directly to the configured repository.
 
 ---
 
 ## Architecture
 
-FastAPI → InventoryService → Repository
+Legacy: FastAPI → InventoryService → Repository
 
-Current repository is mocked.
-Phase 2 will replace it with Azure SQL.
+Current: MCP (FastMCP, Streamable HTTP) → InventoryService → Repository
+
+Repository selection is environment-driven:
+
+- If `AZURE_SQL_CONNECTION_STRING` is set, the SQL-backed repository is used.
+- Otherwise, a mock/in-memory repository is used for local dev and unit tests.
 
 ---
 
 ## Run Locally
 
-```bash
-uv sync
-export TOOL_API_KEY="dev-key"
-PYTHONPATH=src uv run uvicorn tool_api.app:app --reload
-```
+See the current runbook:
 
-**API Key is found in the Azure Portal under:** contoso-inventory-api-13847 → Settings (left bar) → Environment Variables
+- `docs/inventory/run_inventory_mcp.md`
 
 ## Endpoints
 
 See:
-`docs/contracts/marwans_tool_contracts_v1.md`
+`docs/contracts/tool_contracts_v1.md`

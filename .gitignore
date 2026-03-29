@@ -37,6 +37,12 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Local install artifacts (keep repo clean)
+*.deb
+
+# Azure Developer CLI / Copilot preparation artifacts
+.azure/
+
 # Unit test reports
 .tox/
 .nox/
@@ -194,6 +200,9 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# Local-only notes / chat transcripts (never commit)
+.local/
 
 # Marimo
 marimo/_static/

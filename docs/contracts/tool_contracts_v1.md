@@ -5,11 +5,33 @@ These are the source-of-truth interfaces used for integration between agents/too
 
 ---
 
-## Inventory Tool API (v1)
+## Inventory Interfaces (v1)
 
-**Type:** Deterministic HTTPS Tool (FastAPI)  
-**Base URL (dev):** `https://contoso-inventory-api-13847.azurewebsites.net`  
-**Auth:** `x-api-key: <TOOL_API_KEY>` (required for inventory operations)  
+## Inventory MCP Server (v1)
+
+**Type:** MCP Server (Streamable HTTP)  \
+**Purpose:** Integration boundary for inventory operations (calls `InventoryService` + repository layer).  \
+**MCP Path:** `/mcp`  \
+**Health endpoint:** `GET /health`
+
+### Local (dev)
+
+- Base URL: `http://localhost:<port>`
+- MCP endpoint: `http://localhost:<port>/mcp`
+
+### Tools
+
+- `get_inventory(product_id: int)`
+- `reserve_inventory(product_id: int, qty: int)`
+- `receive_inventory(product_id: int, qty: int)`
+
+---
+
+## Inventory Tool API (legacy, v1)
+
+**Type:** Deterministic HTTPS Tool (FastAPI)  \
+**Base URL (dev):** `https://contoso-inventory-api-13847.azurewebsites.net`  \
+**Auth:** `x-api-key: <TOOL_API_KEY>` (required for inventory operations)  \
 **Health endpoint:** public (no key required)
 
 ### Endpoint: `GET /health`
@@ -58,10 +80,6 @@ These are the source-of-truth interfaces used for integration between agents/too
 { "status": "reserved", "sku": "ABC123", "qty": 2 }
 ```
 
-- **Rules (current):**
-  - `qty` must be positive
-  - Repository update is currently mocked; will become transactional with SQL
-
 ### Endpoint: `POST /inventory/receive/{sku}/{qty}`
 
 - **Purpose:** Increase inventory quantity for a SKU
@@ -74,6 +92,8 @@ These are the source-of-truth interfaces used for integration between agents/too
 ```json
 { "status": "received", "sku": "ABC123", "qty": 5 }
 ```
+
+---
 
 ## Admin Orchestrator Intent Contract (v1)
 
@@ -90,14 +110,12 @@ These are the source-of-truth interfaces used for integration between agents/too
 
 - Admin outputs must be tool-backed:
   - Any totals/counts/current-state claims must come from deterministic tool calls
-- Quote path is currently under development and owned by Quote Agent developer
-- Inventory path currently calls the Inventory Tool Service Layer
+- Quote path is currently under development and will be integrated via A2A
+- Inventory path calls the Inventory MCP tool surface (preferred)
 
 ---
 
 ## Notes / Planned Evolution
 
-- Inventory persistence will move from mock repository → Azure SQL repository (Phase 2)
-- MCP will be introduced later as the DB access boundary (team responsibility)
-- The inventory tool API should remain stable even as the presistence layer changes
-  - Inventory Service might become an MCP in future integrations depending on usefulness
+- Inventory persistence will move from mock repository → Azure SQL repository
+- Legacy HTTPS Tool API is retained for backward compatibility; MCP is the intended interface going forward

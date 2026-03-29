@@ -1,6 +1,27 @@
-FROM python:3.11-slim
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
+
+# --- SQL Server ODBC Driver 18 for pyodbc ---
+# --- SQL Server ODBC Driver 18 for pyodbc (Debian slim) ---
+# --- SQL Server ODBC Driver 18 for pyodbc (Debian 12 / bookworm) ---
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        curl \
+        gnupg \
+        ca-certificates \
+        unixodbc \
+        unixodbc-dev; \
+    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+      | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg; \
+    curl -fsSL https://packages.microsoft.com/config/debian/12/prod.list \
+      | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://#g' \
+      > /etc/apt/sources.list.d/microsoft-prod.list; \
+    apt-get update; \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*
 
 # install dependencies
 COPY requirements.txt .
@@ -14,4 +35,6 @@ ENV PYTHONPATH=/app/src
 
 EXPOSE 8000
 
-CMD ["uvicorn", "tool_api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+# App Service (Linux) routes traffic to the port exposed by the container.
+# Many platforms set `PORT`; we default to 8000 for local/dev parity.
+CMD ["sh", "-c", "gunicorn -k uvicorn.workers.UvicornWorker inventory_mcp.app:app --bind 0.0.0.0:${PORT:-8000} --workers ${WEB_CONCURRENCY:-2} --timeout 120"]
