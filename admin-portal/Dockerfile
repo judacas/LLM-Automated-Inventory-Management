@@ -18,4 +18,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# Run node directly so platform SIGTERM (restart/recycle) does not surface as npm "command failed".
+CMD ["node", "server.js"]

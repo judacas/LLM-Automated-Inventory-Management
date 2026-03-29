@@ -35,12 +35,12 @@ echo "════════════════════════�
 echo ""
 
 # 1 — Authenticate Docker to ACR
-echo "[1/4] Logging in to ACR..."
+echo "[1/6] Logging in to ACR..."
 az acr login -n "$ACR"
 
 # 2 — Build image (must be run from admin-portal/ where the Dockerfile lives)
 echo ""
-echo "[2/4] Building image..."
+echo "[2/6] Building image..."
 docker build \
   -t "$FULL_IMAGE:$IMG_TAG" \
   -t "$FULL_IMAGE:latest" \
@@ -48,7 +48,7 @@ docker build \
 
 # 3 — Push both tags
 echo ""
-echo "[3/4] Pushing image to ACR..."
+echo "[3/6] Pushing image to ACR..."
 docker push "$FULL_IMAGE:$IMG_TAG"
 docker push "$FULL_IMAGE:latest"
 
@@ -56,14 +56,32 @@ docker push "$FULL_IMAGE:latest"
 #     Updating the config (rather than just restarting) guarantees Azure pulls
 #     the new image rather than reusing its cached layer.
 echo ""
-echo "[4/4] Updating App Service container config (with registry credentials)..."
+echo "[4/6] Updating App Service container config (with registry credentials)..."
 az webapp config container set \
   --name "$WEBAPP" \
   --resource-group "$RG" \
-  --docker-custom-image-name "$FULL_IMAGE:$IMG_TAG" \
-  --docker-registry-server-url "https://$ACR_LOGIN_SERVER" \
-  --docker-registry-server-user "$ACR_USERNAME" \
-  --docker-registry-server-password "$ACR_PASSWORD"
+  --container-image-name "$FULL_IMAGE:$IMG_TAG" \
+  --container-registry-url "https://$ACR_LOGIN_SERVER" \
+  --container-registry-user "$ACR_USERNAME" \
+  --container-registry-password "$ACR_PASSWORD"
+
+# 5 — Persist ACR credentials as app settings. Some setups show DOCKER_REGISTRY_SERVER_PASSWORD
+#     as null after container set alone, which can break pulls or restarts.
+echo ""
+echo "[5/6] Ensuring ACR registry app settings (URL, user, password)..."
+az webapp config appsettings set \
+  --name "$WEBAPP" \
+  --resource-group "$RG" \
+  --settings \
+    DOCKER_REGISTRY_SERVER_URL="https://$ACR_LOGIN_SERVER" \
+    DOCKER_REGISTRY_SERVER_USERNAME="$ACR_USERNAME" \
+    DOCKER_REGISTRY_SERVER_PASSWORD="$ACR_PASSWORD" \
+  --output none
+
+# 6 — Restart so the new image is pulled and started cleanly.
+echo ""
+echo "[6/6] Restarting Web App..."
+az webapp restart --name "$WEBAPP" --resource-group "$RG" --output none
 
 HOSTNAME="$(az webapp show --name "$WEBAPP" --resource-group "$RG" --query defaultHostName -o tsv)"
 

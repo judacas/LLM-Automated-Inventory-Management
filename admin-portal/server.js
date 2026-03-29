@@ -11,13 +11,12 @@ const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const crypto = require('crypto');
+const sql = require('mssql');
 const logger = require('./utils/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET;
-const MCP_BASE_URL = process.env.MCP_BASE_URL;
-const MCP_API_KEY = process.env.MCP_API_KEY;
 
 // Hard-coded admin credentials
 const ADMIN_USERNAME = 'admin';
@@ -241,37 +240,115 @@ app.get('/dashboard.html', authenticateToken, (req, res) => {
   logger.info(`dashboard.html served to: ${req.user.username}`);
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
-const sql = require('mssql');
 
-const sqlConfig = {
-  user: process.env.AZURE_SQL_USERNAME,
-  password: process.env.AZURE_SQL_PASSWORD,
-  database: process.env.AZURE_SQL_DATABASE,
-  server: process.env.AZURE_SQL_SERVER,
-  options: { encrypt: true, trustServerCertificate: false }
-};
+/**
+ * Base URL for the MCP FastAPI quote routes. MCP_BASE_URL is often set to .../mcp for
+ * documentation, but uvicorn serves /quotes/... at the site root, not under /mcp.
+ */
+function mcpQuotesApiBase() {
+  const raw = (process.env.MCP_BASE_URL || '').trim();
+  if (!raw) return '';
+  return raw.replace(/\/$/, '').replace(/\/mcp$/i, '');
+}
+
+function buildSqlConfig() {
+  const user = process.env.AZURE_SQL_USERNAME;
+  const password = process.env.AZURE_SQL_PASSWORD;
+  const database = process.env.AZURE_SQL_DATABASE;
+  const server = process.env.AZURE_SQL_SERVER;
+  if (!user || password === undefined || password === '' || !database || !server) {
+    return null;
+  }
+  return {
+    user,
+    password,
+    database,
+    server,
+    options: { encrypt: true, trustServerCertificate: false },
+  };
+}
+
+function dashboardPayloadFromMcp(username, data) {
+  const amt = Number(data.outstanding_total_amount ?? 0);
+  return {
+    message: `Welcome ${username}!`,
+    outstandingCount: Number(data.outstanding_quotes_count ?? 0),
+    outstandingTotal: `$${amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    unavailableItems: Number(data.out_of_stock_count ?? 0),
+  };
+}
+
+async function fetchDashboardFromMcp() {
+  const mcpApiKey = process.env.MCP_API_KEY || '';
+  // Optional full URL when the MCP host does not use /quotes/admin/dashboard (e.g. backend/mcp
+  // only exposes FastMCP under /mcp until you add HTTP routes on that service).
+  const explicit = (process.env.MCP_DASHBOARD_METRICS_URL || '').trim();
+  let url;
+  if (explicit) {
+    url = explicit;
+  } else {
+    const base = mcpQuotesApiBase();
+    if (!base) {
+      return null;
+    }
+    url = `${base}/quotes/admin/dashboard`;
+  }
+  const resp = await fetch(url, {
+    headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {},
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`MCP ${resp.status} ${txt}`);
+  }
+  return resp.json();
+}
 
 app.get('/admin/dashboard', authenticateToken, async (req, res) => {
-  try {
-    const pool = await sql.connect(sqlConfig);
-    const metrics = await pool.request().query(
-      `SELECT COUNT(*) AS outstanding_quotes_count,
-              COALESCE(SUM(total_amount), 0) AS outstanding_total_amount
-       FROM Quotes WHERE status = 'active'`
-    );
-    const oos = await pool.request().query(
-      `SELECT COUNT(*) AS cnt FROM Inventory WHERE quantity_in_stock = 0`
-    );
-    return res.json({
-      message: `Welcome ${req.user.username}!`,
-      outstandingCount: metrics.recordset[0].outstanding_quotes_count,
-      outstandingTotal: `$${Number(metrics.recordset[0].outstanding_total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-      unavailableItems: oos.recordset[0].cnt
-    });
-  } catch (err) {
-    logger.error(`Dashboard DB error: ${err.message}`);
-    return res.status(500).json({ outstandingCount: 0, outstandingTotal: '$0.00', unavailableItems: 0 });
+  const username = req.user.username;
+  const welcome = `Welcome ${username}!`;
+
+  const sqlConfig = buildSqlConfig();
+  if (sqlConfig) {
+    try {
+      const pool = await sql.connect(sqlConfig);
+      const metrics = await pool.request().query(
+        `SELECT COUNT(*) AS outstanding_quotes_count,
+                COALESCE(SUM(total_amount), 0) AS outstanding_total_amount
+         FROM Quotes WHERE status = 'active'`
+      );
+      const oos = await pool.request().query(
+        `SELECT COUNT(*) AS cnt FROM Inventory WHERE quantity_in_stock = 0`
+      );
+      return res.json({
+        message: welcome,
+        outstandingCount: metrics.recordset[0].outstanding_quotes_count,
+        outstandingTotal: `$${Number(metrics.recordset[0].outstanding_total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        unavailableItems: oos.recordset[0].cnt,
+      });
+    } catch (err) {
+      logger.warn(`Dashboard direct SQL failed, trying MCP: ${err.message}`);
+    }
+  } else {
+    logger.info('Dashboard: Azure SQL env not fully set; using MCP if available.');
   }
+
+  try {
+    const mcpData = await fetchDashboardFromMcp();
+    if (mcpData) {
+      return res.json(dashboardPayloadFromMcp(username, mcpData));
+    }
+  } catch (err) {
+    logger.error(`Dashboard MCP fallback failed: ${err.message}`);
+  }
+
+  return res.status(200).json({
+    message: welcome,
+    outstandingCount: 0,
+    outstandingTotal: '$0.00',
+    unavailableItems: 0,
+    warning:
+      'Live metrics unavailable. Set Azure SQL app settings on the admin app, or ensure MCP_BASE_URL reaches the quote API.',
+  });
 });
 
 // Tool-style admin commands endpoint (separate from the Foundry agent chat route)
@@ -280,7 +357,7 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
   logger.info(`Admin chat from ${req.user.username}: ${message}`);
 
   const lower = (message || '').toLowerCase();
-  const mcpBase = process.env.MCP_BASE_URL;
+  const quotesApiBase = mcpQuotesApiBase();
   const toolApiBase = process.env.TOOL_API_BASE_URL;
   const mcpApiKey = process.env.MCP_API_KEY || '';
   const toolApiKey = process.env.TOOL_API_KEY || process.env.MCP_API_KEY || '';
@@ -310,7 +387,7 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
     if (quoteMatch) {
       const quoteId = Number(quoteMatch[1]);
 
-      const resp = await fetch(`${mcpBase}/quotes/admin/${quoteId}`, {
+      const resp = await fetch(`${quotesApiBase}/quotes/admin/${quoteId}`, {
         headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
       });
 
@@ -337,7 +414,7 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
       lower.includes('metrics') ||
       lower.includes('overview')
     ) {
-      const resp = await fetch(`${mcpBase}/quotes/admin/dashboard`, {
+      const resp = await fetch(`${quotesApiBase}/quotes/admin/dashboard`, {
         headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
       });
 
@@ -359,7 +436,7 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
 
     // Outstanding quotes
     if (lower.includes('quote') || lower.includes('outstanding')) {
-      const resp = await fetch(`${mcpBase}/quotes/admin/outstanding`, {
+      const resp = await fetch(`${quotesApiBase}/quotes/admin/outstanding`, {
         headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
       });
 
@@ -385,7 +462,7 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
       lower.includes('unavailable') ||
       lower.includes('oos')
     ) {
-      const resp = await fetch(`${mcpBase}/quotes/admin/out-of-stock`, {
+      const resp = await fetch(`${quotesApiBase}/quotes/admin/out-of-stock`, {
         headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
       });
 
@@ -407,7 +484,7 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
 
     // Full inventory list
     if (lower.includes('inventory')) {
-      const resp = await fetch(`${mcpBase}/quotes/admin/inventory`, {
+      const resp = await fetch(`${quotesApiBase}/quotes/admin/inventory`, {
         headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
       });
 
@@ -485,9 +562,15 @@ app.get('/admin/debug/info', authenticateToken, (req, res) => {
       PROJECT_ENDPOINT: process.env.PROJECT_ENDPOINT || '✗ MISSING',
       AGENT_NAME:       process.env.AGENT_NAME       || '✗ MISSING',
       MCP_BASE_URL:     process.env.MCP_BASE_URL     || '✗ MISSING',
+      MCP_DASHBOARD_METRICS_URL: process.env.MCP_DASHBOARD_METRICS_URL || '— not set (defaults to …/quotes/admin/dashboard)',
+      mcpQuotesApiBase: mcpQuotesApiBase() || '✗ MISSING (used for /quotes/... calls)',
       MCP_API_KEY:      process.env.MCP_API_KEY      ? '✓ set'    : '— not set',
       TOOL_API_BASE_URL:process.env.TOOL_API_BASE_URL|| '— not set',
       TOOL_API_KEY:     process.env.TOOL_API_KEY     ? '✓ set'    : '— not set',
+      AZURE_SQL_SERVER: process.env.AZURE_SQL_SERVER ? '✓ set'    : '✗ MISSING',
+      AZURE_SQL_DATABASE: process.env.AZURE_SQL_DATABASE ? '✓ set' : '✗ MISSING',
+      AZURE_SQL_USERNAME: process.env.AZURE_SQL_USERNAME ? '✓ set' : '✗ MISSING',
+      AZURE_SQL_PASSWORD: process.env.AZURE_SQL_PASSWORD ? '✓ set' : '✗ MISSING',
     },
     timestamp: new Date().toISOString(),
   });
@@ -508,7 +591,8 @@ const server = app.listen(PORT, () => {
     `AGENT_NAME=${process.env.AGENT_NAME || 'MISSING'} | ` +
     `MCP_BASE_URL=${process.env.MCP_BASE_URL || 'MISSING'} | ` +
     `MCP_API_KEY=${process.env.MCP_API_KEY ? 'SET' : 'not set'} | ` +
-    `TOOL_API_BASE_URL=${process.env.TOOL_API_BASE_URL || 'not set'}`
+    `TOOL_API_BASE_URL=${process.env.TOOL_API_BASE_URL || 'not set'} | ` +
+    `AZURE_SQL=${buildSqlConfig() ? 'SET' : 'not set (dashboard uses MCP fallback)'}`
   );
   console.log('PID:', process.pid);
   console.log('server listening:', server.listening);

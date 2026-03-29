@@ -11,6 +11,8 @@
     <h1 class="dashboard-title">Contoso Admin Dashboard</h1>
     <p id="welcomeMessage" class="welcome-message"></p>
 
+    <div id="dashboardMetricsWarning" class="dashboard-metrics-warning" role="alert" hidden></div>
+
     <!-- Row 1: Stats -->
     <div class="stats-grid">
       <div class="stat-card">
@@ -82,6 +84,17 @@
       step();
     }
 
+    function setDashboardMetricsWarning(message) {
+      const el = document.getElementById('dashboardMetricsWarning');
+      if (!message) {
+        el.textContent = '';
+        el.setAttribute('hidden', '');
+        return;
+      }
+      el.textContent = message;
+      el.removeAttribute('hidden');
+    }
+
     async function fetchDashboardAnimated() {
       const dashStart = Date.now();
       try {
@@ -93,6 +106,14 @@
         const data = await res.json();
         const dashMs = Date.now() - dashStart;
 
+        if (!res.ok) {
+          setDashboardMetricsWarning(
+            data.error || data.message || `Dashboard request failed (${res.status}). Stats below may be incomplete.`
+          );
+        } else {
+          setDashboardMetricsWarning(data.warning || '');
+        }
+
         // Welcome message fade in
         const welcomeEl = document.getElementById('welcomeMessage');
         // data.message is like "Welcome Admin!"
@@ -102,11 +123,11 @@
         setTimeout(() => welcomeEl.style.opacity = 1, 100);
 
         // Animate stats (integers)
-        animateValue('outstandingCount', 0, data.outstandingCount, 800);
-        animateValue('unavailableItems', 0, data.unavailableItems, 800);
+        animateValue('outstandingCount', 0, data.outstandingCount ?? 0, 800);
+        animateValue('unavailableItems', 0, data.unavailableItems ?? 0, 800);
 
         // Do NOT animate currency string
-        document.getElementById('outstandingTotal').textContent = data.outstandingTotal;
+        document.getElementById('outstandingTotal').textContent = data.outstandingTotal ?? '$0.00';
 
         // Fade in stat cards
         document.querySelectorAll('.stat-card').forEach((card, i) => {
@@ -127,10 +148,14 @@
           outstandingCount: data.outstandingCount,
           outstandingTotal: data.outstandingTotal,
           unavailableItems: data.unavailableItems,
-        }, 'success');
+          warning: data.warning || null,
+        }, data.warning ? 'warn' : 'success');
 
       } catch (err) {
         document.getElementById('welcomeMessage').textContent = 'Failed to load dashboard';
+        setDashboardMetricsWarning(
+          'Could not reach the server for dashboard metrics. Check your connection and try refreshing the page.'
+        );
         logDebug('dashboard_error', { error: String(err?.message || err), loadMs: Date.now() - dashStart }, 'error');
       }
     }
