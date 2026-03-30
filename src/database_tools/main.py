@@ -25,7 +25,6 @@ from database_tools.services.quote_service import (
     ConfirmQuoteByNameRequest,
     ConfirmQuoteRequest,
     ConfirmQuoteResponse,
-    DashboardMetricsResponse,
     InventoryItem,
     InventoryStatusResponse,
     OutOfStockItem,
@@ -38,7 +37,6 @@ from database_tools.services.quote_service import (
     expire_quotes,
     get_active_quotes_by_email,
     get_all_inventory,
-    get_dashboard_metrics,
     get_inventory_status_by_name,
     get_out_of_stock_items,
     get_outstanding_quotes,
@@ -148,14 +146,6 @@ async def get_inventory_status_tool(name: str) -> InventoryStatusResponse:
     Return inventory status for a product by product name.
     """
     return await asyncio.to_thread(get_inventory_status_by_name, name)
-
-
-@mcp.tool()
-async def get_dashboard_metrics_tool() -> DashboardMetricsResponse:
-    """
-    Return dashboard metrics for active quotes and out-of-stock inventory.
-    """
-    return await asyncio.to_thread(get_dashboard_metrics)
 
 
 @mcp.tool()

@@ -2,7 +2,6 @@ from database_tools.services.quote_service import (
     ConfirmQuoteByNameRequest,
     ConfirmQuoteRequest,
     ConfirmQuoteResponse,
-    DashboardMetricsResponse,
     InventoryItem,
     InventoryStatusResponse,
     OutOfStockItem,
@@ -14,7 +13,6 @@ from database_tools.services.quote_service import (
     confirm_quote_by_product_name,
     get_active_quotes_by_email,
     get_all_inventory,
-    get_dashboard_metrics,
     get_inventory_status_by_name,
     get_out_of_stock_items,
     get_outstanding_quotes,
@@ -40,10 +38,6 @@ def tool_confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
 
 def tool_get_active_quotes(email: str) -> list[UserQuoteSummary]:
     return get_active_quotes_by_email(email=email)
-
-
-def tool_get_dashboard_metrics() -> DashboardMetricsResponse:
-    return get_dashboard_metrics()
 
 
 def tool_get_outstanding_quotes() -> list[QuoteSummary]:

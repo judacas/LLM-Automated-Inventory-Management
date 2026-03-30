@@ -35,11 +35,21 @@ class ConfirmQuoteResponse(TypedDict):
     fulfillment: list[FulfillmentItem]
 
 
+class UserQuoteItemSummary(TypedDict):
+    quote_item_id: int
+    quote_id: int
+    product_id: int | None
+    product_name: str
+    quantity: int
+    price_at_time: float
+
+
 class UserQuoteSummary(TypedDict):
     quote_id: int
     created_at: str
     valid_until: str
     total_amount: float
+    items: list[UserQuoteItemSummary]
 
 
 class InventoryStatusResponse(TypedDict):
@@ -47,12 +57,6 @@ class InventoryStatusResponse(TypedDict):
     name: str
     quantity_in_stock: int
     status: str
-
-
-class DashboardMetricsResponse(TypedDict):
-    outstanding_quotes_count: int
-    outstanding_total_amount: float
-    out_of_stock_count: int
 
 
 class QuoteSummary(TypedDict):
@@ -85,6 +89,7 @@ class QuoteDetailResponse(TypedDict):
 class InventoryItem(TypedDict):
     product_id: int
     name: str
+    price: int
     quantity_in_stock: int
 
 
@@ -446,67 +451,64 @@ def get_active_quotes_by_email(email: str) -> list[UserQuoteSummary]:
 
         cursor.execute(
             """
-            SELECT quote_id, created_at, valid_until, total_amount
-            FROM Quotes
-            WHERE account_id = ?
-            AND status = 'active'
-            ORDER BY created_at DESC
+            SELECT
+                q.quote_id,
+                q.created_at,
+                q.valid_until,
+                q.total_amount,
+                qi.quote_item_id,
+                qi.product_id,
+                p.name AS product_name,
+                qi.quantity,
+                qi.price_at_time
+            FROM Quotes AS q
+            LEFT JOIN QuoteItems AS qi
+                ON q.quote_id = qi.quote_id
+            LEFT JOIN Products AS p
+                ON qi.product_id = p.product_id
+            WHERE q.account_id = ?
+              AND q.status = 'active'
+            ORDER BY q.created_at DESC, qi.quote_item_id ASC
             """,
             (account_id,),
         )
 
         rows = cursor.fetchall()
 
-        return [
-            {
-                "quote_id": row.quote_id,
-                "created_at": str(row.created_at),
-                "valid_until": str(row.valid_until),
-                "total_amount": float(row.total_amount),
-            }
-            for row in rows
-        ]
+        quotes_by_id: dict[int, UserQuoteSummary] = {}
+
+        for row in rows:
+            if row.quote_id not in quotes_by_id:
+                quotes_by_id[row.quote_id] = {
+                    "quote_id": row.quote_id,
+                    "created_at": str(row.created_at),
+                    "valid_until": str(row.valid_until),
+                    "total_amount": float(row.total_amount),
+                    "items": [],
+                }
+
+            if row.quote_item_id is not None:
+                product_name = (
+                    "Discount Applied"
+                    if row.product_id is None
+                    else str(row.product_name)
+                )
+
+                quotes_by_id[row.quote_id]["items"].append(
+                    {
+                        "quote_item_id": row.quote_item_id,
+                        "quote_id": row.quote_id,
+                        "product_id": row.product_id,
+                        "product_name": product_name,
+                        "quantity": int(row.quantity),
+                        "price_at_time": float(row.price_at_time),
+                    }
+                )
+
+        return list(quotes_by_id.values())
 
 
 # Quote Agent - Admin methods
-def get_dashboard_metrics() -> DashboardMetricsResponse:
-    expire_quotes()
-
-    with get_connection() as conn:
-        cursor = conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT COUNT(*), COALESCE(SUM(total_amount), 0)
-            FROM Quotes
-            WHERE status = 'active'
-            """
-        )
-        row = cursor.fetchone()
-        if row is None:
-            raise RuntimeError("Failed to fetch dashboard metrics.")
-
-        outstanding_count = int(row[0])
-        outstanding_total = float(row[1])
-
-        cursor.execute(
-            """
-            SELECT COUNT(*)
-            FROM Inventory
-            WHERE quantity_in_stock = 0
-            """
-        )
-        row2 = cursor.fetchone()
-        if row2 is None:
-            raise RuntimeError("Failed to fetch out-of-stock count.")
-
-        out_of_stock = int(row2[0])
-
-        return {
-            "outstanding_quotes_count": outstanding_count,
-            "outstanding_total_amount": outstanding_total,
-            "out_of_stock_count": out_of_stock,
-        }
 
 
 def get_outstanding_quotes() -> list[QuoteSummary]:
@@ -629,7 +631,7 @@ def get_all_inventory() -> list[InventoryItem]:
 
         cursor.execute(
             """
-            SELECT p.product_id, p.name, i.quantity_in_stock
+            SELECT p.product_id, p.name, p.price, i.quantity_in_stock
             FROM Inventory i
             INNER JOIN Products p
                 ON i.product_id = p.product_id
@@ -643,6 +645,7 @@ def get_all_inventory() -> list[InventoryItem]:
             {
                 "product_id": row.product_id,
                 "name": row.name,
+                "price": int(row.price),
                 "quantity_in_stock": int(row.quantity_in_stock),
             }
             for row in rows
