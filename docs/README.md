@@ -6,14 +6,17 @@ Use this page as the entry point, then jump to the relevant subfolder.
 ## Start here
 
 ### Inventory MCP (local)
+
 - Run Inventory MCP locally: [inventory/run_inventory_mcp.md](inventory/run_inventory_mcp.md)
 - Validate Inventory MCP against a real SQL database (WSL): [inventory/real_sql_test.md](inventory/real_sql_test.md)
 
 ### Inventory MCP (Azure)
+
 - Deploy Inventory MCP to App Service (Linux) via container (WSL): [deploy/deploy_app_service_container.md](deploy/deploy_app_service_container.md)
 - Smoke test deployed Inventory MCP (MCP over HTTP): [deploy/test_deployed_inventory_mcp.md](deploy/test_deployed_inventory_mcp.md)
 
 ### Admin Orchestrator (local)
+
 - Admin docs landing page: [admin/README.md](admin/README.md)
 - Run the Admin Orchestrator HTTP API: [admin/run_admin_orchestrator.md](admin/run_admin_orchestrator.md)
 - Local E2E (Admin Orchestrator → Inventory MCP over HTTP): [admin/local_e2e_admin_orchestrator_inventory_mcp.md](admin/local_e2e_admin_orchestrator_inventory_mcp.md)

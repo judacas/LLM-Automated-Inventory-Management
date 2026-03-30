@@ -10,14 +10,17 @@ This folder contains documentation for the **admin-facing** portion of the Conto
 
 ## Quick start (local)
 
-1) Start Inventory MCP
-- See [../inventory/run_inventory_mcp.md](../inventory/run_inventory_mcp.md)
+1. Start Inventory MCP
 
-2) Start Admin Orchestrator
-- See [run_admin_orchestrator.md](run_admin_orchestrator.md)
+   - See [../inventory/run_inventory_mcp.md](../inventory/run_inventory_mcp.md)
 
-3) Run end-to-end local test (orchestrator → Inventory MCP over HTTP)
-- See [local_e2e_admin_orchestrator_inventory_mcp.md](local_e2e_admin_orchestrator_inventory_mcp.md)
+2. Start Admin Orchestrator
+
+   - See [run_admin_orchestrator.md](run_admin_orchestrator.md)
+
+3. Run end-to-end local test (orchestrator → Inventory MCP over HTTP)
+
+   - See [local_e2e_admin_orchestrator_inventory_mcp.md](local_e2e_admin_orchestrator_inventory_mcp.md)
 
 ## Foundry prompt agent
 

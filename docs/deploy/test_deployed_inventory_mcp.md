@@ -23,10 +23,12 @@ curl -fsS "$BASE_URL/health"; echo
 ```
 
 Expected result:
+
 - HTTP 200
 - A short health payload (content may vary)
 
 If this fails:
+
 - Check the App Service logs.
 - Confirm the container is listening on the configured port.
 
@@ -46,6 +48,7 @@ chmod +x scripts/deploy_inventory_mcp_appservice.sh
 ```
 
 Expected output:
+
 - A `TOOLS:` line listing at least:
   - `get_inventory`
   - `reserve_inventory`
@@ -53,6 +56,7 @@ Expected output:
 - Structured JSON-like responses printed after each call
 
 Quick sanity check (mock vs real DB):
+
 - If responses show `"product_name": "Test Item"`, you are still using the in-memory mock repository.
 - For the real database, configure `AZURE_SQL_CONNECTION_STRING` on the Web App (see the deployment runbook).
 
@@ -79,6 +83,7 @@ curl -i -N -H "Accept: text/event-stream" "$MCP_URL"
 ```
 
 Notes:
+
 - This may still return `405 Method Not Allowed` depending on which methods the transport exposes.
 - For a real end-to-end validation, prefer `python scripts/mcp_demo_client.py --url "$MCP_URL" ...`.
 
@@ -97,6 +102,7 @@ Notes:
 This usually indicates host header validation rejecting the App Service hostname.
 
 Actions:
+
 - Redeploy the latest container image (the current codebase allow-lists the App Service hostname using MCP transport security settings).
 - Re-test:
   - `python scripts/mcp_demo_client.py --url "$MCP_URL"`

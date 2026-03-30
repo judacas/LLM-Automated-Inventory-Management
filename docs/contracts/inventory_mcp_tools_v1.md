@@ -18,12 +18,15 @@ This document defines the **inventory** MCP server tool surface so other compone
 ## Tools
 
 ### 1) `get_inventory`
+
 Get inventory status for a product.
 
-**Arguments**
+#### `get_inventory`: arguments
+
 - `product_id` (int, required)
 
-**Structured output**
+#### `get_inventory`: structured output
+
 ```json
 {
   "product_id": 1001,
@@ -35,38 +38,47 @@ Get inventory status for a product.
 ```
 
 ### 2) `reserve_inventory`
+
 Decreases inventory for a product (side-effect).
 
-**Arguments**
+#### `reserve_inventory`: arguments
+
 - `product_id` (int, required)
 - `qty` (int, required, must be > 0)
 
-**Structured output**
+#### `reserve_inventory`: structured output
+
 ```json
 { "status": "reserved", "product_id": 1001, "qty": 3 }
 ```
 
 ### 3) `receive_inventory`
+
 Increases inventory for a product (side-effect).
 
-**Arguments**
+#### `receive_inventory`: arguments
+
 - `product_id` (int, required)
 - `qty` (int, required, must be > 0)
 
-**Structured output**
+#### `receive_inventory`: structured output
+
 ```json
 { "status": "received", "product_id": 1001, "qty": 3 }
 ```
 
 ### 4) `inventory_admin_summary`
+
 Admin-facing inventory rollup metrics.
 
 Supports the requirement: “All general information about the current state of the system / inventory”.
 
-**Arguments**
+#### `inventory_admin_summary`: arguments
+
 - `low_stock_threshold` (int, optional, default: 5)
 
-**Structured output**
+#### `inventory_admin_summary`: structured output
+
 ```json
 {
   "total_products": 123,
@@ -79,15 +91,18 @@ Supports the requirement: “All general information about the current state of 
 ```
 
 ### 5) `inventory_unavailable_requested_items`
+
 Returns products that customers are requesting (via quotes) that cannot currently be fulfilled from stock.
 
 Supports the requirement: “What currently unavailable items are being requested by customers”.
 
-**Arguments**
+#### `inventory_unavailable_requested_items`: arguments
+
 - `quote_status` (str, optional, default: `"Pending"`)
 - `top_n` (int, optional, default: 20)
 
-**Structured output**
+#### `inventory_unavailable_requested_items`: structured output
+
 ```json
 {
   "quote_status": "Pending",

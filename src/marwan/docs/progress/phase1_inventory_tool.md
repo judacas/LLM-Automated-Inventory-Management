@@ -15,6 +15,7 @@ Legacy: FastAPI → InventoryService → Repository
 Current: MCP (FastMCP, Streamable HTTP) → InventoryService → Repository
 
 Repository selection is environment-driven:
+
 - If `AZURE_SQL_CONNECTION_STRING` is set, the SQL-backed repository is used.
 - Otherwise, a mock/in-memory repository is used for local dev and unit tests.
 
@@ -23,9 +24,11 @@ Repository selection is environment-driven:
 ## Run Locally
 
 See the current runbook:
+
 - [Run Inventory MCP](../../../inventory_mcp/docs/run_inventory_mcp.md)
 
 ## Endpoints
 
 See:
+
 - [Tool contracts (v1)](../../../inventory_mcp/docs/contracts/tool_contracts_v1.md)

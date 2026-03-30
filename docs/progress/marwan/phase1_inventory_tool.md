@@ -25,9 +25,10 @@ Repository selection is environment-driven:
 
 See the current runbook:
 
-- `docs/inventory/run_inventory_mcp.md`
+- [Run Inventory MCP](../../../inventory_mcp/docs/run_inventory_mcp.md)
 
 ## Endpoints
 
 See:
-`docs/contracts/tool_contracts_v1.md`
+
+- [Tool contracts (v1)](../../../inventory_mcp/docs/contracts/tool_contracts_v1.md)

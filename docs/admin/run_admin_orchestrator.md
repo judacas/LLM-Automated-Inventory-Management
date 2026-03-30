@@ -10,6 +10,7 @@ This service exposes the **admin orchestrator** over HTTP so an admin UI can sen
   - `POST /chat` → `{ "response": "..." }`
 
 Under the hood, the orchestrator routes admin requests to deterministic tool calls:
+
 - **Inventory path** → calls Inventory MCP tools (Streamable HTTP) using `INVENTORY_MCP_URL`
 - **Quote path** → currently a stub (intended for A2A integration)
 
