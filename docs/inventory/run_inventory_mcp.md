@@ -9,6 +9,7 @@ The Inventory MCP server is exposed as an ASGI app at:
 - `inventory_mcp.app:app`
 
 Endpoints:
+
 - Health probe: `GET /health`
 - MCP (Streamable HTTP): `/mcp`
 

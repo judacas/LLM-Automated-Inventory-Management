@@ -30,22 +30,24 @@ Optional dev/test behavior:
 ## Tool mapping (what the orchestrator should call)
 
 ### Inventory check
+
 - If the admin message includes a numeric `product_id`: call `get_inventory`.
 - Otherwise: call `inventory_admin_summary`.
 
 ### System summary (inventory contribution)
+
 - Call `inventory_admin_summary`.
 - Call `inventory_unavailable_requested_items` (default: Pending quotes).
 
 ## Example (local)
 
-1) Start inventory MCP server:
+1. Start inventory MCP server:
 
-```bash
-uv run uvicorn inventory_mcp.app:app --reload --port 8000
-```
+   ```bash
+   uv run uvicorn inventory_mcp.app:app --reload --port 8000
+   ```
 
-2) Run your orchestrator tests or a small script that calls `AdminOrchestratorService.handle_message()`.
+2. Run your orchestrator tests or a small script that calls `AdminOrchestratorService.handle_message()`.
 
 ## Notes
 

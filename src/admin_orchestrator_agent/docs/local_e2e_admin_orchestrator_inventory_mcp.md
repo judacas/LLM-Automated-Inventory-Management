@@ -52,6 +52,7 @@ uv run uvicorn admin_orchestrator_agent.app:app --reload --host 0.0.0.0 --port 8
 ```
 
 Key setting:
+
 - `INVENTORY_MCP_FALLBACK_IN_PROCESS=0` forces a failure if MCP is not reachable.
 
 ## Step 3 — Call the orchestrator (terminal 3)

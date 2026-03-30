@@ -3,6 +3,7 @@
 [Back to deployment index](README.md)
 
 This runbook deploys the Inventory MCP as a **containerized web service** on Azure App Service for Linux, using:
+
 - An **existing App Service Plan**: `asp-contoso-web-linux-b1` (B1, Linux)
 - An **existing ACR**: `capstonemcpregistry2026`
 - A **new Web App for Containers**: `admin-inventory-mcp`
@@ -10,6 +11,7 @@ This runbook deploys the Inventory MCP as a **containerized web service** on Azu
 All commands below are WSL-compatible and copy/paste-ready.
 
 For repeat deployments after code changes, prefer the one-shot script:
+
 - `scripts/deploy_inventory_mcp_appservice.sh`
 
 ---
@@ -189,10 +191,12 @@ az webapp config appsettings set \
 ```
 
 Notes:
+
 - `MCP_ALLOWED_HOSTS` prevents deployed calls failing with `421 Invalid Host header`.
 - If you use a custom domain, add it to `MCP_ALLOWED_HOSTS` (comma-separated).
 
 (Optional) Configure health check path in the portal, or via CLI if available in your az version. Path should be:
+
 - `/health`
 
 ---
@@ -203,6 +207,7 @@ By default, this service uses an in-memory repository (you'll see `"product_name
 To use the real database, configure the Azure SQL connection string.
 
 Set these App Settings on the Web App:
+
 - `AZURE_SQL_CONNECTION_STRING`: ODBC connection string used by `pyodbc`
 - `INVENTORY_REQUIRE_SQL=1`: recommended for deployments so the app fails fast if the DB config is missing
 
@@ -223,20 +228,22 @@ az webapp config appsettings set \
 
 The container must be able to reach your SQL server over TCP/1433.
 
-1) Get the Web App outbound IPs:
+1. Get the Web App outbound IPs:
 
-```bash
-az webapp show -g "$RG" -n "$WEBAPP_NAME" --query outboundIpAddresses -o tsv
-```
+   ```bash
+   az webapp show -g "$RG" -n "$WEBAPP_NAME" --query outboundIpAddresses -o tsv
+   ```
 
-2) Ensure Azure SQL firewall rules allow the Web App to connect.
+2. Ensure Azure SQL firewall rules allow the Web App to connect.
 
 Options (pick one based on your team's security posture):
+
 - Allow the Web App outbound IPs explicitly.
 - Or (less strict) enable "Allow Azure services and resources to access this server" on the SQL server.
 - If your SQL server uses a private endpoint, you must use VNet integration and test connectivity inside the VNet.
 
 For local validation before deploying, see:
+
 - [real_sql_test.md](../real_sql_test.md)
 
 ---
@@ -252,6 +259,7 @@ curl -fsS "$BASE_URL/health"; echo
 ```
 
 MCP endpoint:
+
 - `$BASE_URL/mcp`
 
 ---
