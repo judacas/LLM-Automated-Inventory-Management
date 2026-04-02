@@ -45,7 +45,7 @@ def _trusted_user_from_context(ctx: Context) -> str:
     if request is None:
         raise PermissionError("Missing HTTP request context for authorization.")
 
-    identity = request.headers.get("x-demo-user", "").strip().lower()
+    identity = request.headers.get("x-demo-user", "").strip()
     if not identity:
         raise PermissionError(
             "Missing trusted identity header: x-demo-user. "

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 
 import httpx
 from mcp import ClientSession
@@ -46,6 +45,7 @@ async def _run_for_identity(
                 for tool_name in tool_plan:
                     try:
                         tool_result = await session.call_tool(tool_name, arguments={})
+                        # `isError` is defined by MCP SDK response models.
                         if getattr(tool_result, "isError", False):
                             content = getattr(tool_result, "content", []) or []
                             text_parts = [
@@ -66,6 +66,26 @@ async def _run_for_identity(
                     "tool_plan": tool_plan,
                     "tool_results": results,
                 }
+
+
+def _print_summary(report: dict[str, object]) -> None:
+    tool_results = report.get("tool_results", {})
+
+    if not isinstance(tool_results, dict):
+        print("tool_results: unavailable")
+        return
+
+    for tool_name, payload in tool_results.items():
+        if isinstance(payload, dict) and "error" in payload:
+            if tool_name == "get_sensitive_data":
+                print("- get_sensitive_data: denied by MCP authorization")
+            else:
+                print("- get_my_data: denied by MCP authorization")
+            continue
+        if tool_name == "get_sensitive_data":
+            print("- get_sensitive_data: success (sensitive payload returned)")
+            continue
+        print("- get_my_data: success")
 
 
 async def main_async(args: argparse.Namespace) -> None:
@@ -89,11 +109,11 @@ async def main_async(args: argparse.Namespace) -> None:
     print()
 
     print("=== Authorized user run ===")
-    print(json.dumps(authorized, indent=2))
+    _print_summary(authorized)
     print()
 
     print("=== Unauthorized user run ===")
-    print(json.dumps(unauthorized, indent=2))
+    _print_summary(unauthorized)
 
 
 def main() -> None:
