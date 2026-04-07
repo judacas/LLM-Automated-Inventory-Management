@@ -6,6 +6,8 @@ This is the source of truth for adding a new A2A-mounted agent to `src/a2a_serve
 
 Use this document when you want to expose another Azure AI Foundry agent through this server.
 
+If your deployment pulls configs from storage, pair this guide with [agent-config-hosting.md](./agent-config-hosting.md).
+
 Do not use this document for:
 
 - first-time local environment setup: see [developer-setup.md](./developer-setup.md)
@@ -68,14 +70,9 @@ I'd recommend you test it locally since deployment takes time, refer to [local-t
 
 ### 5. Redeploy
 
-The running Azure app only sees agent definitions that are in its deployed artifact.
+If production is pulling configs from storage (`A2A_AGENT_CONFIG_URL`), zip and upload the updated definitions and restart the app (no code redeploy needed). See [agent-config-hosting.md](./agent-config-hosting.md) for the storage workflow.
 
-After merging or preparing the TOML change, follow [redeploying.md](./redeploying.md).
-
-> NOTE: Agent TOML definitions are currently located in the app service code.
-This means that adding or modifying agents requires redeploying the application service.
-For future plans on decoupling agent definitions from the deployment process,
-refer to the [agents folder](../agents/) and check the README for the roadmap of upcoming changes.
+If production still uses the bundled `agents/` folder, redeploy the app with the updated files and follow [redeploying.md](./redeploying.md).
 
 ## Production Change Summary
 
@@ -83,8 +80,8 @@ If your goal is only "add this agent to prod", the minimum path is:
 
 1. create or confirm the Foundry agent in Azure AI Foundry
 2. add the new `agents/<name>_agent.toml`
-3. redeploy the A2A server with that updated file set
-4. verify the deployed routes and agent card
+3. zip and upload the updated `agents.zip` (or redeploy if not using `A2A_AGENT_CONFIG_URL`)
+4. restart the app and verify the deployed routes and agent card
 
 That workflow does not require:
 
