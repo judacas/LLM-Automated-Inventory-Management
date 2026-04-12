@@ -10,6 +10,7 @@
   "dependencies": {
     "@azure/ai-projects": "^2.0.1",
     "@azure/identity": "^4.13.1",
+    "@azure/monitor-opentelemetry": "^1.16.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.3.1",

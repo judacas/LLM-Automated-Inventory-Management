@@ -29,12 +29,32 @@
       </div>
     </div>
 
-<!--
-<div class="button-row">
-  <a href="#" class="nav-btn">View All Quotes</a>
-  <a href="#" class="nav-btn">View Inventory</a>
-</div>
--->
+    <!-- Row 2: Observability & Logs (User Story 8) -->
+    <div class="logs-card" style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 25px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
+        <h3 style="margin:0;">Email Response Logs (User Story #8)</h3>
+        <span id="systemHealthBead" style="display:flex; align-items:center; font-size:14px; font-weight:600; color:#555;">
+          <span style="height:12px; width:12px; border-radius:50%; background-color:#ccc; display:inline-block; margin-right:8px;" id="healthDot"></span>
+          System Status: Loading...
+        </span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse: collapse; text-align:left; font-size:14px;">
+          <thead>
+            <tr style="border-bottom: 2px solid #eee;">
+              <th style="padding:10px;">ID</th>
+              <th style="padding:10px;">Timestamp</th>
+              <th style="padding:10px;">Customer Email</th>
+              <th style="padding:10px;">Intent Summary</th>
+              <th style="padding:10px;">Agent Category</th>
+            </tr>
+          </thead>
+          <tbody id="logsTableBody">
+            <tr><td colspan="5" style="padding:15px; text-align:center; color:#777;">Loading email logs and traces...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <!-- Row 3: Admin Chat -->
     <div class="chat-card">
@@ -161,6 +181,67 @@
     }
 
     fetchDashboardAnimated();
+
+    // User Story #8 and Monitoring Frontend Fetcher
+    async function fetchSystemHealthAndLogs() {
+      try {
+        // Fetch Health
+        const healthRes = await fetch('/admin/health');
+        const healthDot = document.getElementById('healthDot');
+        const healthText = document.getElementById('systemHealthBead');
+        
+        if (healthRes.ok) {
+           const healthData = await healthRes.json();
+           const apmStatus = healthData.appInsightsEnabled ? '& OTel Connected' : 'No OTel/APM';
+           healthDot.style.backgroundColor = '#28a745'; // Green
+           healthText.innerHTML = healthDot.outerHTML + ' API Online (' + apmStatus + ')';
+        } else {
+           healthDot.style.backgroundColor = '#dc3545'; // Red
+           healthText.innerHTML = healthDot.outerHTML + ' API Offline';
+        }
+
+        // Fetch User Story 8 Logs
+        const logsRes = await fetch('/admin/response-logs');
+        if (logsRes.ok) {
+          const logsData = await logsRes.json();
+          const tbody = document.getElementById('logsTableBody');
+          tbody.innerHTML = ''; // clear loading state
+          
+          logsData.logs.forEach(log => {
+            const row = document.createElement('tr');
+            row.style.borderBottom = '1px solid #eee';
+            
+            // Category badge styling logic
+            let catColor = '#6c757d'; // gray
+            let catClass = 'color: white; padding: 4px 8px; border-radius: 4px; font-size:12px; font-weight:600;';
+            if (log.category === 'Correct') catColor = '#28a745'; // green
+            if (log.category === 'Incorrect') catColor = '#dc3545'; // red
+            if (log.category === 'Fallback') { catColor = '#ffc107'; catClass += ' color:#333;'; } // yellow
+
+            row.innerHTML = `
+              <td style="padding:10px;">#${log.id}</td>
+              <td style="padding:10px; color:#555;">${new Date(log.timestamp).toLocaleTimeString()}</td>
+              <td style="padding:10px; font-weight:500;">${escapeHtml(log.email)}</td>
+              <td style="padding:10px;">
+                <div style="font-weight:600; margin-bottom:4px;">${escapeHtml(log.summary)}</div>
+                <div style="font-size:12px; color:#666;">Response: ${escapeHtml(log.response)}</div>
+              </td>
+              <td style="padding:10px;">
+                <span style="background:${catColor}; ${catClass}">${escapeHtml(log.category)}</span>
+                <div style="font-size:12px; color:#888; margin-top:4px;">Conf: ${log.confidence}</div>
+              </td>
+            `;
+            tbody.appendChild(row);
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load health and response logs", err);
+      }
+    }
+    
+    // Initial fetch and 30 second polling
+    fetchSystemHealthAndLogs();
+    setInterval(fetchSystemHealthAndLogs, 30000);
 
     const DEBUG_ENABLED = (() => {
       try {

@@ -1,6 +1,19 @@
 // server.js
 require('dotenv').config();
 
+// Ensure telemetry starts before any other imports so it auto-instruments express & winston
+const { useAzureMonitor } = require("@azure/monitor-opentelemetry");
+if (process.env.APPLICATIONINSIGHTS_CONNECTION_STRING) {
+  try {
+    useAzureMonitor();
+    console.log("[Observability] Azure Monitor OpenTelemetry initialized successfully.");
+  } catch (err) {
+    console.error("[Observability] Failed to start Azure Monitor:", err);
+  }
+} else {
+  console.log("[Observability] No APPLICATIONINSIGHTS_CONNECTION_STRING found. Running without distributed tracing.");
+}
+
 const {
   createConversation,
   sendMessageToAgent,
@@ -348,6 +361,69 @@ app.get('/admin/dashboard', authenticateToken, async (req, res) => {
     unavailableItems: 0,
     warning:
       'Live metrics unavailable. Set Azure SQL app settings on the admin app, or ensure MCP_BASE_URL reaches the quote API.',
+  });
+});
+
+// User Story #8: Live response logs sourced from Azure SQL.
+// Quotes joined to BusinessAccounts gives us: customer email + quote outcome.
+// Category mapping: active/ordered = Correct, expired = Fallback, cancelled = Incorrect.
+app.get('/admin/response-logs', authenticateToken, async (req, res) => {
+  const sqlConfig = buildSqlConfig();
+  if (!sqlConfig) {
+    return res.status(503).json({ success: false, error: 'Database not configured.' });
+  }
+  try {
+    const pool = await sql.connect(sqlConfig);
+    const result = await pool.request().query(`
+      SELECT TOP 50
+        q.quote_id        AS id,
+        q.created_at      AS timestamp,
+        ba.email          AS email,
+        ba.company_name   AS company,
+        q.status          AS status,
+        q.total_amount    AS total_amount
+      FROM Quotes q
+      JOIN BusinessAccounts ba ON q.account_id = ba.account_id
+      ORDER BY q.created_at DESC
+    `);
+
+    const logs = result.recordset.map(row => {
+      // Derive category from quote status — this is our heuristic classifier.
+      // 'active' or 'ordered' means the agent successfully generated a quote → Correct.
+      // 'expired' means the quote was never acted on → treat as Fallback.
+      // 'cancelled' or anything else → Incorrect.
+      let category = 'Incorrect';
+      const s = (row.status || '').toLowerCase();
+      if (s === 'active' || s === 'ordered') category = 'Correct';
+      else if (s === 'expired') category = 'Fallback';
+
+      const amt = Number(row.total_amount || 0);
+      return {
+        id: row.id,
+        timestamp: row.timestamp,
+        email: row.email || 'unknown',
+        summary: `${row.company || 'Unknown company'} — Quote #${row.id} ($${amt.toLocaleString('en-US', { minimumFractionDigits: 2 })})`,
+        response: `Quote ${row.status} — Total $${amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        category,
+        confidence: category === 'Correct' ? 'High' : category === 'Fallback' ? 'Low' : 'Medium',
+      };
+    });
+
+    logger.info(`[response-logs] Served ${logs.length} live records from Azure SQL`);
+    return res.json({ success: true, logs });
+  } catch (err) {
+    logger.error(`[response-logs] SQL error: ${err.message}`);
+    return res.status(500).json({ success: false, error: 'Failed to fetch response logs.' });
+  }
+});
+
+// Simple Health Endpoint for Dashboard Status Bead
+app.get('/admin/health', authenticateToken, (req, res) => {
+  return res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    mcpBaseReached: process.env.MCP_BASE_URL ? true : false,
+    appInsightsEnabled: process.env.APPLICATIONINSIGHTS_CONNECTION_STRING ? true : false
   });
 });
 
