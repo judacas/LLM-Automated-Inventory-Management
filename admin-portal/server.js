@@ -288,6 +288,7 @@ function dashboardPayloadFromMcp(username, data) {
     outstandingCount: Number(data.outstanding_quotes_count ?? 0),
     outstandingTotal: `$${amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
     unavailableItems: Number(data.out_of_stock_count ?? 0),
+    totalQuotes: 0, // MCP endpoint does not expose grand total; default to 0
   };
 }
 
@@ -324,19 +325,31 @@ app.get('/admin/dashboard', authenticateToken, async (req, res) => {
   if (sqlConfig) {
     try {
       const pool = await sql.connect(sqlConfig);
+      // Single query: outstanding stats + grand total — avoids two round-trips
       const metrics = await pool.request().query(
-        `SELECT COUNT(*) AS outstanding_quotes_count,
-                COALESCE(SUM(total_amount), 0) AS outstanding_total_amount
-         FROM Quotes WHERE status = 'active'`
+        `SELECT
+           SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END)                         AS outstanding_quotes_count,
+           COALESCE(SUM(CASE WHEN status = 'active' THEN total_amount ELSE 0 END), 0)  AS outstanding_total_amount,
+           COUNT(*)                                                                     AS total_quotes_count
+         FROM Quotes`
       );
+      // Count DISTINCT products customers actually requested (via active quotes)
+      // that are currently out of stock — matches requirement:
+      // "items requested by customers that are currently unavailable"
       const oos = await pool.request().query(
-        `SELECT COUNT(*) AS cnt FROM Inventory WHERE quantity_in_stock = 0`
+        `SELECT COUNT(DISTINCT qi.product_id) AS cnt
+         FROM QuoteItems qi
+         JOIN Inventory i ON qi.product_id = i.product_id
+         JOIN Quotes q    ON qi.quote_id    = q.quote_id
+         WHERE i.quantity_in_stock = 0
+           AND q.status = 'active'`
       );
       return res.json({
         message: welcome,
         outstandingCount: metrics.recordset[0].outstanding_quotes_count,
         outstandingTotal: `$${Number(metrics.recordset[0].outstanding_total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         unavailableItems: oos.recordset[0].cnt,
+        totalQuotes: metrics.recordset[0].total_quotes_count,
       });
     } catch (err) {
       logger.warn(`Dashboard direct SQL failed, trying MCP: ${err.message}`);
@@ -359,23 +372,60 @@ app.get('/admin/dashboard', authenticateToken, async (req, res) => {
     outstandingCount: 0,
     outstandingTotal: '$0.00',
     unavailableItems: 0,
+    totalQuotes: 0,
     warning:
       'Live metrics unavailable. Set Azure SQL app settings on the admin app, or ensure MCP_BASE_URL reaches the quote API.',
   });
 });
 
-// User Story #8: Live response logs sourced from Azure SQL.
-// Quotes joined to BusinessAccounts gives us: customer email + quote outcome.
-// Category mapping: active/ordered = Correct, expired = Fallback, cancelled = Incorrect.
+// User Story #8: Live response logs with server-side date + status filtering.
+// Company / email text search is handled client-side for instant results.
 app.get('/admin/response-logs', authenticateToken, async (req, res) => {
   const sqlConfig = buildSqlConfig();
+
+  // Graceful degradation: if Azure SQL env vars are not set, return empty logs with a
+  // warning banner rather than a hard 503 — matches the /admin/dashboard pattern.
   if (!sqlConfig) {
-    return res.status(503).json({ success: false, error: 'Database not configured.' });
+    logger.info('[response-logs] Azure SQL not configured — returning empty log set with warning.');
+    return res.json({
+      success: true, logs: [], total: 0,
+      warning: 'Live logs unavailable. Set AZURE_SQL_* environment variables to enable response log tracking.',
+    });
   }
+
+  // Parse and whitelist-validate filter query params
+  const dateRange   = String(req.query.dateRange || 'all');
+  const statusParam = String(req.query.status    || 'all');
+  const validStatuses = ['active', 'ordered', 'expired', 'cancelled'];
+
+  const conditions = [];
+
+  // Date range — safe SQL date literals, no user text injected
+  if      (dateRange === 'today') conditions.push(`CAST(q.created_at AS DATE) = CAST(GETDATE() AS DATE)`);
+  else if (dateRange === 'week')  conditions.push(`q.created_at >= DATEADD(day, -7,  GETDATE())`);
+  else if (dateRange === 'month') conditions.push(`q.created_at >= DATEADD(day, -30, GETDATE())`);
+
+  // Status — whitelisted before interpolation
+  const safeStatus = validStatuses.includes(statusParam.toLowerCase()) ? statusParam.toLowerCase() : null;
+  if (safeStatus) conditions.push(`q.status = '${safeStatus}'`);
+
+  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
   try {
     const pool = await sql.connect(sqlConfig);
+
+    // Total count matching current filter (drives the "Showing X of Y" UI counter)
+    const countResult = await pool.request().query(`
+      SELECT COUNT(*) AS total
+      FROM Quotes q
+      JOIN BusinessAccounts ba ON q.account_id = ba.account_id
+      ${whereClause}
+    `);
+    const total = countResult.recordset[0].total;
+
+    // Main data query — up to 200 rows
     const result = await pool.request().query(`
-      SELECT TOP 50
+      SELECT TOP 200
         q.quote_id        AS id,
         q.created_at      AS timestamp,
         ba.email          AS email,
@@ -384,14 +434,13 @@ app.get('/admin/response-logs', authenticateToken, async (req, res) => {
         q.total_amount    AS total_amount
       FROM Quotes q
       JOIN BusinessAccounts ba ON q.account_id = ba.account_id
+      ${whereClause}
       ORDER BY q.created_at DESC
     `);
 
     const logs = result.recordset.map(row => {
-      // Derive category from quote status — this is our heuristic classifier.
-      // 'active' or 'ordered' means the agent successfully generated a quote → Correct.
-      // 'expired' means the quote was never acted on → treat as Fallback.
-      // 'cancelled' or anything else → Incorrect.
+      // Derive category — heuristic classifier:
+      // active/ordered → Correct | expired → Fallback | else → Incorrect
       let category = 'Incorrect';
       const s = (row.status || '').toLowerCase();
       if (s === 'active' || s === 'ordered') category = 'Correct';
@@ -399,21 +448,25 @@ app.get('/admin/response-logs', authenticateToken, async (req, res) => {
 
       const amt = Number(row.total_amount || 0);
       return {
-        id: row.id,
+        id:        row.id,
         timestamp: row.timestamp,
-        email: row.email || 'unknown',
-        summary: `${row.company || 'Unknown company'} — Quote #${row.id} ($${amt.toLocaleString('en-US', { minimumFractionDigits: 2 })})`,
-        response: `Quote ${row.status} — Total $${amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        email:     row.email   || 'unknown',
+        company:   row.company || 'Unknown', // included for client-side company search
+        summary:   `${row.company || 'Unknown company'} — Quote #${row.id} ($${amt.toLocaleString('en-US', { minimumFractionDigits: 2 })})`,
+        response:  `Quote ${row.status} — Total $${amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
         category,
         confidence: category === 'Correct' ? 'High' : category === 'Fallback' ? 'Low' : 'Medium',
       };
     });
 
-    logger.info(`[response-logs] Served ${logs.length} live records from Azure SQL`);
-    return res.json({ success: true, logs });
+    logger.info(`[response-logs] Served ${logs.length}/${total} records (dateRange=${dateRange}, status=${statusParam})`);
+    return res.json({ success: true, logs, total });
   } catch (err) {
     logger.error(`[response-logs] SQL error: ${err.message}`);
-    return res.status(500).json({ success: false, error: 'Failed to fetch response logs.' });
+    return res.json({
+      success: true, logs: [], total: 0,
+      warning: `Failed to load response logs: ${err.message}`,
+    });
   }
 });
 
@@ -583,6 +636,15 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
     // Inventory by SKU from tool API, e.g. "check inventory for SKU-1"
     const skuMatch = message?.match(/\bSKU[-\s]?\d+\b/i);
     if (skuMatch) {
+      // Guard: TOOL_API_BASE_URL must be set or we'd build a URL like "undefined/inventory/..."
+      if (!toolApiBase) {
+        return res.status(503).json({
+          request_type: 'inventory_item',
+          error: 'TOOL_API_BASE_URL is not configured on this server. Cannot look up individual SKUs.',
+          results: []
+        });
+      }
+
       const sku = skuMatch[0].replace(/\s+/g, '-').toUpperCase();
 
       const resp = await fetch(`${toolApiBase}/inventory/get_item/${encodeURIComponent(sku)}`, {

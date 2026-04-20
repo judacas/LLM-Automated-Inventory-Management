@@ -27,30 +27,71 @@
         <h3>Unavailable Items Requested</h3>
         <div id="unavailableItems">-</div>
       </div>
+      <div class="stat-card">
+        <h3>Total Quotes</h3>
+        <div id="totalQuotes">-</div>
+      </div>
     </div>
 
     <!-- Row 2: Observability & Logs (User Story 8) -->
-    <div class="logs-card" style="background: white; border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 25px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-        <h3 style="margin:0;">Email Response Logs (User Story #8)</h3>
-        <span id="systemHealthBead" style="display:flex; align-items:center; font-size:14px; font-weight:600; color:#555;">
-          <span style="height:12px; width:12px; border-radius:50%; background-color:#ccc; display:inline-block; margin-right:8px;" id="healthDot"></span>
+    <div class="logs-card">
+      <div class="logs-card-header">
+        <h3 class="logs-card-title">Email Response Logs (User Story #8)</h3>
+        <span id="systemHealthBead" class="logs-health-bead">
+          <span id="healthDot" class="health-dot"></span>
           System Status: Loading...
         </span>
       </div>
+
+      <!-- Warning banner shown when SQL is unavailable or an error occurred -->
+      <div id="logsWarningBanner" class="logs-warning-banner" hidden></div>
+
+      <!-- Filter toolbar -->
+      <div class="logs-filter-bar">
+        <div class="logs-filter-group">
+          <span class="logs-filter-label">Date</span>
+          <div class="logs-date-pills" role="group" aria-label="Date range">
+            <button class="logs-pill logs-pill-active" data-range="all">All Time</button>
+            <button class="logs-pill" data-range="today">Today</button>
+            <button class="logs-pill" data-range="week">Last 7 Days</button>
+            <button class="logs-pill" data-range="month">Last 30 Days</button>
+          </div>
+        </div>
+        <div class="logs-filter-group">
+          <span class="logs-filter-label">Status</span>
+          <select id="logsStatusFilter" class="logs-status-select">
+            <option value="all">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="ordered">Ordered</option>
+            <option value="expired">Expired</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="logs-filter-group logs-filter-grow">
+          <span class="logs-filter-label">Company / Email</span>
+          <input type="search" id="logsCompanySearch" class="logs-company-input"
+                 placeholder="Type to search by company or email…" autocomplete="off">
+        </div>
+      </div>
+
+      <!-- Row count (updates with filters) -->
+      <div class="logs-table-meta">
+        <span id="logsShowingCount" class="logs-showing-count">Loading…</span>
+      </div>
+
       <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse: collapse; text-align:left; font-size:14px;">
+        <table class="logs-table">
           <thead>
-            <tr style="border-bottom: 2px solid #eee;">
-              <th style="padding:10px;">ID</th>
-              <th style="padding:10px;">Timestamp</th>
-              <th style="padding:10px;">Customer Email</th>
-              <th style="padding:10px;">Intent Summary</th>
-              <th style="padding:10px;">Agent Category</th>
+            <tr class="logs-thead-row">
+              <th class="logs-th">ID</th>
+              <th class="logs-th">Timestamp</th>
+              <th class="logs-th">Customer Email</th>
+              <th class="logs-th">Intent Summary</th>
+              <th class="logs-th">Agent Category</th>
             </tr>
           </thead>
           <tbody id="logsTableBody">
-            <tr><td colspan="5" style="padding:15px; text-align:center; color:#777;">Loading email logs and traces...</td></tr>
+            <tr><td colspan="5" class="logs-placeholder">Loading email logs and traces...</td></tr>
           </tbody>
         </table>
       </div>
@@ -145,6 +186,7 @@
         // Animate stats (integers)
         animateValue('outstandingCount', 0, data.outstandingCount ?? 0, 800);
         animateValue('unavailableItems', 0, data.unavailableItems ?? 0, 800);
+        animateValue('totalQuotes',      0, data.totalQuotes      ?? 0, 800);
 
         // Do NOT animate currency string
         document.getElementById('outstandingTotal').textContent = data.outstandingTotal ?? '$0.00';
@@ -182,66 +224,196 @@
 
     fetchDashboardAnimated();
 
-    // User Story #8 and Monitoring Frontend Fetcher
+    // ====== Logs Filter State ======
+    // Server-side: dateRange, status (triggers a refetch on change)
+    // Client-side: company / email (instant filter on already-loaded rows)
+    let _logsDateRange   = 'all';
+    let _logsStatus      = 'all';
+    let _logsCompany     = '';
+    let _allLogs         = [];  // full set from current server fetch
+    let _logsServerTotal = 0;   // count matching date+status filter
+
+    // ====== Health + Logs Fetcher (server-side filters) ======
     async function fetchSystemHealthAndLogs() {
       try {
-        // Fetch Health
+        // --- Health bead ---
         const healthRes = await fetch('/admin/health');
-        const healthDot = document.getElementById('healthDot');
+        const healthDot  = document.getElementById('healthDot');
         const healthText = document.getElementById('systemHealthBead');
-        
         if (healthRes.ok) {
-           const healthData = await healthRes.json();
-           const apmStatus = healthData.appInsightsEnabled ? '& OTel Connected' : 'No OTel/APM';
-           healthDot.style.backgroundColor = '#28a745'; // Green
-           healthText.innerHTML = healthDot.outerHTML + ' API Online (' + apmStatus + ')';
+          const healthData = await healthRes.json();
+          const apmStatus = healthData.appInsightsEnabled ? '& OTel Connected' : 'No OTel/APM';
+          healthDot.style.backgroundColor = '#28a745';
+          healthText.innerHTML = healthDot.outerHTML + ' API Online (' + apmStatus + ')';
         } else {
-           healthDot.style.backgroundColor = '#dc3545'; // Red
-           healthText.innerHTML = healthDot.outerHTML + ' API Offline';
+          healthDot.style.backgroundColor = '#dc3545';
+          healthText.innerHTML = healthDot.outerHTML + ' API Offline';
         }
 
-        // Fetch User Story 8 Logs
-        const logsRes = await fetch('/admin/response-logs');
-        if (logsRes.ok) {
-          const logsData = await logsRes.json();
-          const tbody = document.getElementById('logsTableBody');
-          tbody.innerHTML = ''; // clear loading state
-          
-          logsData.logs.forEach(log => {
-            const row = document.createElement('tr');
-            row.style.borderBottom = '1px solid #eee';
-            
-            // Category badge styling logic
-            let catColor = '#6c757d'; // gray
-            let catClass = 'color: white; padding: 4px 8px; border-radius: 4px; font-size:12px; font-weight:600;';
-            if (log.category === 'Correct') catColor = '#28a745'; // green
-            if (log.category === 'Incorrect') catColor = '#dc3545'; // red
-            if (log.category === 'Fallback') { catColor = '#ffc107'; catClass += ' color:#333;'; } // yellow
+        // --- Build query string for server-side filters ---
+        const params = new URLSearchParams();
+        if (_logsDateRange !== 'all') params.set('dateRange', _logsDateRange);
+        if (_logsStatus    !== 'all') params.set('status',    _logsStatus);
 
-            row.innerHTML = `
-              <td style="padding:10px;">#${log.id}</td>
-              <td style="padding:10px; color:#555;">${new Date(log.timestamp).toLocaleTimeString()}</td>
-              <td style="padding:10px; font-weight:500;">${escapeHtml(log.email)}</td>
-              <td style="padding:10px;">
-                <div style="font-weight:600; margin-bottom:4px;">${escapeHtml(log.summary)}</div>
-                <div style="font-size:12px; color:#666;">Response: ${escapeHtml(log.response)}</div>
-              </td>
-              <td style="padding:10px;">
-                <span style="background:${catColor}; ${catClass}">${escapeHtml(log.category)}</span>
-                <div style="font-size:12px; color:#888; margin-top:4px;">Conf: ${log.confidence}</div>
-              </td>
-            `;
-            tbody.appendChild(row);
-          });
+        const logsRes      = await fetch(`/admin/response-logs?${params.toString()}`);
+        const warningBanner = document.getElementById('logsWarningBanner');
+
+        if (!logsRes.ok) {
+          _allLogs = []; _logsServerTotal = 0;
+          renderLogsTable();
+          document.getElementById('logsTableBody').innerHTML =
+            `<tr><td colspan="5" class="logs-placeholder logs-placeholder-error">Failed to reach the server (HTTP ${logsRes.status}).</td></tr>`;
+          return;
         }
+
+        const logsData = await logsRes.json();
+
+        // Warning banner
+        if (logsData.warning) {
+          warningBanner.textContent = '⚠ ' + logsData.warning;
+          warningBanner.removeAttribute('hidden');
+        } else {
+          warningBanner.textContent = '';
+          warningBanner.setAttribute('hidden', '');
+        }
+
+        _allLogs         = logsData.logs  || [];
+        _logsServerTotal = logsData.total ?? _allLogs.length;
+
+        renderLogsTable();
+
       } catch (err) {
-        console.error("Failed to load health and response logs", err);
+        console.error('Failed to load health and response logs', err);
+        const tbody = document.getElementById('logsTableBody');
+        if (tbody) tbody.innerHTML =
+          `<tr><td colspan="5" class="logs-placeholder logs-placeholder-error">Error loading logs: ${escapeHtml(String(err?.message || err))}</td></tr>`;
       }
     }
-    
-    // Initial fetch and 30 second polling
+
+    // ====== Logs Renderer (client-side company/email filter on top of server results) ======
+
+    /**
+     * Word-start prefix search with multi-token AND logic.
+     *
+     * Rules:
+     *  - Query is split on whitespace into tokens (all must match = AND).
+     *  - Each token must be a PREFIX of at least one "word" from the company
+     *    name (split on spaces/hyphens) OR one part of the email address
+     *    (split on @/./-).
+     *
+     * Examples:
+     *   "plumb"       → matches "Galaxy Plumbing"   ✓  ("Plumbing" starts with "plumb")
+     *   "bing"        → no match  "Galaxy Plumbing"  ✗  ("bing" is not a word-start)
+     *   "gal plumb"   → matches "Galaxy Plumbing"   ✓  (both tokens hit a word-start)
+     *   "admin"       → matches "admin@galaxyplumbing.com" ✓ (email local-part prefix)
+     */
+    function tokenSearch(log, rawQuery) {
+      const tokens = rawQuery.toLowerCase().split(/\s+/).filter(Boolean);
+      if (tokens.length === 0) return true;
+
+      // Company name words (split on spaces, hyphens, commas, dots, underscores)
+      const companyWords = String(log.company || '')
+        .toLowerCase()
+        .split(/[\s\-_,.]+/)
+        .filter(Boolean);
+
+      // Email parts: full address + local-part + each domain label
+      const email = String(log.email || '').toLowerCase();
+      const emailParts = [email, ...email.split(/[@.]+/).filter(Boolean)];
+
+      const targets = [...companyWords, ...emailParts];
+
+      // Every token must be a prefix of at least one target word
+      return tokens.every(tok => targets.some(t => t.startsWith(tok)));
+    }
+
+    function renderLogsTable() {
+      const tbody   = document.getElementById('logsTableBody');
+      const countEl = document.getElementById('logsShowingCount');
+
+      const filtered = _logsCompany
+        ? _allLogs.filter(log => tokenSearch(log, _logsCompany))
+        : _allLogs;
+
+      // "Showing X of Y" counter
+      if (countEl) {
+        const extra = _logsCompany ? ` matching “${escapeHtml(_logsCompany)}”` : '';
+        countEl.textContent = `Showing ${filtered.length} of ${_logsServerTotal} quotes${extra}`;
+      }
+
+      if (filtered.length === 0) {
+        tbody.innerHTML =
+          `<tr><td colspan="5" class="logs-placeholder">No quotes match the current filters.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      filtered.forEach(log => {
+        const row = document.createElement('tr');
+        row.className = 'logs-row';
+
+        let badgeClass = 'logs-badge logs-badge-incorrect';
+        if (log.category === 'Correct')  badgeClass = 'logs-badge logs-badge-correct';
+        if (log.category === 'Fallback') badgeClass = 'logs-badge logs-badge-fallback';
+
+        const tsDisplay = log.timestamp
+          ? new Date(log.timestamp).toLocaleString(undefined, {
+              month: 'short', day: 'numeric',
+              hour: '2-digit', minute: '2-digit', second: '2-digit'
+            })
+          : '—';
+
+        row.innerHTML = `
+          <td class="logs-td">#${log.id}</td>
+          <td class="logs-td logs-td-muted">${tsDisplay}</td>
+          <td class="logs-td logs-td-bold">${escapeHtml(log.email)}</td>
+          <td class="logs-td">
+            <div class="logs-summary">${escapeHtml(log.summary)}</div>
+            <div class="logs-response">Response: ${escapeHtml(log.response)}</div>
+          </td>
+          <td class="logs-td">
+            <span class="${badgeClass}">${escapeHtml(log.category)}</span>
+            <div class="logs-confidence">Conf: ${log.confidence}</div>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // ====== Filter Event Listeners ======
+
+    // Date range pills
+    document.querySelectorAll('.logs-pill').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.logs-pill').forEach(b => b.classList.remove('logs-pill-active'));
+        btn.classList.add('logs-pill-active');
+        _logsDateRange = btn.dataset.range;
+        fetchSystemHealthAndLogs();
+      });
+    });
+
+    // Status select
+    document.getElementById('logsStatusFilter').addEventListener('change', e => {
+      _logsStatus = e.target.value;
+      fetchSystemHealthAndLogs();
+    });
+
+    // Company / email — client-side instant filter, debounced 200 ms
+    let _companySearchTimer;
+    document.getElementById('logsCompanySearch').addEventListener('input', e => {
+      clearTimeout(_companySearchTimer);
+      _companySearchTimer = setTimeout(() => {
+        _logsCompany = e.target.value.trim();
+        renderLogsTable();
+      }, 200);
+    });
+
+    // Initial fetch + polling
     fetchSystemHealthAndLogs();
     setInterval(fetchSystemHealthAndLogs, 30000);
+
+    // Auto-refresh stat cards every 60 seconds so metrics stay live without a reload
+    setInterval(fetchDashboardAnimated, 60000);
 
     const DEBUG_ENABLED = (() => {
       try {

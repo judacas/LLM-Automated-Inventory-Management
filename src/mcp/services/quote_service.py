@@ -517,11 +517,17 @@ def get_dashboard_metrics() -> DashboardMetricsResponse:
         outstanding_count = row[0]
         outstanding_total = float(row[1])
 
+        # Count DISTINCT products customers requested in active quotes
+        # that are currently out of stock (matches requirement:
+        # "items requested by customers that are currently unavailable")
         cursor.execute(
             """
-            SELECT COUNT(*)
-            FROM Inventory
-            WHERE quantity_in_stock = 0
+            SELECT COUNT(DISTINCT qi.product_id)
+            FROM QuoteItems qi
+            JOIN Inventory i ON qi.product_id = i.product_id
+            JOIN Quotes q    ON qi.quote_id    = q.quote_id
+            WHERE i.quantity_in_stock = 0
+              AND q.status = 'active'
             """
         )
         row2 = cursor.fetchone()
