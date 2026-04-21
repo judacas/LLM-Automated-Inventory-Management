@@ -10,10 +10,10 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def call_email_api(email_payload):
-    url = os.environ.get("LOGIC_APP_URL")
+def call_logic_app_1(email_payload):
+    url = os.environ.get("LOGIC_APP_1_URL")
     if not url:
-        logging.error("LOGIC_APP_URL not found in environment variables.")
+        logging.error("LOGIC_APP_1_URL not found in environment variables.")
         return None
     proxies = {"http": None, "https": None}
     try:
@@ -21,7 +21,22 @@ def call_email_api(email_payload):
         response.raise_for_status()
         return {"success": True, "status": response.status_code}
     except Exception as e:
-        logging.error(f"Logic App API Call failed: {e}")
+        logging.error(f"Logic App 1 API Call failed: {e}")
+        return None
+
+
+def call_logic_app_2(invoice_payload):
+    url = os.environ.get("LOGIC_APP_2_URL")
+    if not url:
+        logging.error("LOGIC_APP_2_URL not found in environment variables.")
+        return None
+    proxies = {"http": None, "https": None}
+    try:
+        response = requests.post(url, json=invoice_payload, proxies=proxies, timeout=20)
+        response.raise_for_status()
+        return {"success": True, "status": response.status_code}
+    except Exception as e:
+        logging.error(f"Logic App 2 API Call failed: {e}")
         return None
 
 
@@ -46,43 +61,66 @@ def mcp_handler():
         return jsonify({
             "jsonrpc": "2.0", "id": req_id,
             "result": {
-                "tools": [{
-                    "name": "email_sender",
-                    "description": "Send a professional email via the business logic workflow.",
-                    "inputSchema": {
-                        "type": "object",
-                        "properties": {
-                            "email": {
-                                "type": "object",
-                                "description": "The email details",
-                                "properties": {
-                                    "to": {"type": "string", "description": "Recipient address"},
-                                    "subject": {"type": "string", "description": "Email subject line"},
-                                    "body": {"type": "string", "description": "Main message content"}
-                                },
-                                "required": ["to", "subject", "body"]
-                            }
-                        },
-                        "required": ["email"]
+                "tools": [
+                    {
+                        "name": "always_send_email",
+                        "description": "Send a professional customer service email to the customer. Include invoice details in the body if a purchase was made.",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "to": {"type": "string", "description": "Recipient email address"},
+                                "subject": {"type": "string", "description": "Email subject line"},
+                                "body": {"type": "string", "description": "Full email body content, including invoice details if applicable"}
+                            },
+                            "required": ["to", "subject", "body"]
+                        }
+                    },
+                    {
+                        "name": "shipping_department_sender",
+                        "description": "Forward invoice details to the shipping department when a purchase has been made.",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "subject": {"type": "string", "description": "Email subject line"},
+                                "body": {"type": "string", "description": "Invoice details to send to the shipping department"}
+                            },
+                            "required": ["subject", "body"]
+                        }
                     }
-                }]
+                ]
             }
         })
 
     if method == "tools/call":
         tool_name = params.get("name")
         arguments = params.get("arguments", {})
-        if tool_name == "email_sender":
-            email_info = arguments.get("email")
-            if not email_info:
+
+        if tool_name == "always_send_email":
+            if not arguments.get("to") or not arguments.get("subject") or not arguments.get("body"):
                 return jsonify({
                     "jsonrpc": "2.0", "id": req_id,
-                    "error": {"code": -32602, "message": "Missing 'email' argument"}
+                    "error": {"code": -32602, "message": "Missing required fields: 'to', 'subject', 'body'"}
                 }), 400
-            result = call_email_api(email_info)
+            result = call_logic_app_1(arguments)
             content_text = (
-                f"Successfully sent email to {email_info.get('to')}."
+                f"Successfully sent email to {arguments.get('to')}."
                 if result else "Failed to send email. Check logs for details."
+            )
+            return jsonify({
+                "jsonrpc": "2.0", "id": req_id,
+                "result": {"content": [{"type": "text", "text": content_text}]}
+            })
+
+        if tool_name == "shipping_department_sender":
+            if  not arguments.get("subject") or not arguments.get("body"):
+                return jsonify({
+                    "jsonrpc": "2.0", "id": req_id,
+                    "error": {"code": -32602, "message": "Missing required fields: 'subject', 'body'"}
+                }), 400
+            result = call_logic_app_2(arguments)
+            content_text = (
+                f"Successfully forwarded invoice to shipping department."
+                if result else "Failed to send invoice to shipping department. Check logs for details."
             )
             return jsonify({
                 "jsonrpc": "2.0", "id": req_id,

@@ -31,43 +31,38 @@ def get_db_connection():
     return pyodbc.connect(conn_str)
 
 
-def check_domain_onboarded(domain: str) -> dict | None:
+def check_email_onboarded(email: str) -> dict | None:
     try:
         conn   = get_db_connection()
         cursor = conn.cursor()
 
         cursor.execute("""
             SELECT
-                account_id,
                 company_name,
                 address,
                 business_type,
-                billing_method,
-                discount_percent,
-                authorized_emails
+                billing_method
             FROM dbo.BusinessAccounts
-            WHERE domain          = ?
+            WHERE email           = ?
               AND company_name    IS NOT NULL
               AND address         IS NOT NULL
               AND business_type   IS NOT NULL
               AND billing_method  IS NOT NULL
-        """, (domain,))
+        """, (email,))
 
         row = cursor.fetchone()
         conn.close()
 
         if not row:
-            logging.info(f"Domain '{domain}' not onboarded or incomplete.")
+            logging.info(f"Email '{email}' not onboarded or incomplete.")
             return None
 
         return {
-            "account_id":        row[0],
-            "company_name":      row[1],
-            "address":           row[2],
-            "business_type":     row[3],
-            "billing_method":    row[4],
-            "discount_percent":  float(row[5]) if row[5] else 0.0,
-            "authorized_emails": json.loads(row[6]) if row[6] else []
+            "email":          email,
+            "company_name":   row[0],
+            "address":        row[1],
+            "business_type":  row[2],
+            "billing_method": row[3],
         }
 
     except Exception as e:
@@ -75,12 +70,14 @@ def check_domain_onboarded(domain: str) -> dict | None:
         raise
 
 
+
 # ── Agent helpers ─────────────────────────────────────────────────────────────
 
-def call_onboarding_agent(sender_email: str, subject: str, body: str) -> None:
+def call_onboarding_agent(sender_email: str, subject: str, body: str) -> str:
     """
-    Fires the onboarding agent using AIProjectClient with DefaultAzureCredential.
-    Requires Azure AI User IAM role granted to the Function App managed identity.
+    Calls the userOnboarding agent in Azure AI Foundry.
+    Uses ONBOARDING_AGENT_ENDPOINT, ONBOARDING_AGENT_NAME, ONBOARDING_AGENT_VERSION
+    from environment variables.
     """
     project = AIProjectClient(
         endpoint=os.environ["ONBOARDING_AGENT_ENDPOINT"],
@@ -94,13 +91,9 @@ def call_onboarding_agent(sender_email: str, subject: str, body: str) -> None:
             {
                 "role": "user",
                 "content": (
-                    f"A new customer needs to be onboarded before receiving a quote.\n"
                     f"Sender Email: {sender_email}\n"
                     f"Subject: {subject}\n"
                     f"Message: {body}\n\n"
-                    f"Please collect the following: company name, business address, "
-                    f"type of business, authorized emails for purchase orders, "
-                    f"and preferred billing method (credit card or mailed invoice)."
                 )
             }
         ],
@@ -111,11 +104,52 @@ def call_onboarding_agent(sender_email: str, subject: str, body: str) -> None:
                 "type":    "agent_reference"
             }
         },
-
     )
 
-
     logging.info(f"Onboarding agent response: {response.output_text}")
+    return response.output_text
+
+
+def call_orchestrator_agent(
+    sender_email: str,
+    subject: str,
+    body: str
+) -> str:
+    """
+    Calls the userOrchestrator agent in Azure AI Foundry for fully onboarded customers.
+    Uses ORCHESTRATOR_AGENT_ENDPOINT, ORCHESTRATOR_AGENT_NAME, ORCHESTRATOR_AGENT_VERSION
+    from environment variables.
+    """
+    project = AIProjectClient(
+        endpoint=os.environ["ORCHESTRATOR_AGENT_ENDPOINT"],
+        credential=DefaultAzureCredential(),
+    )
+
+    openai_client = project.get_openai_client()
+
+    response = openai_client.responses.create(
+        input=[
+            {
+                "role": "user",
+                "content": (
+                    f"--- Incoming Email ---\n"
+                    f"Sender Email:    {sender_email}\n"
+                    f"Subject:          {subject}\n"
+                    f"Message:\n{body}"
+                )
+            }
+        ],
+        extra_body={
+            "agent_reference": {
+                "name":    os.environ["ORCHESTRATOR_AGENT_NAME"],
+                "version": os.environ["ORCHESTRATOR_AGENT_VERSION"],
+                "type":    "agent_reference"
+            }
+        },
+    )
+
+    logging.info(f"Orchestrator agent response: {response.output_text}")
+    return response.output_text
 
 
 # ── Main route ────────────────────────────────────────────────────────────────
@@ -130,14 +164,13 @@ def email_receiver_router(req: func.HttpRequest) -> func.HttpResponse:
         return func.HttpResponse("Invalid JSON body", status_code=400)
 
     sender          = data.get("from", "")
-    recipient       = data.get("to", "")
     subject         = data.get("subject", "")
     body            = data.get("body", "")
     has_attachments = data.get("hasAttachments", False)
 
     # ── Onboarding check ──────────────────────────────────────────────────────
     try:
-        is_onboarded = check_domain_onboarded(sender)
+        account = check_email_onboarded(sender)
     except Exception as e:
         logging.error(f"Database error during onboarding check: {e}")
         return func.HttpResponse(
@@ -146,38 +179,46 @@ def email_receiver_router(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json"
         )
 
-    if not is_onboarded:
+    # ── NOT onboarded → call userOnboarding agent ─────────────────────────────
+    if not account:
         logging.info(f"'{sender}' not onboarded. Calling onboarding agent.")
-
         try:
-            call_onboarding_agent(sender, subject, body)
+            agent_response = call_onboarding_agent(sender, subject, body)
         except Exception as e:
             logging.error(f"Onboarding agent call failed: {e}")
             return func.HttpResponse(
-                json.dumps({"error": "Onboarding agent unavailable. Please try again later.", "details": str(e)}),
+                json.dumps({"error": "Onboarding agent unavailable.", "details": str(e)}),
                 status_code=502,
                 mimetype="application/json"
             )
 
         return func.HttpResponse(
             json.dumps({
-                "status":  "onboarding_initiated",
-                "message": "Onboarding process has been started. The customer will be contacted via email."
+                "status":         "onboarding_initiated",
+                "message":        "Onboarding process started. Customer will be contacted via email.",
+                "agent_response": agent_response
             }),
             status_code=200,
             mimetype="application/json"
         )
 
-    # ── Domain is onboarded — route to quote agent ────────────────────────────
-    logging.info(f"'{sender}' is onboarded. Routing email.")
+    # ── Onboarded → call userOrchestrator agent ───────────────────────────────
+    logging.info(f"'{sender}' is onboarded. Calling orchestrator agent.")
+    try:
+        agent_response = call_orchestrator_agent(sender, subject, body)
+    except Exception as e:
+        logging.error(f"Orchestrator agent call failed: {e}")
+        return func.HttpResponse(
+            json.dumps({"error": "Orchestrator agent unavailable.", "details": str(e)}),
+            status_code=502,
+            mimetype="application/json"
+        )
 
     return func.HttpResponse(
         json.dumps({
-            "status":  "routed",
-            "message": (
-                f"Email received from {sender} to {recipient} "
-                f"with subject '{subject}'. Attachments: {has_attachments}."
-            )
+            "status":         "routed",
+            "message":        f"Email from '{sender}' routed to orchestrator agent.",
+            "agent_response": agent_response
         }),
         status_code=200,
         mimetype="application/json"
