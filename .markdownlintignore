@@ -1,0 +1,7 @@
+# Dependencies — not project-owned Markdown
+node_modules/
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/

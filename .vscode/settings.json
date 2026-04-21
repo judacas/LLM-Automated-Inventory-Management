@@ -1,0 +1,26 @@
+{
+	"python.analysis.typeCheckingMode": "standard",
+	"python.analysis.extraPaths": [
+		"./src"
+	],
+	"[python]": {
+		"editor.formatOnSave": true,
+		"editor.codeActionsOnSave": {
+			"source.fixAll": "explicit",
+			"source.organizeImports": "explicit"
+		},
+		"editor.defaultFormatter": "charliermarsh.ruff",
+	},
+	"[markdown]": {
+		"editor.codeActionsOnSave": {
+			"source.fixAll.markdownlint": "explicit"
+		}
+	},
+	"markdownlint.run": "onSave",
+	"azureFunctions.deploySubpath": ".",
+	"azureFunctions.scmDoBuildDuringDeployment": true,
+	"azureFunctions.pythonVenv": ".venv",
+	"azureFunctions.projectLanguage": "Python",
+	"azureFunctions.projectRuntime": "~4",
+	"debug.internalConsoleOptions": "neverOpen",
+}

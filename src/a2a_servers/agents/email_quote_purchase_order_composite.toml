@@ -1,0 +1,17 @@
+[composite]
+name = "AI Foundry Email Quote And Purchase Order Agent"
+description = "A comprehensive Contoso workflow agent that handles customer quote requests, purchase order completion, and outbound email communication. Routes to the appropriate agent based on intent."
+version = "1.0.0"
+health_message = "AI Foundry Email Quote And Purchase Order Agent is running!"
+default_input_modes = ["text"]
+default_output_modes = ["text"]
+streaming = false
+
+[[composite.members]]
+config = "quote_agent.toml"
+
+[[composite.members]]
+config = "email_agent.toml"
+
+[[composite.members]]
+config = "purchase_order_agent.toml"
