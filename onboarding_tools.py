@@ -11,10 +11,11 @@ load_dotenv()  # loads .env locally, ignored on PythonAnywhere (env vars set in 
 
 logging.basicConfig(level=logging.INFO)
 
+
 # ── DB Connection ──────────────────────────────────────────
 def get_db_connection():
     return pyodbc.connect(
-        f"Driver={{ODBC Driver 17 for SQL Server}};"   # 17 for PythonAnywhere, 18 for local
+        f"Driver={{ODBC Driver 17 for SQL Server}};"  # 17 for PythonAnywhere, 18 for local
         f"Server={os.environ['DB_SERVER']},1433;"
         f"Database={os.environ['DB_NAME']};"
         f"Uid={os.environ['DB_USER']};"
@@ -22,12 +23,14 @@ def get_db_connection():
         f"Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;"
     )
 
+
 # ── Core Logic ─────────────────────────────────────────────
 def check_domain_onboarded(domain: str) -> Optional[dict]:
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT account_id, company_name, address, business_type,
                    billing_method, discount_percent, authorized_emails
             FROM dbo.BusinessAccounts
@@ -36,7 +39,9 @@ def check_domain_onboarded(domain: str) -> Optional[dict]:
               AND address        IS NOT NULL
               AND business_type  IS NOT NULL
               AND billing_method IS NOT NULL
-        """, (domain,))
+        """,
+            (domain,),
+        )
         row = cursor.fetchone()
     except Exception as e:
         logging.error(f"DB check failed for '{domain}': {e}")
@@ -49,17 +54,19 @@ def check_domain_onboarded(domain: str) -> Optional[dict]:
         return None
 
     return {
-        "account_id":        row[0],
-        "company_name":      row[1],
-        "address":           row[2],
-        "business_type":     row[3],
-        "billing_method":    row[4],
-        "discount_percent":  float(row[5]) if row[5] is not None else 0.0,
-        "authorized_emails": json.loads(row[6]) if row[6] else []
+        "account_id": row[0],
+        "company_name": row[1],
+        "address": row[2],
+        "business_type": row[3],
+        "billing_method": row[4],
+        "discount_percent": float(row[5]) if row[5] is not None else 0.0,
+        "authorized_emails": json.loads(row[6]) if row[6] else [],
     }
+
 
 # ── MCP Tool ───────────────────────────────────────────────
 mcp = FastMCP("BusinessAccountsServer")
+
 
 @mcp.tool()
 def check_domain(domain: str) -> dict:
@@ -68,6 +75,7 @@ def check_domain(domain: str) -> dict:
     if result is None:
         return {"onboarded": False, "message": f"Domain '{domain}' is not onboarded."}
     return {"onboarded": True, **result}
+
 
 # ── ASGI App ───────────────────────────────────────────────
 mcp_app = mcp.http_app(path="/")
