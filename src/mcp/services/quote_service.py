@@ -227,7 +227,7 @@ def preview_quote(request: PreviewQuoteRequest) -> PreviewQuoteResponse:
 
         # Apply discount at total level
         if discount_flag == 1:
-            preview_total *= 0.9  # 10% discount example
+            preview_total *= 0.9  # 10% discount — must match confirm_quote
 
         return {
             "can_create_quote": len(available_items) > 0,
@@ -340,7 +340,7 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
             # -------------------------
             discount_amount = 0.0
             if discount_flag == 1:
-                discount_amount = round(subtotal * 0.05, 2)
+                discount_amount = round(subtotal * 0.10, 2)  # 10% — must match preview_quote
 
             total_amount = round(subtotal - discount_amount, 2)
 
