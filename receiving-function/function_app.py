@@ -1,11 +1,12 @@
-import azure.functions as func
 import json
 import logging
 import os
+
+import azure.functions as func
 import pyodbc
-from dotenv import load_dotenv
 from azure.ai.projects import AIProjectClient
 from azure.identity import DefaultAzureCredential
+from dotenv import load_dotenv
 
 # Load .env only when running locally (not in Azure)
 if "WEBSITE_HOSTNAME" not in os.environ:
@@ -167,7 +168,7 @@ def email_receiver_router(req: func.HttpRequest) -> func.HttpResponse:
     sender = data.get("from", "")
     subject = data.get("subject", "")
     body = data.get("body", "")
-    has_attachments = data.get("hasAttachments", False)
+    # data.get("hasAttachments", False)
 
     # ── Onboarding check ──────────────────────────────────────────────────────
     try:

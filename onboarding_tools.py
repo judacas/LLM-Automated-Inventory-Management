@@ -1,11 +1,12 @@
 import json
 import logging
 import os
-import pyodbc
 from typing import Optional
-from fastmcp import FastMCP
-from fastapi import FastAPI
+
+import pyodbc
 from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastmcp import FastMCP
 
 load_dotenv()  # loads .env locally, ignored on PythonAnywhere (env vars set in Web tab)
 

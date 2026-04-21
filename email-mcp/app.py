@@ -1,8 +1,9 @@
-import os
 import logging
+import os
+
 import requests
-from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+from flask import Flask, jsonify, request
 
 load_dotenv()
 
@@ -160,7 +161,7 @@ def mcp_handler():
                 ), 400
             result = call_logic_app_2(arguments)
             content_text = (
-                f"Successfully forwarded invoice to shipping department."
+                "Successfully forwarded invoice to shipping department."
                 if result
                 else "Failed to send invoice to shipping department. Check logs for details."
             )
@@ -181,5 +182,5 @@ def mcp_handler():
     )
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=5000)
