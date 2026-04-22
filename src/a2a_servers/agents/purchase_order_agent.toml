@@ -1,0 +1,52 @@
+[a2a]
+name = "AI Foundry Purchase Order Agent"
+description = "A user-side purchase-order agent for the Contoso customer email workflow. It helps authorized customers complete a purchase from an existing quote, validates that the request is eligible to proceed, and drives the downstream actions needed for invoicing, shipping notification, and inventory updates."
+version = "1.0.0"
+health_message = "AI Foundry Purchase Order Agent is running!"
+default_input_modes = ["text"]
+default_output_modes = ["text"]
+streaming = false
+
+[foundry]
+agent_name = "userPurchaseOrder"
+
+[smoke_tests]
+prompts = [
+    "A customer wants to proceed with a purchase order using a valid saved quote from two days ago. Complete the purchase-order workflow and provide the information needed for invoicing, shipping, and inventory updates.",
+    "A customer is trying to place a purchase order but does not have a quote yet. Respond according to the Contoso workflow.",
+    "A customer from an onboarded company wants to complete a purchase order, but the sender is not one of the authorized purchaser email addresses.",
+    "An authorized onboarded customer accepts the quote and wants to finalize the order. Generate the purchase order and trigger the required downstream business actions.",
+]
+
+[[skills]]
+id = "purchase_order_completion"
+name = "Purchase Order Completion"
+description = "Complete a customer purchase from an existing quote by confirming the quote can be used, generating the purchase order automatically, and returning the outcome needed by downstream invoicing, shipping, and inventory-update steps."
+tags = ["purchase-order", "customer", "quote", "fulfillment"]
+examples = [
+    "Use the customer's saved quote to complete the purchase order.",
+    "The customer accepts the quote and wants to place the order now.",
+    "Finalize the purchase and provide what billing, shipping, and inventory need next.",
+]
+
+[[skills]]
+id = "purchase_order_eligibility"
+name = "Purchase Order Eligibility"
+description = "Check whether a purchase-order request is allowed to proceed, including whether the customer is onboarded with the required business information, whether the customer already has a quote, whether the quote is still valid, and whether the sender is authorized to complete the purchase."
+tags = ["purchase-order", "authorization", "saved-quote", "policy"]
+examples = [
+    "Can this customer complete a purchase with the quote they received earlier this week?",
+    "The sender wants to buy now, but I need to verify they are authorized.",
+    "Check whether the purchase order can proceed or if the customer needs another step first.",
+]
+
+[[skills]]
+id = "purchase_order_redirection"
+name = "Purchase Order Redirection"
+description = "Redirect the request when the purchase-order agent cannot complete it, such as when the customer needs a quote first, needs a refreshed quote, or needs an authorized purchaser to proceed."
+tags = ["purchase-order", "workflow", "redirect", "clarification"]
+examples = [
+    "The customer wants to place an order, but there is no quote on file.",
+    "The saved quote expired, so explain the next step.",
+    "Tell the customer why this purchase order cannot be completed yet.",
+]

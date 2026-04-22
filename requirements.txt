@@ -24,6 +24,8 @@ certifi==2026.2.25
     #   httpx
 cffi==2.0.0 ; platform_python_implementation != 'PyPy'
     # via cryptography
+    # via starlette
+>>>>>>> main
 click==8.3.1
     # via
     #   typer
@@ -60,6 +62,14 @@ mdurl==0.1.2
     # via markdown-it-py
 pycparser==3.0 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
     # via cffi
+    # via anyio
+markupsafe==3.0.3
+mcp==1.26.0
+    # via llm-automated-inventory-management
+pyodbc==5.3.0
+    # via llm-automated-inventory-management
+packaging==26.0
+    # via gunicorn
 pydantic==2.12.5
     # via
     #   fastapi
@@ -130,3 +140,5 @@ uvicorn==0.41.0
     # via
     #   llm-automated-inventory-management
     #   mcp
+uvicorn==0.40.0
+    # via llm-automated-inventory-management
