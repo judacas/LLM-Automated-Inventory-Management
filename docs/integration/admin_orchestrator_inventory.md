@@ -28,13 +28,16 @@ Set the inventory MCP endpoint:
 ## Tool mapping (what the Admin agent should call)
 
 ### Inventory check
+
 - If the admin message includes a numeric `product_id`: call `get_inventory`.
 - Otherwise: call `inventory_admin_summary`.
 
 ### List all inventory
+
 - If the admin asks to list inventory levels for all products: call `get_all_inventory`.
 
 ### System summary (inventory contribution)
+
 - Call `inventory_admin_summary`.
 - Call `inventory_unavailable_requested_items` (default: Pending quotes).
 

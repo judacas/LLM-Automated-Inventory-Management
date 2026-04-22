@@ -1,0 +1,29 @@
+[a2a]
+name = "AI Foundry Email Agent"
+description = "An email agent whose only job is to send the message you provide as an email. It expects you to specify who the email should be sent to."
+version = "1.0.0"
+health_message = "AI Foundry Email Agent is running!"
+default_input_modes = ["text"]
+default_output_modes = ["text"]
+streaming = false
+
+[foundry]
+agent_name = "email"
+
+[smoke_tests]
+prompts = [
+    "Send an email to alex@example.com that says: The inventory review is complete and the updated quote is attached.",
+    "Email procurement@contoso.com and say we need approval for the backordered items by Friday.",
+    "Send this as an email: Please confirm tomorrow's delivery window.",
+]
+
+[[skills]]
+id = "email_sending"
+name = "Email Sending"
+description = "Send the exact message provided by the caller as an email to the specified recipient."
+tags = ["email", "send", "outbound", "message"]
+examples = [
+    "Send an email to taylor@example.com that says: Your order is ready for pickup.",
+    "Email ops@contoso.com and say the overnight batch completed successfully.",
+    "Send this message to sam@example.com: Please review the attached forecast before 3 PM.",
+]

@@ -9,6 +9,7 @@ The Inventory MCP server is exposed as an ASGI app at:
 - `inventory_mcp.app:app`
 
 Endpoints:
+
 - Health probe: `GET /health`
 - MCP (Streamable HTTP): `/mcp`
 
@@ -45,12 +46,13 @@ uv run python scripts/mcp_demo_client.py --url http://localhost:8000/mcp --produ
 ```
 
 This demo client will:
+
 - list tools
 - exercise the basic read/write tools (`get_inventory`, `reserve_inventory`, `receive_inventory`)
 - then call the admin read-only tools if present:
-	- `inventory_admin_summary`
-	- `get_all_inventory`
-	- `inventory_unavailable_requested_items`
+  - `inventory_admin_summary`
+  - `get_all_inventory`
+  - `inventory_unavailable_requested_items`
 
 ## Exercise the real SQL code path
 

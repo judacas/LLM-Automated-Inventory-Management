@@ -1,0 +1,27 @@
+[a2a]
+name = "Your A2A Agent Name"
+description = "Short description of what this agent does and when another agent should call it."
+version = "1.0.0"
+health_message = "Your A2A agent is running!"
+default_input_modes = ["text"]
+default_output_modes = ["text"]
+streaming = false
+
+[foundry]
+agent_name = "Your-Foundry-Agent-Name"
+
+[smoke_tests]
+prompts = [
+    "Replace this with a realistic prompt for your agent",
+    "Add another prompt that validates the main capability",
+]
+
+[[skills]]
+id = "primary_capability"
+name = "Primary Capability"
+description = "Describe the main thing this agent can do."
+tags = ["replace", "these", "tags"]
+examples = [
+    "Example request 1",
+    "Example request 2",
+]

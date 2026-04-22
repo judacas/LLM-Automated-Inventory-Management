@@ -10,4 +10,5 @@
 ## Notes
 
 Repeat deployments can be done using:
+
 - `scripts/deploy_inventory_mcp_appservice.sh`

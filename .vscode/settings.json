@@ -11,6 +11,12 @@
 		},
 		"editor.defaultFormatter": "charliermarsh.ruff",
 	},
+	"[markdown]": {
+		"editor.codeActionsOnSave": {
+			"source.fixAll.markdownlint": "explicit"
+		}
+	},
+	"markdownlint.run": "onSave",
 	"azureFunctions.deploySubpath": ".",
 	"azureFunctions.scmDoBuildDuringDeployment": true,
 	"azureFunctions.pythonVenv": ".venv",

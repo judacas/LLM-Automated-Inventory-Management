@@ -9,18 +9,20 @@ This guide validates that Inventory MCP is using the **SQL-backed repositories**
 
 ## Prerequisites
 
-1) A reachable SQL Server / Azure SQL database
-- Network access must allow connections from your machine.
-- If using Azure SQL, confirm firewall rules allow your current public IP.
+1. A reachable SQL Server / Azure SQL database
 
-2) ODBC driver available in WSL
+   - Network access must allow connections from your machine.
+   - If using Azure SQL, confirm firewall rules allow your current public IP.
 
-The Inventory MCP uses `pyodbc`, which requires an ODBC driver.
-For Ubuntu-based WSL, the common choice is Microsoft ODBC Driver 18.
+2. ODBC driver available in WSL
 
-If you do not have it installed, install it using Microsoft’s official Linux instructions for:
-- Microsoft ODBC Driver 18 for SQL Server
-- unixODBC
+   The Inventory MCP uses `pyodbc`, which requires an ODBC driver.
+   For Ubuntu-based WSL, the common choice is Microsoft ODBC Driver 18.
+
+   If you do not have it installed, install it using Microsoft’s official Linux instructions for:
+
+   - Microsoft ODBC Driver 18 for SQL Server
+   - unixODBC
 
 ## Step 1 — Start Inventory MCP with SQL enabled
 
@@ -63,6 +65,7 @@ uv run python scripts/mcp_demo_client.py --url http://localhost:8000/mcp --produ
 ```
 
 Expected:
+
 - Tool list prints
 - `get_inventory` returns data for your real DB product rows
 
@@ -79,30 +82,38 @@ It will call additional tools when they are available on the server.
 - `HYT00` / `Login timeout expired` (example: `[Microsoft][ODBC Driver 18 for SQL Server]Login timeout expired`):
   - This usually means the client could not establish a network connection to the SQL endpoint (not a credential error yet).
 
-  Checklist:
-  1) Verify the server hostname is correct
-    - Azure SQL format is typically: `<server>.database.windows.net`
-    - Make sure you did not include `https://` in the `Server=` value.
+### Checklist
 
-  2) Check DNS resolution from WSL
-    - Run: `nslookup <server>.database.windows.net`
-    - If DNS fails, you may be on a network/VPN configuration that blocks resolution.
+1. Verify the server hostname is correct
 
-  3) Check port 1433 reachability from WSL
-    - Run one of the following:
-     - `nc -vz <server>.database.windows.net 1433`
-     - or: `timeout 5 bash -c 'cat < /dev/null > /dev/tcp/<server>.database.windows.net/1433'`
-    - If this fails, a firewall or network policy is blocking outbound 1433.
+   - Azure SQL format is typically: `<server>.database.windows.net`
+   - Make sure you did not include `https://` in the `Server=` value.
 
-  4) Azure SQL firewall rules
-    - In the Azure Portal: SQL server → Networking → Public access
-    - Ensure your current public IP is allowed.
-    - If you are on campus/VPN, your public IP may change; re-check before testing.
-    - To find your public IP (WSL): `curl -s ifconfig.me`
+2. Check DNS resolution from WSL
 
-  5) Private endpoint / VNet integration
-    - If the database uses a private endpoint, it is not reachable from a typical local machine.
-    - In that case you must test from a machine inside the VNet (or via approved private connectivity).
+   - Run: `nslookup <server>.database.windows.net`
+   - If DNS fails, you may be on a network/VPN configuration that blocks resolution.
+
+3. Check port 1433 reachability from WSL
+
+   Run one of the following:
+
+   - `nc -vz <server>.database.windows.net 1433`
+   - or: `timeout 5 bash -c 'cat < /dev/null > /dev/tcp/<server>.database.windows.net/1433'`
+
+   If this fails, a firewall or network policy is blocking outbound 1433.
+
+4. Azure SQL firewall rules
+
+   - In the Azure Portal: SQL server → Networking → Public access
+   - Ensure your current public IP is allowed.
+   - If you are on campus/VPN, your public IP may change; re-check before testing.
+   - To find your public IP (WSL): `curl -s ifconfig.me`
+
+5. Private endpoint / VNet integration
+
+   - If the database uses a private endpoint, it is not reachable from a typical local machine.
+   - In that case you must test from a machine inside the VNet (or via approved private connectivity).
 
 - Login or network failures:
   - Re-check username/password and firewall/network rules.

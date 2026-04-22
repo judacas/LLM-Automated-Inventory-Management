@@ -8,8 +8,9 @@ You are implementing the Admin experience directly in **Azure AI Foundry** (prom
 
 ## Quick start
 
-1) Start Inventory MCP (so you can test tools)
-- See [../inventory/run_inventory_mcp.md](../inventory/run_inventory_mcp.md)
+1. Start Inventory MCP
+
+   - See [../inventory/run_inventory_mcp.md](../inventory/run_inventory_mcp.md)
 
 ## Foundry prompt agent
 
