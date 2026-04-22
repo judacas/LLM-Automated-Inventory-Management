@@ -2,15 +2,14 @@
 
 ## Overview
 
-The `database_tools` module is the core data layer for the LLM-Automated Inventory Management system. It provides a structured architecture for integrating with an Azure SQL database while exposing business operations through an **MCP (Model Context Protocol) server**.
+The `database_tools` module serves as the core data layer for the LLM-Automated Inventory Management system. It provides a robust architecture for integrating with an Azure SQL database and exposes business operations through an **MCP (Model Context Protocol) server**.
 
-All operations are **email-based**, allowing AI agents to retrieve and manage customer data, quotes, inventory, and purchase orders using email addresses as the primary lookup key. This module bridges the gap between AI agents and the underlying database, providing:
-- Database connection management
-- Email-centric business logic encapsulation (Services)
-- Tool interfaces for MCP exposure (Tools)
-- Tool registry for dynamic tool lookup
+All operations are **email-based**, enabling AI agents to retrieve and manage customer data, quotes, inventory, and purchase orders using email addresses as the primary identifier. This module acts as a bridge between AI agents and the database, offering:
 
----
+- Secure database connection management
+- Email-centric business logic encapsulation
+- MCP-compatible tool interfaces
+- Dynamic tool registry for efficient lookups
 
 ## Folder Structure
 
@@ -34,184 +33,79 @@ database_tools/
 └── __pycache__/
 ```
 
----
+## Components
 
-## Component Descriptions
+### 1. database.py - Connection Management
 
-### 1. **database.py** - Connection Management
-**Purpose**: Manages all database connectivity with Azure SQL.
+**Purpose**: Handles all database connectivity to Azure SQL.
 
 **Key Function**:
-- `get_connection()` - Establishes a pyODBC connection to Azure SQL Server using environment variables:
+- `get_connection()`: Establishes a secure pyODBC connection using environment variables:
   - `AZURE_SQL_SERVER`
   - `AZURE_SQL_DATABASE`
   - `AZURE_SQL_USERNAME`
   - `AZURE_SQL_PASSWORD`
 
-**Connection Details**:
-- Uses ODBC Driver 18 for SQL Server
-- Implements encryption and certificate validation
+**Connection Features**:
+- ODBC Driver 18 for SQL Server
+- Encryption and certificate validation enabled
 - 30-second connection timeout
 
----
+### 2. services/ - Business Logic Layer
 
-### 2. **services/** - Business Logic Layer
+Contains email-specific operations organized by business domain:
 
-This layer contains all email-specific operations, separated by business concern:
+#### business_service.py
+Handles business account operations:
+- `BusinessAccount` TypedDict: Defines account structure with fields like `account_id`, `company_name`, `email`, etc.
+- `create_business_account()`: Creates new accounts identified by email
+- `get_business_by_email(email)`: Retrieves accounts via email lookup
+- `normalize_billing_method()`: Validates billing methods (credit_card, mailed_invoice, etc.)
 
-#### **business_service.py**
-Email-based operations related to business accounts.
+#### quote_service.py
+Manages quotes and inventory:
+- **Quote Operations**: `get_active_quotes_by_email()`, `confirm_quote()`, `expire_quotes()`
+- **Inventory Operations**: `get_all_inventory()`, `get_inventory_status_by_name()`, `get_out_of_stock_items()`
+- **Analytics**: `get_dashboard_metrics()` for business insights
 
-**Key Components**:
-- `BusinessAccount` (TypedDict) - Business account data structure with fields:
-  - `account_id`, `company_name`, `address`, `business_type`, `billing_method`, `discount_percent`, `email`
-- `create_business_account()` - Creates a new business account in the database identified by email
-- `get_business_by_email(email)` - **Email-based lookup** - Retrieves a business account by email address
-- `normalize_billing_method()` - Validates and normalizes billing methods (credit_card, mailed_invoice, wire_transfer, ach, bank_transfer)
+#### purchase_service.py
+Handles purchase orders:
+- `create_purchase_order()`: Creates orders from quotes with optional email association
+- `get_purchase_orders_by_email()`: Email-based order retrieval
 
-#### **quote_service.py**
-Email-based operations related to quotes and inventory management.
+### 3. tools/ - MCP Tool Wrappers
 
-**Key Operations**:
-- Quote Management (Email-Based):
-  - `get_active_quotes_by_email(email)` - **Email-based lookup** - Retrieves active quotes for a specific customer
-  - `get_quote_by_id()` - Retrieves quote details by ID
-  - `confirm_quote()` - Confirms a quote and creates associated records
-  - `confirm_quote_by_product_name()` - Confirms a quote using product name instead of ID
-  - `expire_quotes()` - Handles quote expiration (valid for 5 days)
-  - `get_outstanding_quotes()` - Retrieves all outstanding quotes
+Wraps service functions for MCP compatibility:
 
-- Inventory Management:
-  - `get_all_inventory()` - Retrieves complete product inventory
-  - `get_inventory_status_by_name()` - Gets inventory status for a specific product
-  - `get_out_of_stock_items()` - Retrieves all out-of-stock products
-  - `get_product_id_by_name()` - Looks up product ID by product name
+#### business_tools.py
+- `tool_create_business_account()`: Creates accounts with email
+- `tool_get_business_by_email()`: Email-based account lookup
 
-- Dashboard Metrics:
-  - `get_dashboard_metrics()` - Provides business metrics and analytics
-  - Returns: `DashboardMetricsResponse` with key statistics
+#### quote_tools.py
+- `tool_confirm_quote_by_product_name()`: Confirms quotes using product names
+- `tool_get_active_quotes()`: Retrieves user quotes by email
+- `tool_get_dashboard_metrics()`: Provides business metrics
+- `tool_get_all_inventory()`: Lists all products
 
-**Data Models**:
-- `QuoteSummary` - Summary of a quote
-- `UserQuoteSummary` - User-specific quote information
-- `InventoryItem` - Product with inventory details
-- `InventoryStatusResponse` - Status of inventory
-- `OutOfStockItem` - Out-of-stock product details
-- `DashboardMetricsResponse` - Metrics and analytics
+#### purchase_tools.py
+- `tool_create_purchase_order()`: Creates purchase orders
+- `tool_get_purchase_orders()`: Email-based order retrieval
 
-#### **purchase_service.py**
-Email-based operations related to purchase orders.
+#### registry.py
+Central tool management:
+- `MCPToolRegistry` class for registering and discovering tools
+- Pre-registered tools for easy access
 
-**Key Operations**:
-- `create_purchase_order(quote_id, email)` - Creates a purchase order from a quote, optionally associated with customer email
-- `get_purchase_orders_by_email(email)` - **Email-based lookup** - Retrieves all purchase orders for a customer
+### 4. main.py - MCP Server
 
-**Data Models**:
-- `CreatePurchaseOrderInput` - Input data for creating a purchase order (includes optional email)
-- `PurchaseOrderResult` - Full purchase order with items detail
-- `PurchaseOrderSummary` - Summary of a purchase order
-- `PurchaseOrderItemResult` - Individual purchase order line item
+**Purpose**: Runs the MCP server exposing database tools to AI agents.
 
----
+**Configuration**:
+- Server Name: `SeniorProjectMCP`
+- Transport: Stateless HTTP via FastAPI
+- Security: DNS rebinding protection, CORS, allowed hosts
 
-### 3. **tools/** - MCP Tool Wrappers
-
-This layer wraps service functions to expose them as MCP-compatible tools. Each tool is a simple wrapper that:
-1. Accepts typed parameters
-2. Calls the corresponding service function
-3. Returns the result for MCP transport
-
-#### **business_tools.py**
-Email-aware wrappers for business account operations:
-- `tool_create_business_account()` - Creates a business account with email
-  - **Input**: `company_name` (str), `address` (str), `business_type` (str), `billing_method` (str), `email` (str)
-  - **Output**: `int` - The created account ID
-- `tool_get_business_by_email(email)` - **Email-based** - Retrieves business account by email
-  - **Input**: `email` (str)
-  - **Output**: `BusinessAccount | None` - Business account data or None if not found
-    - Structure: `{account_id: int, company_name: str, address: str, business_type: str, billing_method: str, discount_percent: int, email: str}`
-
-#### **quote_tools.py**
-Email-aware wrappers for quote and inventory operations:
-- `tool_get_product_id_by_name(name)` - Gets product ID
-  - **Input**: `name` (str) - Product name
-  - **Output**: `int` - The product ID
-- `tool_confirm_quote_by_product_name(request)` - Confirms quote by product name
-  - **Input**: `ConfirmQuoteByNameRequest` - `{email: str, items: [{name: str, quantity: int}]}`
-  - **Output**: `ConfirmQuoteResponse` - `{quote_id: int, status: str, valid_until: date, total_amount: float, fulfillment: [fulfillment_items]}`
-- `tool_confirm_quote(request)` - Confirms quote by product/quote ID
-  - **Input**: `ConfirmQuoteRequest` - `{email: str, items: [{product_id: int, quantity: int}]}`
-  - **Output**: `ConfirmQuoteResponse` - Same structure as above
-- `tool_get_active_quotes(email)` - **Email-based** - Gets active quotes for a user
-  - **Input**: `email` (str)
-  - **Output**: `list[UserQuoteSummary]` - List of quote summaries: `{quote_id: int, created_at: str, valid_until: str, total_amount: float}`
-- `tool_get_dashboard_metrics()` - Gets dashboard metrics
-  - **Input**: None
-  - **Output**: `DashboardMetricsResponse` - `{outstanding_quotes_count: int, outstanding_total_amount: float, out_of_stock_count: int}`
-- `tool_get_outstanding_quotes()` - Gets outstanding quotes
-  - **Input**: None
-  - **Output**: `list[QuoteSummary]` - `{quote_id: int, account_id: int, status: str, created_at: str, valid_until: str, total_amount: float}`
-- `tool_get_quote_by_id(quote_id)` - Gets quote details
-  - **Input**: `quote_id` (int)
-  - **Output**: `QuoteDetailResponse` - `{quote_id: int, account_id: int, status: str, created_at: str, valid_until: str, total_amount: float, line_items: [line_items]}`
-- `tool_get_out_of_stock_items()` - Gets out-of-stock items
-  - **Input**: None
-  - **Output**: `list[OutOfStockItem]` - `{product_id: int, product_name: str, quantity_in_stock: int}`
-- `tool_get_all_inventory()` - Gets all inventory
-  - **Input**: None
-  - **Output**: `list[InventoryItem]` - `{product_id: int, name: str, quantity_in_stock: int}`
-- `tool_get_inventory_status(name)` - Gets inventory status for a product
-  - **Input**: `name` (str) - Product name
-  - **Output**: `InventoryStatusResponse` - `{product_id: int, name: str, quantity_in_stock: int, status: str}`
-
-#### **purchase_tools.py**
-Email-aware wrappers for purchase order operations:
-- `tool_create_purchase_order(data)` - Creates a purchase order (includes optional email)
-  - **Input**: `CreatePurchaseOrderInput` - `{quote_id: int, email: str | None}`
-  - **Output**: `PurchaseOrderResult` - `{purchase_order_id: int, quote_id: int, account_id: int, status: str, total_amount: float, items: [order_items]}`
-- `tool_get_purchase_orders(email)` - **Email-based** - Gets purchase orders by email
-  - **Input**: `email` (str)
-  - **Output**: `list[PurchaseOrderSummary]` - `{purchase_order_id: int, quote_id: int, status: str, created_at: str, total_amount: float}`
-
-#### **registry.py**
-Central registry for tool management.
-
-**Key Class**: `MCPToolRegistry`
-- `register(name, func)` - Registers a tool
-- `get(name)` - Retrieves a tool by name
-- `list_tools()` - Lists all available tools
-
-**Pre-registered Tools**:
-All service tools are pre-registered in the `registry` instance for easy lookup by name.
-
----
-
-### 4. **main.py** - MCP Server & Tool Exposure
-
-**Purpose**: Configures and runs the MCP server that exposes database tools to AI agents.
-
-**Key Configurations**:
-- **Server Name**: `SeniorProjectMCP`
-- **Transport**: Stateless HTTP with FastAPI
-- **Security**: 
-  - DNS rebinding protection enabled
-  - Allowed hosts: Azure App Service, localhost, 127.0.0.1
-  - CORS configured for allowed origins
-
-**Tool Exposure**:
-Each service function is exposed as an MCP tool with:
-- Decorated with `@mcp.tool()`
-- Async wrapper for thread safety
-- Proper type annotations
-- Docstrings for tool discovery
-
-**Example Tools Exposed**:
-- Business management tools
-- Quote and inventory queries
-- Purchase order creation
-- Dashboard metrics retrieval
-
----
+**Tool Exposure**: Each service function becomes an MCP tool with async wrappers for thread safety.
 
 ## Architecture & Data Flow
 
@@ -259,17 +153,15 @@ Each service function is exposed as an MCP tool with:
 └─────────────────────────────────────────────────┘
 ```
 
----
-
 ## Deployment
 
 ### Docker Deployment
-The module includes a `Dockerfile` for containerized deployment, suitable for:
+Includes a `Dockerfile` for containerized deployment on:
 - Azure Container Instances
 - Azure App Service
 - Kubernetes clusters
 
-### Environment Variables Required
+### Required Environment Variables
 ```
 AZURE_SQL_SERVER=<server-name>.database.windows.net
 AZURE_SQL_DATABASE=<database-name>
@@ -277,58 +169,37 @@ AZURE_SQL_USERNAME=<username>
 AZURE_SQL_PASSWORD=<password>
 ```
 
----
-
 ## Design Patterns
 
-### 1. **Separation of Concerns**
-- **Services**: Pure business logic (database queries, calculations, email-based lookups)
-- **Tools**: MCP-compatible wrappers (type conversion, error handling, email parameter passing)
+### Separation of Concerns
+- **Services**: Pure business logic and database queries
+- **Tools**: MCP wrappers with type conversion and error handling
 - **Database**: Connection and configuration management
 
-### 2. **Email-Centric Architecture**
-- Customer data, quotes, and orders are accessed primarily via email addresses
-- Email serves as the primary lookup key across services
-- Enables agent-to-customer communication workflows
+### Email-Centric Design
+- Email as primary lookup key for customer operations
+- Enables seamless agent-to-customer workflows
+- Supports multi-email customer management
 
-### 3. **Type Safety**
-- Uses `TypedDict` for structured data (business_service.py)
-- Type annotations throughout for IDE support and validation
+### Type Safety & Registry
+- TypedDict structures for data validation
+- Centralized tool registry for dynamic discovery
+- Async operations for concurrent access
 
-### 4. **Registry Pattern**
-- Centralized tool registry for dynamic tool lookup
-- Allows programmatic discovery of available operations
+## Integration
 
-### 5. **Async/Thread Safety**
-- Tools use `asyncio.to_thread()` for thread-safe database access
-- Enables concurrent tool invocations from MCP server
-
----
-email-based tools from this module via MCP protocol
-- Route customer requests (identified by email) to appropriate tools using the registry
-- Combine tool results for complex multi-step operations
-- Handle email-initiated workflows (quote requests, purchase orders, etc.)
+### With A2A Servers
+- Agents access email-based tools via MCP protocol
+- Route customer requests using the tool registry
+- Handle complex multi-step operations
 
 ### With Inventory Service
-The `inventory_service` module can:
-- Access inventory data through `quote_service` functions
-- Sync inventory state between systems
-
-### Email-Driven Workflows
-- Agents use email addresses to identify customers and retrieve their data
-- Operations are contextual to the customer's email address
-- Supports multi-email scenarios for customer managementti-step operations
-
-### With Inventory Service
-The `inventory_service` module can:
-- Access inventory data through `quote_service` functions
-- Sync inventory state between systems
-
----
+- Sync inventory data through quote_service functions
+- Maintain consistent state across systems
 
 ## Future Enhancements
 
-- **Caching Layer**: Add Redis caching for frequently accessed inventory
-- **Audit Logging**: Track all database operations for compliance
-- **Connection Pooling**: Optimize database connection management
-- **Query Analytics**: Monitor slow queries and optimize performance
+- **Caching Layer**: Redis for frequently accessed data
+- **Audit Logging**: Track operations for compliance
+- **Connection Pooling**: Optimize database performance
+- **Query Analytics**: Monitor and optimize slow queries
