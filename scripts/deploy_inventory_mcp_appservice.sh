@@ -32,6 +32,27 @@ set -euo pipefail
 #   export WEBAPP_NAME="admin-inventory-mcp"
 #   ./scripts/deploy_inventory_mcp_appservice.sh
 
+SUBSCRIPTION="Brad Lawrence - Visual Studio Enterprise"
+
+# Resource group that contains your existing App Service Plan
+RG="CapstoneSpring2026"
+
+# Existing App Service plan (Linux B1)
+PLAN="asp-contoso-web-linux-b1"
+
+# Existing ACR name (NOT the login server)
+ACR_NAME="capstonemcpregistry2026"
+
+# Web App name (must be globally unique)
+WEBAPP_NAME="admin-inventory-mcp"
+
+# Container image naming
+IMAGE_REPO="inventory-mcp"
+IMAGE_TAG="$(date +%Y%m%d%H%M%S)"
+
+# Runtime port your container listens on (matches Dockerfile default)
+APP_PORT="8000"
+
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Missing dependency: $1" >&2

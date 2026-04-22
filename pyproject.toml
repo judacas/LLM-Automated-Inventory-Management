@@ -5,26 +5,21 @@ description = "Simple terminal chatbot using Azure AI Foundry"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "apscheduler>=3.11.2",
-    "fastapi>=0.128.8",
-    "mcp[cli]>=1.22.0",
-    "pyodbc>=5.3.0",
-    "python-dotenv>=1.2.1",
-    "typing-extensions>=4.15.0",
-    "uvicorn>=0.41.0",
-    "mcp>=1.26.0",
-    "pyodbc>=5.3.0",
-    "starlette>=0.52.1",
     "a2a-sdk>=0.3.0",
+    "apscheduler>=3.11.2",
     "azure-ai-projects>=2.0.0b4",
     "azure-identity>=1.23.0",
     "click>=8.0.0",
-    "httpx>=0.25.0",
-    "python-dotenv>=1.0.0",
-    "uvicorn>=0.34.2",
+    "fastapi>=0.128.8",
     "flask>=2.0.0",
+    "httpx>=0.25.0",
+    "mcp[cli]>=1.26.0",
+    "pyodbc>=5.3.0",
+    "python-dotenv>=1.2.1",
     "requests>=2.28.0",
-    "python-dotenv>=0.19.0",
+    "starlette>=0.52.1",
+    "typing-extensions>=4.15.0",
+    "uvicorn>=0.41.0",
 ]
 
 [dependency-groups]
@@ -47,7 +42,6 @@ build-backend = "hatchling.build"
 # This repo uses a `src/` layout. Hatchling expects package *paths*, not the
 # literal directory name.
 packages = [
-  "src/admin_orchestrator_agent",
   "src/inventory_mcp",
   "src/inventory_service",
 ]
@@ -69,31 +63,32 @@ ignore = ["S101", "E501"]  # Ignore "Use of assert detected" (standard for tests
 
 [tool.ruff.lint.isort]
 # Tell Ruff/isort which modules are part of this repo (src/ layout).
-known-first-party = ["admin_orchestrator_agent", "inventory_mcp", "inventory_service"]
+known-first-party = ["inventory_mcp", "inventory_service"]
 
 # TODO: change to a package importing version to avoid this adhoc dependency management
 [tool.deptry]
 root = "src"
-known_first_party = ["database_tools", "inventory_service", "admin_orchestrator_agent", "tool_api"]
+extend_exclude = [".*/tests/"]
+known_first_party = [
+    "database_tools",
+    "inventory_service",
+    "admin_orchestrator_agent",
+    "inventory_mcp",
+    "tool_api",
+    "a2a_servers",
+    "agent_definition",
+    "app_factory",
+    "composite_agent_executor",
+    "composite_definition",
+    "foundry_agent",
+    "foundry_agent_executor",
+    "foundry_agent_tools",
+    "foundry_tool_schema",
+    "settings",
+]
 
 [tool.deptry.per_rule_ignores]
 DEP002 = ["uvicorn"]
-extend_exclude = [".*/tests/"]
-known_first_party = [
-  "inventory_service",
-  "admin_orchestrator_agent",
-  "inventory_mcp",
-  "tool_api",
-  "a2a_servers",
-  "agent_definition",
-  "app_factory",
-  "composite_agent_executor",
-  "composite_definition",
-  "foundry_agent",
-  "foundry_agent_executor",
-  "foundry_tool_schema",
-  "settings",
-]
 
 [tool.pytest.ini_options]
 testpaths = ["src/a2a_servers/tests"]

@@ -2,26 +2,21 @@
 
 [Back to docs index](../README.md)
 
-This folder contains documentation for the **admin-facing** portion of the Contoso system:
+This folder contains documentation for the **admin-facing** portion of the Contoso system.
 
-- Admin Orchestrator service (HTTP API)
-- Local end-to-end validation against Inventory MCP
-- Foundry prompt-agent instruction text (routing/intent)
+You are implementing the Admin experience directly in **Azure AI Foundry** (prompt agent), so this repo no longer contains a local Admin Orchestrator HTTP service.
 
-## Quick start (local)
+## Quick start
 
 1. Start Inventory MCP
 
    - See [../inventory/run_inventory_mcp.md](../inventory/run_inventory_mcp.md)
 
-2. Start Admin Orchestrator
-
-   - See [run_admin_orchestrator.md](run_admin_orchestrator.md)
-
-3. Run end-to-end local test (orchestrator → Inventory MCP over HTTP)
-
-   - See [local_e2e_admin_orchestrator_inventory_mcp.md](local_e2e_admin_orchestrator_inventory_mcp.md)
-
 ## Foundry prompt agent
 
 - See [foundry_prompt_agent_instructions.md](foundry_prompt_agent_instructions.md)
+
+## Integration notes
+
+- Inventory tool contract (names/args): [../contracts/inventory_mcp_tools_v1.md](../contracts/inventory_mcp_tools_v1.md)
+- Admin agent → Inventory MCP notes: [../integration/admin_orchestrator_inventory.md](../integration/admin_orchestrator_inventory.md)

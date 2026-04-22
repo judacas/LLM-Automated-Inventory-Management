@@ -4,7 +4,6 @@ This folder contains the project’s Python modules and their module-local docum
 
 ## Modules
 
-- Admin Orchestrator: [admin_orchestrator_agent/README.md](admin_orchestrator_agent/README.md)
 - Inventory MCP: [inventory_mcp/README.md](inventory_mcp/README.md)
 - Inventory Service (domain + repositories): [inventory_service/README.md](inventory_service/README.md)
 
