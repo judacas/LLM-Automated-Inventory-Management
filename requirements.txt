@@ -139,5 +139,4 @@ uvicorn==0.41.0
     # via
     #   llm-automated-inventory-management
     #   mcp
-uvicorn==0.40.0
-    # via llm-automated-inventory-management
+
