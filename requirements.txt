@@ -25,7 +25,6 @@ certifi==2026.2.25
 cffi==2.0.0 ; platform_python_implementation != 'PyPy'
     # via cryptography
     # via starlette
->>>>>>> main
 click==8.3.1
     # via
     #   typer
