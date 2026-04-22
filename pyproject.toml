@@ -14,7 +14,7 @@ dependencies = [
     "uvicorn>=0.41.0",
     "mcp>=1.26.0",
     "pyodbc>=5.3.0",
-    "starlette>=0.52.1",
+    "starlette>=1.0.0",
     "a2a-sdk>=0.3.0",
     "azure-ai-projects>=2.0.0b4",
     "azure-identity>=1.23.0",
@@ -23,7 +23,7 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "uvicorn>=0.34.2",
     "flask>=2.0.0",
-    "requests>=2.28.0",
+    "requests>=2.33.0",
     "python-dotenv>=0.19.0",
 ]
 
