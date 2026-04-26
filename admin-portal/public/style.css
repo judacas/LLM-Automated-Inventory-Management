@@ -19,13 +19,12 @@ body {
 }
 
 .dashboard-container {
-  max-width: 1000px;
-  margin: 40px auto;
+  max-width: 1800px;
+  margin: 20px auto;
   background: #fff;
   padding: 40px;
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-  text-align: center;
 }
 
 /* Titles */
@@ -35,6 +34,7 @@ h1 {
 }
 
 .dashboard-title {
+  text-align: center;
   font-size: 2em;
   margin-bottom: 5px;
 }
@@ -46,6 +46,7 @@ h1 {
 }
 
 .welcome-message {
+  text-align: center;
   font-size: 1.2em;
   margin-bottom: 30px;
   font-weight: 500;
@@ -54,7 +55,7 @@ h1 {
 /* Shown when SQL + MCP metrics are unavailable or request fails */
 .dashboard-metrics-warning {
   margin: 0 auto 24px;
-  max-width: 720px;
+  width: 100%;
   padding: 12px 16px;
   border-radius: 8px;
   border: 1px solid #e6a100;

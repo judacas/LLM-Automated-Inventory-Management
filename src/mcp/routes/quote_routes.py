@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from opentelemetry import trace
 
 from mcp.services.quote_service import (
     ConfirmQuoteRequest,
@@ -27,11 +28,14 @@ from mcp.services.quote_service import (
 )
 
 router = APIRouter(prefix="/quotes", tags=["Quotes"])
+tracer = trace.get_tracer(__name__)
 
 
 @router.post("/preview", response_model=PreviewQuoteResponse)
 def preview(request: PreviewQuoteRequest) -> PreviewQuoteResponse:
     try:
+        span = trace.get_current_span()
+        span.set_attribute("workflow_type", "quote_preview")
         return preview_quote(request)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -40,6 +44,8 @@ def preview(request: PreviewQuoteRequest) -> PreviewQuoteResponse:
 @router.post("/confirm", response_model=ConfirmQuoteResponse)
 def confirm(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
     try:
+        span = trace.get_current_span()
+        span.set_attribute("workflow_type", "quote_confirm")
         return confirm_quote(request)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -82,4 +88,7 @@ def inventory() -> list[InventoryItem]:
 
 @router.get("/admin/{quote_id}", response_model=QuoteDetailResponse)
 def quote_detail(quote_id: int) -> QuoteDetailResponse:
+    span = trace.get_current_span()
+    span.set_attribute("quote_id", quote_id)
+    span.set_attribute("workflow_type", "quote_detail")
     return get_quote_by_id(quote_id)

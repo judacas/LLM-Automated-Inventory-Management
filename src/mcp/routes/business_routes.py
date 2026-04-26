@@ -1,6 +1,7 @@
 from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException
+from opentelemetry import trace
 from pydantic import BaseModel
 
 from mcp.services.business_service import (
@@ -9,6 +10,7 @@ from mcp.services.business_service import (
 )
 
 router = APIRouter(prefix="/business", tags=["Business"])
+tracer = trace.get_tracer(__name__)
 
 
 class CreateBusinessRequest(BaseModel):
@@ -23,6 +25,9 @@ class CreateBusinessRequest(BaseModel):
 @router.post("/")
 def create_business(request: CreateBusinessRequest) -> Dict[str, int]:
     try:
+        span = trace.get_current_span()
+        span.set_attribute("company_name", request.company_name)
+        span.set_attribute("workflow_type", "business_onboarding")
         account_id = create_business_account(
             company_name=request.company_name,
             address=request.address,
@@ -38,6 +43,9 @@ def create_business(request: CreateBusinessRequest) -> Dict[str, int]:
 
 @router.get("/{domain}")
 def get_business(domain: str) -> Dict[str, Any]:
+    span = trace.get_current_span()
+    span.set_attribute("domain", domain)
+    span.set_attribute("workflow_type", "business_lookup")
     business = get_business_by_domain(domain)
     if business is None:
         raise HTTPException(status_code=404, detail="Business not found.")
