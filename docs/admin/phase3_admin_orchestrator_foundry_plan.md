@@ -25,13 +25,13 @@ This setup is designed to satisfy User Stories #5–#7.
 - Admin can view total number of outstanding quotes.
 - Admin can view dollar value of a selected outstanding quote.
 
-#### Routing
+#### Quote Routing
 
 - Quote-related questions are answered via **Business MCP** tools (or via your Quote agent if you later add A2A).
 
 ### User Story #6 (Requested but unavailable items)
 
-#### Routing
+#### Inventory Routing
 
 - Inventory-related: route to Inventory MCP tool `inventory_unavailable_requested_items`.
 
