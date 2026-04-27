@@ -36,7 +36,7 @@
     <!-- Row 2: System Performance Monitoring -->
     <div class="logs-card">
       <div class="logs-card-header">
-        <h3 class="logs-card-title">Customer Email Response Review</h3>
+        <h3 class="logs-card-title">Response Evaluation Logs</h3>
         <span id="systemHealthBead" class="logs-health-bead">
           <span id="healthDot" class="health-dot"></span>
           System Status: Loading...
@@ -69,10 +69,14 @@
             <option value="Pending">Pending</option>
           </select>
         </div>
-        <div class="logs-filter-group logs-filter-grow">
-          <span class="logs-filter-label">Customer Email</span>
+        <div class="logs-filter-group" style="flex-grow: 1;">
+          <span class="logs-filter-label">Customer Email / Time</span>
           <input type="search" id="logsCompanySearch" class="logs-company-input"
-                 placeholder="Type to search by customer email…" autocomplete="off">
+                 placeholder="Search by email or time…" autocomplete="off">
+        </div>
+        <div class="logs-filter-group">
+          <span class="logs-filter-label">Min Confidence</span>
+          <input type="number" id="logsConfidenceFilter" class="logs-status-select" style="width: 100px;" step="0.1" min="0" max="1" placeholder="0.0">
         </div>
       </div>
 
@@ -91,13 +95,14 @@
         <span id="logsShowingCount" class="logs-showing-count">Loading response evaluations…</span>
       </div>
 
-      <div style="overflow-x:auto;">
+      <div class="evals-scroll-window">
         <table class="logs-table">
           <thead>
             <tr class="logs-thead-row">
               <th class="logs-th">Timestamp</th>
+              <th class="logs-th">Company</th>
               <th class="logs-th">Customer Email</th>
-              <th class="logs-th">Subject</th>
+              <th class="logs-th">Quote #</th>
               <th class="logs-th">Customer Request</th>
               <th class="logs-th">Final System Response</th>
               <th class="logs-th">Classification</th>
@@ -134,11 +139,26 @@
         </table>
       </div>
 
-      <h3 class="logs-card-title" style="margin-top: 40px;">Recent User-Orchestrator Traces</h3>
+      <h3 class="logs-card-title" style="margin-top: 40px;">User Orchestrator Traces</h3>
       
       <!-- Trace Filters -->
       <div class="logs-filter-bar">
 
+        <div class="logs-filter-group">
+          <span class="logs-filter-label">Range</span>
+          <select id="tracesRangeFilter" class="logs-status-select">
+            <option value="24h">Last 24 Hours</option>
+            <option value="7d" selected>Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+          </select>
+        </div>
+        <div class="logs-filter-group">
+          <span class="logs-filter-label">Sort</span>
+          <select id="tracesSortFilter" class="logs-status-select">
+            <option value="desc">Newest First</option>
+            <option value="asc">Oldest First</option>
+          </select>
+        </div>
         <div class="logs-filter-group">
           <span class="logs-filter-label">Success</span>
           <select id="tracesSuccessFilter" class="logs-status-select">
@@ -147,11 +167,22 @@
             <option value="false">No</option>
           </select>
         </div>
-
-
+        <div class="logs-filter-group">
+          <span class="logs-filter-label">Duration</span>
+          <select id="tracesDurationFilter" class="logs-status-select">
+            <option value="all">Any</option>
+            <option value="fast">Fast (< 2s)</option>
+            <option value="normal">Normal (2s - 10s)</option>
+            <option value="slow">Slow (> 10s)</option>
+          </select>
+        </div>
+        <div class="logs-filter-group" style="flex-grow: 1;">
+          <span class="logs-filter-label">Filter Time</span>
+          <input type="text" id="tracesTimeSearch" class="logs-company-input" placeholder="Search timestamp…">
+        </div>
       </div>
 
-      <div style="overflow-x:auto;">
+      <div class="traces-scroll-window">
         <table class="logs-table">
           <thead>
             <tr class="logs-thead-row">
@@ -371,24 +402,49 @@
     function renderResponseEvaluationsTable() {
       const tbody = document.getElementById('logsTableBody');
       const countEl = document.getElementById('logsShowingCount');
-      countEl.textContent = `Showing ${_evaluationRows.length} response evaluations`;
-      if (!_evaluationRows.length) {
-        tbody.innerHTML = `<tr><td colspan="10" class="logs-placeholder">No response evaluations found for current filters.</td></tr>`;
+      
+      const confidenceFilter = parseFloat(document.getElementById('logsConfidenceFilter').value) || 0;
+      const searchVal = document.getElementById('logsCompanySearch').value.toLowerCase();
+      
+      let filtered = _evaluationRows.filter(row => {
+        const conf = parseFloat(row.confidence_score) || 0;
+        if (conf < confidenceFilter) return false;
+        
+        if (searchVal) {
+          const email = (row.customer_email || '').toLowerCase();
+          const timestamp = row.timestamp ? String(row.timestamp).replace('T', ' ').toLowerCase() : '';
+          if (!email.includes(searchVal) && !timestamp.includes(searchVal)) return false;
+        }
+        return true;
+      });
+
+      countEl.textContent = `Showing ${filtered.length} response evaluations`;
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="10" class="logs-placeholder">No response evaluations found matching criteria.</td></tr>`;
         return;
       }
 
       tbody.innerHTML = '';
-      _evaluationRows.forEach((row) => {
+      filtered.forEach((row) => {
         const tr = document.createElement('tr');
         tr.className = 'logs-row';
         const created = row.timestamp ? String(row.timestamp).replace('T', ' ').substring(0, 19) : '—';
         const classification = row.classification || '';
         tr.innerHTML = `
           <td class="logs-td logs-td-muted">${escapeHtml(created)}</td>
+          <td class="logs-td">${escapeHtml(row.company || '—')}</td>
           <td class="logs-td logs-td-bold">${escapeHtml(row.customer_email || '—')}</td>
-          <td class="logs-td">${escapeHtml(row.customer_subject || '—')}</td>
-          <td class="logs-td"><div class="logs-response">${escapeHtml(row.customer_email_body || '')}</div></td>
-          <td class="logs-td"><div class="logs-response">${escapeHtml(row.final_system_response || '')}</div></td>
+          <td class="logs-td">${escapeHtml(String(row.response_log_id || '—'))}</td>
+          <td class="logs-td">
+            <div class="logs-response-container" title="${escapeHtml(row.customer_email_body || '')}">
+              ${escapeHtml(row.customer_email_body || '')}
+            </div>
+          </td>
+          <td class="logs-td">
+            <div class="logs-response-container" title="${escapeHtml(row.final_system_response || '')}">
+              ${escapeHtml(row.final_system_response || '')}
+            </div>
+          </td>
           <td class="logs-td">
             <select class="logs-status-select eval-classification" data-id="${row.id}">
               <option value="" ${classification ? '' : 'selected'}>Pending</option>
@@ -396,10 +452,9 @@
               <option value="Incorrect" ${classification === 'Incorrect' ? 'selected' : ''}>Incorrect</option>
               <option value="Fallback" ${classification === 'Fallback' ? 'selected' : ''}>Fallback</option>
             </select>
-            <div style="margin-top:6px;"><span class="${classifyBadgeClass(classification)}">${escapeHtml(classification || 'Pending')}</span></div>
           </td>
-          <td class="logs-td"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-id="${row.id}" value="${row.confidence_score ?? ''}" placeholder="0-1"></td>
-          <td class="logs-td">${escapeHtml(row.evaluator_source || 'Manual')}</td>
+          <td class="logs-td"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-id="${row.id}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;"></td>
+          <td class="logs-td logs-td-muted">${escapeHtml(row.evaluator_source || 'Manual')}</td>
           <td class="logs-td"><input type="text" class="logs-company-input eval-notes" data-id="${row.id}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes"></td>
           <td class="logs-td"><button class="nav-btn eval-save-btn" data-id="${row.id}">Save</button></td>
         `;
@@ -454,7 +509,8 @@
     let _traceRows = [];
 
     async function fetchUserOrchestratorTraces() {
-      const res = await fetch(`/admin/user-orchestrator-traces?range=${encodeURIComponent(_range)}`);
+      const traceRange = document.getElementById('tracesRangeFilter').value;
+      const res = await fetch(`/admin/user-orchestrator-traces?range=${encodeURIComponent(traceRange)}`);
       const data = await res.json();
       _traceRows = data.traces || [];
       renderUserOrchestratorTracesTable();
@@ -463,12 +519,30 @@
     function renderUserOrchestratorTracesTable() {
       const tbody = document.getElementById('userOrchestratorTracesBody');
       const successFilter = document.getElementById('tracesSuccessFilter').value;
+      const durationFilter = document.getElementById('tracesDurationFilter').value;
+      const timeSearch = document.getElementById('tracesTimeSearch').value.toLowerCase();
+      const sortOrder = document.getElementById('tracesSortFilter').value;
+
       let filtered = _traceRows.filter(r => {
         const isSuccess = r.success === true || String(r.success).toLowerCase() === 'true';
         if (successFilter === 'true' && !isSuccess) return false;
         if (successFilter === 'false' && isSuccess) return false;
 
+        const durationSec = (Number(r.duration) || 0) / 1000;
+        if (durationFilter === 'fast' && durationSec >= 2) return false;
+        if (durationFilter === 'normal' && (durationSec < 2 || durationSec > 10)) return false;
+        if (durationFilter === 'slow' && durationSec <= 10) return false;
+
+        const timestampStr = new Date(r.timestamp).toLocaleString().toLowerCase();
+        if (timeSearch && !timestampStr.includes(timeSearch)) return false;
+
         return true;
+      });
+
+      filtered.sort((a, b) => {
+        const timeA = new Date(a.timestamp).getTime();
+        const timeB = new Date(b.timestamp).getTime();
+        return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
       });
 
       if (!filtered.length) {
@@ -496,12 +570,10 @@
           }
         }
 
-        const opIdDisplay = r.operation_Id ? `${r.operation_Id.substring(0,8)}...` : '—';
-        
         return `
         <tr class="logs-row">
           <td class="logs-td logs-td-muted">${escapeHtml(new Date(r.timestamp).toLocaleString())}</td>
-          <td class="logs-td" title="${escapeHtml(r.operation_Id || '')}">${escapeHtml(opIdDisplay)}</td>
+          <td class="logs-td" title="${escapeHtml(r.operation_Id || '')}">${escapeHtml(r.operation_Id || '—')}</td>
           <td class="logs-td">${r.success === false ? 'No' : 'Yes'}</td>
           <td class="logs-td">${durationStr}</td>
           <td class="logs-td">${escapeHtml(r.resultCode || r.message || 'N/A')}</td>
@@ -538,13 +610,20 @@
     document.getElementById('logsCompanySearch').addEventListener('input', (e) => {
       clearTimeout(_searchDebounce);
       _searchDebounce = setTimeout(() => {
-        _customerEmail = e.target.value.trim();
-        fetchResponseEvaluations();
-      }, 250);
+        renderResponseEvaluationsTable();
+      }, 150);
+    });
+
+    document.getElementById('logsConfidenceFilter').addEventListener('input', () => {
+      renderResponseEvaluationsTable();
     });
 
     const renderTraces = () => renderUserOrchestratorTracesTable();
     document.getElementById('tracesSuccessFilter').addEventListener('change', renderTraces);
+    document.getElementById('tracesDurationFilter').addEventListener('change', renderTraces);
+    document.getElementById('tracesSortFilter').addEventListener('change', renderTraces);
+    document.getElementById('tracesTimeSearch').addEventListener('input', renderTraces);
+    document.getElementById('tracesRangeFilter').addEventListener('change', fetchUserOrchestratorTraces);
 
     document.getElementById('chatSendBtn').addEventListener('click', sendChat);
     refreshMonitoring();

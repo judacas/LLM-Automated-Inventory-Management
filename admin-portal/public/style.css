@@ -853,3 +853,38 @@ button:hover { background: #106ebe; }
   color: #999;
   font-style: italic;
 }
+
+.traces-scroll-window {
+  max-height: 600px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 20px;
+}
+
+
+.evals-scroll-window {
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 20px;
+}
+
+
+.logs-response-container {
+  max-width: 250px;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #555;
+  cursor: pointer;
+}
+

@@ -204,4 +204,5 @@ __marimo__/
 
 node_modules/
 
-.local/
+admin-portal/cookies.txt
+admin-portal/scratch/

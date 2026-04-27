@@ -668,9 +668,39 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await request.query(`
       WITH Evals AS (
-        SELECT re.*, q.created_at AS quote_created_at
-        FROM dbo.response_evaluations re
-        LEFT JOIN Quotes q ON re.response_log_id = q.quote_id
+        SELECT 
+          re.id,
+          q.quote_id AS response_log_id,
+          ba.email AS customer_email,
+          ba.company_name AS company,
+          COALESCE(re.customer_subject, CONCAT('Quote #', q.quote_id, ' request')) AS customer_subject,
+          COALESCE((
+            SELECT TOP 1 customer_email_content 
+            FROM EmailLogs el 
+            WHERE el.customer_email = ba.email 
+              AND el.created_at <= q.created_at 
+            ORDER BY el.created_at DESC
+          ), re.customer_email_body, 'Pending review…') AS customer_email_body,
+          COALESCE((
+            SELECT TOP 1 NULLIF(contoso_email_response, ' ') 
+            FROM EmailLogs el 
+            WHERE el.customer_email = ba.email 
+              AND el.created_at <= q.created_at 
+            ORDER BY el.created_at DESC
+          ), re.final_system_response, CONCAT('[Quote Summary] ', q.status, '; total: $', FORMAT(q.total_amount, 'N2'))) AS final_system_response,
+          COALESCE(re.agent_name, 'userOrchestrator') AS agent_name,
+          COALESCE(re.classification, 'Pending') AS classification,
+          re.confidence_score,
+          re.evaluator_source,
+          re.review_notes,
+          re.true_label,
+          re.predicted_label,
+          re.reviewed_by,
+          re.reviewed_at,
+          q.created_at AS quote_created_at
+        FROM Quotes q
+        JOIN BusinessAccounts ba ON q.account_id = ba.account_id
+        LEFT JOIN dbo.response_evaluations re ON re.response_log_id = q.quote_id
       )
       SELECT TOP 500 *
       FROM Evals
@@ -894,9 +924,12 @@ app.get('/admin/evaluation-summary', authenticateToken, async (req, res) => {
         SUM(CASE WHEN classification = 'Fallback' THEN 1 ELSE 0 END) AS fallback_count,
         AVG(CASE WHEN confidence_score IS NOT NULL THEN confidence_score END) AS average_confidence
       FROM (
-        SELECT re.*, q.created_at AS quote_created_at
-        FROM dbo.response_evaluations re
-        LEFT JOIN Quotes q ON re.response_log_id = q.quote_id
+        SELECT 
+          re.classification, 
+          re.confidence_score,
+          q.created_at AS quote_created_at
+        FROM Quotes q
+        LEFT JOIN dbo.response_evaluations re ON re.response_log_id = q.quote_id
       ) AS Evals
       ${whereClause}
     `);
