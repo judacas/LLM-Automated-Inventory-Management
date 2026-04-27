@@ -29,6 +29,7 @@ chmod +x redeploy.sh               # first time only
 ```
 
 The script will:
+
 1. Login to ACR
 2. Build a new image with a timestamp tag (e.g. `20260325-1430`) and `:latest`
 3. Push both tags to ACR
@@ -56,7 +57,7 @@ Follow these steps once when provisioning from scratch.
 az login
 ```
 
-3. Select the right subscription (if needed):
+1. Select the right subscription (if needed):
 
 ```bash
 az account show
@@ -209,7 +210,7 @@ az webapp config appsettings set \
 **Optional variables** (set these if your setup uses them):
 
 | Variable | Purpose |
-|---|---|
+| --- | --- |
 | `MCP_API_KEY` | API key sent as `x-api-key` to the MCP service |
 | `TOOL_API_BASE_URL` | Base URL for inventory tool API (SKU lookups) |
 | `TOOL_API_KEY` | API key for the tool API |
@@ -248,7 +249,7 @@ Optional debug mode: `https://<defaultHostName>/dashboard.html?debug=1`
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
-|---------|-------------|-----|
+| --- | --- | --- |
 | "Application Error" on every page | Container crashes on startup | Check logs: `az webapp log tail --name "$WEBAPP" --resource-group "$RG"` |
 | "Application Error" but logs show app started | Port mismatch | Make sure `WEBSITES_PORT=3000` is set |
 | `/admin/chat` returns 401 | Managed Identity lacks Foundry access | Ask a subscription owner to assign **Azure AI User** on `test-agentusf1-resource` to the App Service identity |
@@ -266,7 +267,7 @@ az webapp log tail --name "$WEBAPP" --resource-group "$RG"
 ## What does NOT require a redeploy
 
 | Change | Action needed |
-|--------|--------------|
+| --- | --- |
 | MCP service redeployed (same URL) | None |
 | Foundry agent instructions updated | None |
 | Environment variable changed | Update in Azure Portal → App Service → Environment variables, then restart the web app |

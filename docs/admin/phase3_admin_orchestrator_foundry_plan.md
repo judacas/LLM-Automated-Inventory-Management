@@ -37,7 +37,8 @@ This setup is designed to satisfy User Stories #5–#7.
 
 ### User Story #7 (General system status)
 
-**Routing**
+#### Routing Instructions
+
 - Inventory rollups: `inventory_admin_summary`
 - Requested-unavailable items: `inventory_unavailable_requested_items`
 - Inventory levels for all products: `get_all_inventory`
@@ -47,6 +48,7 @@ This setup is designed to satisfy User Stories #5–#7.
 ## Foundry prompt instructions
 
 Use the Phase 3 prompt text from:
+
 - [foundry_prompt_agent_instructions.md](foundry_prompt_agent_instructions.md)
 
 That prompt is written for a tool-using admin agent.

@@ -1,6 +1,6 @@
 # Contoso Admin Portal
 
-**USF Capstone — Microsoft Project #1**
+## USF Capstone — Microsoft Project #1
 
 A Node.js / Express web application that gives Contoso administrators a protected dashboard and an AI-powered chat interface backed by an **Azure AI Foundry** agent.
 
@@ -9,7 +9,7 @@ A Node.js / Express web application that gives Contoso administrators a protecte
 ## What it does
 
 | Feature | Details |
-|---|---|
+| --- | --- |
 | **Login / logout** | Hard-coded admin credentials, JWT cookie (HTTP-only, 1 h) |
 | **Dashboard** | Live stat cards (quotes, inventory) + **Response Evaluation Control Tower** (SQL-backed) |
 | **Admin Chat** | Full conversation with Foundry agent; rich markdown rendering (tables, bold, code) |
@@ -23,7 +23,7 @@ A Node.js / Express web application that gives Contoso administrators a protecte
 ## Prerequisites
 
 | Tool | Notes |
-|---|---|
+| --- | --- |
 | Node.js 20+ | Required locally |
 | Azure CLI (`az`) | Required for deployment |
 | Docker Desktop | Required for building / pushing the container image |
@@ -112,7 +112,7 @@ Full first-time setup and troubleshooting steps are in:
 ## Key endpoints
 
 | Method | Path | Auth | Purpose |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | `POST` | `/auth/login` | — | Issue JWT cookie |
 | `POST` | `/auth/logout` | — | Clear cookies |
 | `GET` | `/dashboard.html` | ✔ | Protected dashboard page |
@@ -129,7 +129,10 @@ Full first-time setup and troubleshooting steps are in:
 
 ## Debugging
 
+---
+
 ### Observability & Evaluation
+
 The portal features a specialized **Control Tower** for monitoring the AI's performance:
 
 - **Response Evaluations**: A table of recent system responses compared to customer requests, allowing admins to manually mark them as `Correct`, `Incorrect`, or `Fallback`.
@@ -137,11 +140,14 @@ The portal features a specialized **Control Tower** for monitoring the AI's perf
 - **Trace Viewer**: Filterable view of raw orchestrator traces, including success rates and duration thresholds (Fast/Slow).
 - **Agent Telemetry**: Aggregated stats (calls, errors, avg duration) across different agent personas.
 
+---
+
 ### UI debug mode
+
 Add `?debug=1` to the dashboard URL. When active, a **🐛 Debug** panel opens below the chat box:
 
 | Section | What it shows |
-|---|---|
+| --- | --- |
 | **Runtime** | Node.js version, platform, PID, server uptime, RSS and heap memory |
 | **Environment** | Status of every required env var (✓ set / ✗ MISSING / — not set) |
 | **Event log** | Color-coded rolling log of every client and server event |
@@ -149,7 +155,7 @@ Add `?debug=1` to the dashboard URL. When active, a **🐛 Debug** panel opens b
 **Log entry colors:**
 
 | Color | Level | When |
-|---|---|---|
+| --- | --- | --- |
 | Blue | INFO | Request sent, system info loaded |
 | Green | SUCCESS | Dashboard loaded, chat response received OK |
 | Yellow | WARN | Empty agent response, non-2xx from server |
