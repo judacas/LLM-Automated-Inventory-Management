@@ -15,9 +15,10 @@ import argparse
 import asyncio
 from typing import Any
 
-from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared.exceptions import McpError
+
+from mcp import ClientSession
 
 
 async def run_demo(url: str, product_id: int, qty: int) -> None:

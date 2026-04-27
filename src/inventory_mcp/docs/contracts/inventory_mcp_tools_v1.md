@@ -125,11 +125,11 @@ List inventory levels for all products.
 
 Supports the requirement: “Admin can see inventory levels for all products”.
 
-**Arguments**
+#### Arguments
 
 - (none)
 
-**Structured output**
+#### Structured output
 
 ```json
 {
