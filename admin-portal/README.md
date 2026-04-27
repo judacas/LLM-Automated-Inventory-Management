@@ -11,11 +11,12 @@ A Node.js / Express web application that gives Contoso administrators a protecte
 | Feature | Details |
 |---|---|
 | **Login / logout** | Hard-coded admin credentials, JWT cookie (HTTP-only, 1 h) |
-| **Dashboard** | Live stat cards: outstanding quotes, total outstanding value, unavailable-but-requested items |
-| **Admin Chat** | Full conversation with the Foundry agent; responses rendered as rich markdown (headings, tables, bold/italic, code, lists) |
-| **Smooth scrolling** | Smart auto-scroll that respects manual scroll position |
-| **MCP tool routing** | Separate `/admin/chat/tools` endpoint for keyword-dispatched tool calls (quotes, inventory, out-of-stock) |
-| **Request tracing** | Every chat request carries a `requestId` logged server-side and shown in debug mode |
+| **Dashboard** | Live stat cards (quotes, inventory) + **Response Evaluation Control Tower** (SQL-backed) |
+| **Admin Chat** | Full conversation with Foundry agent; rich markdown rendering (tables, bold, code) |
+| **Trace Explorer** | Integrated **Azure Monitor Trace Viewer** for the `userOrchestrator` agent |
+| **Evaluation KPIs** | Real-time accuracy, fallback rate, and confusion matrix calculation from logs |
+| **MCP tool routing** | Keyword-dispatched tool calls (quotes, inventory, out-of-stock) |
+| **Request tracing** | Every request carries a `requestId` tracked via Application Insights & UI logs |
 
 ---
 
@@ -47,16 +48,21 @@ npm install
 JWT_SECRET=replace_me_with_a_long_random_string
 
 # Required — Azure AI Foundry agent
-PROJECT_ENDPOINT=https://test-agentusf1-resource.services.ai.azure.com/api/projects/test-agentusf1
-AGENT_NAME=AdminOrchestrator
+PROJECT_ENDPOINT=https://...
+AGENT_NAME=adminOrchestrator
 
-# Required — MCP service base URL (for dashboard metrics and tool endpoints)
-MCP_BASE_URL=https://seniorproject-mcp-container.azurewebsites.net/mcp
+# Required — Azure SQL (for Response Evaluations & Logs)
+AZURE_SQL_SERVER=...
+AZURE_SQL_DATABASE=...
+AZURE_SQL_USERNAME=...
+AZURE_SQL_PASSWORD=...
 
-# Optional — API keys if the MCP / tool API requires them
-MCP_API_KEY=
-TOOL_API_BASE_URL=
-TOOL_API_KEY=
+# Required — Azure Monitor / Application Insights
+APPLICATIONINSIGHTS_CONNECTION_STRING=...
+AZURE_LOG_WORKSPACE_ID=...
+
+# Optional — MCP service base URL
+MCP_BASE_URL=https://...
 ```
 
 ### 3. Authenticate to Azure
@@ -111,23 +117,28 @@ Full first-time setup and troubleshooting steps are in:
 | `POST` | `/auth/logout` | — | Clear cookies |
 | `GET` | `/dashboard.html` | ✔ | Protected dashboard page |
 | `GET` | `/admin/dashboard` | ✔ | Live stat cards (calls MCP) |
+| `GET` | `/admin/response-evaluations` | ✔ | List agent response logs from SQL |
+| `PATCH` | `/admin/response-evaluations/:id` | ✔ | Update evaluation (manual review) |
+| `GET` | `/admin/user-orchestrator-traces` | ✔ | Fetch OTel traces from Log Analytics |
+| `GET` | `/admin/agent-performance` | ✔ | Aggregated agent metrics from App Insights |
 | `POST` | `/admin/chat` | ✔ | Foundry agent conversation |
 | `POST` | `/admin/chat/tools` | ✔ | Keyword-dispatched MCP tool calls |
+| `GET` | `/admin/debug/info` | ✔ | Server system/env snapshot |
 
 ---
 
 ## Debugging
 
+### Observability & Evaluation
+The portal features a specialized **Control Tower** for monitoring the AI's performance:
+
+- **Response Evaluations**: A table of recent system responses compared to customer requests, allowing admins to manually mark them as `Correct`, `Incorrect`, or `Fallback`.
+- **Confusion Matrix**: Real-time calculation of Precision, Recall, and F1-score based on the evaluation logs.
+- **Trace Viewer**: Filterable view of raw orchestrator traces, including success rates and duration thresholds (Fast/Slow).
+- **Agent Telemetry**: Aggregated stats (calls, errors, avg duration) across different agent personas.
+
 ### UI debug mode
-
-Add `?debug=1` to the dashboard URL:
-
-```
-http://localhost:3000/dashboard.html?debug=1
-https://<app-service-hostname>/dashboard.html?debug=1
-```
-
-When active, a **🐛 Debug** panel opens below the chat box showing:
+Add `?debug=1` to the dashboard URL. When active, a **🐛 Debug** panel opens below the chat box:
 
 | Section | What it shows |
 |---|---|
