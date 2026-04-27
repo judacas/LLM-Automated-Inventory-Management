@@ -5,7 +5,7 @@ description = "Simple terminal chatbot using Azure AI Foundry"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "a2a-sdk>=0.3.0",
+    "a2a-sdk>=0.3.0,<1.0.0",
     "apscheduler>=3.11.2",
     "azure-ai-projects>=2.0.0b4",
     "azure-identity>=1.23.0",

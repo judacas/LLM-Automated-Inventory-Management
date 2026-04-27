@@ -163,8 +163,7 @@ Each successful chat response also shows: `durationMs`, `conversationId`, `newCo
 
 On startup the server logs its full configuration status — useful for verifying env vars are set correctly in both local and deployed environments:
 
-```
-[startup] Node.js v20.x | PID 12345 | PORT 3000
+```text
 [startup] Config: JWT_SECRET=SET | PROJECT_ENDPOINT=https://... | AGENT_NAME=AdminOrchestrator | ...
 ```
 
@@ -178,7 +177,7 @@ az webapp log tail --name "<WEBAPP>" --resource-group "CapstoneSpring2026"
 
 Search for a specific request by ID:
 
-```
+```text
 [<requestId>] Admin chat from admin: ...
 [<requestId>] Admin chat success (1234ms, chars=456)
 [<requestId>] [DEBUG] conversationId=conv_abc newConversation=false outputTypes=["message"]
@@ -211,7 +210,7 @@ Search for a specific request by ID:
 
 Some prompts trigger MCP tool calls that require manual approval in the Foundry portal. When this happens, `POST /admin/chat` returns HTTP `409`:
 
-```
+```text
 MCP tool call requires approval in Foundry portal. Pending approval request(s): mcpr_...
 ```
 
@@ -221,7 +220,7 @@ Approve the request in the [Foundry portal](https://ai.azure.com), then retry th
 
 ## Project structure
 
-```
+```text
 admin-portal/
 ├── docs/
 │   └── deploy-acr-appservice.md   # Full deployment guide

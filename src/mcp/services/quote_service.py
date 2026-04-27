@@ -340,7 +340,9 @@ def confirm_quote(request: ConfirmQuoteRequest) -> ConfirmQuoteResponse:
             # -------------------------
             discount_amount = 0.0
             if discount_flag == 1:
-                discount_amount = round(subtotal * 0.10, 2)  # 10% — must match preview_quote
+                discount_amount = round(
+                    subtotal * 0.10, 2
+                )  # 10% — must match preview_quote
 
             total_amount = round(subtotal - discount_amount, 2)
 
