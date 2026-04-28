@@ -717,7 +717,78 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
   }
 });
 
+// ── Quote Evaluations ─────────────────────────────────────────────────────────
+// Sourced from the Quotes table (only rows where a quote was actually created).
+// Lets admins track whether the AI correctly handled each quote request.
+app.get('/admin/quote-evaluations', authenticateToken, async (req, res) => {
+  const sqlConfig = buildSqlConfig();
+  if (!sqlConfig) {
+    return res.json({ success: true, evaluations: [], total: 0, warning: 'AZURE_SQL_* is not configured.' });
+  }
+
+  const range = normalizeDateRange(req.query.range);
+  const classification = String(req.query.classification || '').trim();
+  const customerEmail  = String(req.query.customer_email  || '').trim();
+
+  try {
+    const pool = await sql.connect(sqlConfig);
+    await ensureResponseEvaluationsTable(pool);
+
+    const conditions = [];
+    const request = pool.request();
+
+    const dateCondition = getDateRangeSqlCondition(range, 'q.created_at');
+    if (dateCondition) conditions.push(dateCondition);
+
+    if (classification && classification.toLowerCase() !== 'all') {
+      request.input('classification', sql.NVarChar(20), classification);
+      conditions.push("COALESCE(re.classification,'Pending') = @classification");
+    }
+    if (customerEmail) {
+      request.input('customerEmail', sql.NVarChar(255), `%${customerEmail}%`);
+      conditions.push('ba.email LIKE @customerEmail');
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const result = await request.query(`
+      SELECT TOP 500
+        re.id,
+        q.quote_id                                          AS response_log_id,
+        ba.email                                            AS customer_email,
+        COALESCE(ba.company_name, 'Unknown')               AS company,
+        CONCAT('Quote #', q.quote_id)                      AS customer_subject,
+        q.status,
+        q.total_amount,
+        COALESCE(re.classification, 'Pending')             AS classification,
+        re.confidence_score,
+        re.review_notes,
+        re.evaluator_source,
+        re.reviewed_by,
+        re.reviewed_at,
+        q.created_at                                        AS quote_created_at
+      FROM Quotes q
+      JOIN BusinessAccounts ba ON q.account_id = ba.account_id
+      LEFT JOIN dbo.response_evaluations re
+        ON  re.customer_email = ba.email
+        AND re.response_log_id = q.quote_id
+      ${whereClause}
+      ORDER BY q.created_at DESC
+    `);
+
+    const evaluations = result.recordset.map(row => ({
+      ...row,
+      timestamp: row.quote_created_at
+    }));
+    return res.json({ success: true, evaluations, total: result.recordset.length });
+  } catch (err) {
+    logger.error(`[quote-evaluations] fetch failed: ${err?.message || err}`);
+    return res.json({ success: true, evaluations: [], total: 0, warning: `Failed to load quote evaluations: ${err?.message || err}` });
+  }
+});
+
 app.post('/admin/response-evaluations', authenticateToken, async (req, res) => {
+
   const sqlConfig = buildSqlConfig();
   if (!sqlConfig) return res.status(503).json({ success: false, error: 'AZURE_SQL_* is not configured.' });
 
@@ -1029,7 +1100,7 @@ AppDependencies
 | where TimeGenerated > ago(${lookback})
 | where Name startswith "invoke_agent"
 | extend agent = extract(@"invoke_agent\\s([a-zA-Z0-9_]+)", 1, Name)
-| where agent in ("userOrchestrator", "email", "userQuote", "userPurchaseOrder", "userOnboarding")
+| where agent in ("userOrchestrator", "email", "userQuote", "userPurchaseOrder", "userOnboarding", "adminOrchestrator")
 | summarize calls = count(), errors = countif(Success == false), avgDurationSeconds = round(avg(DurationMs) / 1000, 2) by agent
 | order by calls desc
 `;
@@ -1061,7 +1132,7 @@ AppDependencies
 | where TimeGenerated > ago(${lookback})
 | where Name startswith "invoke_agent"
 | extend agent = extract(@"invoke_agent\\s([a-zA-Z0-9_]+)", 1, Name)
-| where agent in ("userOrchestrator", "email", "userQuote", "userPurchaseOrder", "userOnboarding")
+| where agent in ("userOrchestrator", "email", "userQuote", "userPurchaseOrder", "userOnboarding", "adminOrchestrator")
 | project timestamp=TimeGenerated, operation_Id=OperationId, id=Id, agent, name=Name, success=Success, duration=DurationMs, resultCode=ResultCode, data=Data, target=Target
 | order by timestamp desc
 | take 200

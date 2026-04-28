@@ -48,6 +48,12 @@
       <!-- Warning banner shown when SQL is unavailable or an error occurred -->
       <div id="logsWarningBanner" class="logs-warning-banner" hidden></div>
 
+      <!-- Tab switcher -->
+      <div class="eval-tabs" role="tablist">
+        <button class="eval-tab eval-tab-active" data-tab="email" role="tab" aria-selected="true">📧 Email Interactions</button>
+        <button class="eval-tab" data-tab="quotes" role="tab" aria-selected="false">📋 Quote Evaluations</button>
+      </div>
+
       <!-- Filter toolbar -->
       <div class="logs-filter-bar">
         <div class="logs-filter-group">
@@ -147,8 +153,32 @@
         </table>
       </div>
 
-      <div class="logs-table-meta">
-        <span id="confusionSummary" class="logs-showing-count">Confusion matrix: loading…</span>
+      <!-- Quote Evaluations Table (hidden by default) -->
+      <div id="quoteEvalsSection" hidden>
+        <div class="logs-table-meta">
+          <span id="quoteLogsShowingCount" class="logs-showing-count">Loading quote evaluations…</span>
+        </div>
+        <div class="evals-scroll-window">
+          <table class="logs-table">
+            <thead>
+              <tr class="logs-thead-row">
+                <th class="logs-th">Timestamp</th>
+                <th class="logs-th">Company</th>
+                <th class="logs-th">Customer Email</th>
+                <th class="logs-th">Quote #</th>
+                <th class="logs-th">Status</th>
+                <th class="logs-th">Amount</th>
+                <th class="logs-th">Classification</th>
+                <th class="logs-th">Confidence</th>
+                <th class="logs-th">Notes</th>
+                <th class="logs-th">Save</th>
+              </tr>
+            </thead>
+            <tbody id="quoteEvalsTableBody">
+              <tr><td colspan="10" class="logs-placeholder">Loading quote evaluations…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <h3 class="logs-card-title" style="margin-top: 20px;">Agent Telemetry</h3>
@@ -361,10 +391,12 @@
     fetchDashboardAnimated();
 
     // ====== Response Evaluation State ======
+    let _activeTab = 'email'; // 'email' or 'quotes'
     let _range = '7d';
     let _classification = 'all';
     let _customerEmail = '';
     let _evaluationRows = [];
+    let _quoteEvaluationRows = [];
 
     function classifyBadgeClass(value) {
       if (value === 'Correct') return 'logs-badge logs-badge-correct';
@@ -429,7 +461,18 @@
         warningBanner.setAttribute('hidden', '');
       }
       _evaluationRows = data.evaluations || [];
-      renderResponseEvaluationsTable();
+      if (_activeTab === 'email') renderResponseEvaluationsTable();
+    }
+
+    async function fetchQuoteEvaluations() {
+      const params = new URLSearchParams();
+      params.set('range', _range);
+      if (_classification !== 'all') params.set('classification', _classification);
+      if (_customerEmail) params.set('customer_email', _customerEmail);
+      const res = await fetch(`/admin/quote-evaluations?${params.toString()}`);
+      const data = await res.json();
+      _quoteEvaluationRows = data.evaluations || [];
+      if (_activeTab === 'quotes') renderQuoteEvaluationsTable();
     }
 
     function renderResponseEvaluationsTable() {
@@ -446,7 +489,8 @@
         if (searchVal) {
           const email   = (row.customer_email || '').toLowerCase();
           const company = (row.company || '').toLowerCase();
-          const timestamp = row.timestamp ? String(row.timestamp).replace('T', ' ').toLowerCase() : '';
+          // Match against ISO string for date/time searching (e.g. "2026-04", "17:39")
+          const timestamp = row.timestamp ? String(row.timestamp).toLowerCase() : '';
           if (!email.includes(searchVal) && !company.includes(searchVal) && !timestamp.includes(searchVal)) return false;
         }
         return true;
@@ -465,7 +509,7 @@
       filtered.forEach((row) => {
         const tr = document.createElement('tr');
         tr.className = 'logs-row';
-        const created = row.timestamp ? String(row.timestamp).replace('T', ' ').substring(0, 19) : '—';
+        const created = formatTimestampHtml(row.timestamp);
         const classification = row.classification || '';
         const domId = row.id || 'new_' + row.response_log_id;
 
@@ -480,8 +524,10 @@
         // Store raw HTML for safe retrieval in event listener (avoids onclick+JSON escaping issues)
         _rowHtmlMap[domId] = { custRawHtml, sysRawHtml };
 
+        const isEvaluated = classification && classification !== 'Pending';
+
         tr.innerHTML = `
-          <td class="logs-td logs-td-muted">${escapeHtml(created)}</td>
+          <td class="logs-td logs-td-muted" style="white-space:nowrap;">${created}</td>
           <td class="logs-td">${escapeHtml(row.company || '—')}</td>
           <td class="logs-td logs-td-bold">${escapeHtml(row.customer_email || '—')}</td>
           <td class="logs-td">${escapeHtml(String(row.response_log_id || '—'))}</td>
@@ -494,17 +540,17 @@
             <button class="nav-btn view-sys-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
           </td>
           <td class="logs-td">
-            <select class="logs-status-select eval-classification" data-dom-id="${domId}">
+            <select class="logs-status-select eval-classification" data-dom-id="${domId}" ${isEvaluated ? 'disabled' : ''}>
               <option value="" ${classification ? '' : 'selected'}>Pending</option>
               <option value="Correct" ${classification === 'Correct' ? 'selected' : ''}>Correct</option>
               <option value="Incorrect" ${classification === 'Incorrect' ? 'selected' : ''}>Incorrect</option>
               <option value="Fallback" ${classification === 'Fallback' ? 'selected' : ''}>Fallback</option>
             </select>
           </td>
-          <td class="logs-td"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-dom-id="${domId}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;"></td>
+          <td class="logs-td"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-dom-id="${domId}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;" ${isEvaluated ? 'disabled' : ''}></td>
           <td class="logs-td logs-td-muted">${escapeHtml(row.evaluator_source || 'Manual')}</td>
-          <td class="logs-td"><input type="text" class="logs-company-input eval-notes" data-dom-id="${domId}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes"></td>
-          <td class="logs-td"><button class="nav-btn eval-save-btn" data-dom-id="${domId}" data-eval-id="${row.id || ''}">Save</button></td>
+          <td class="logs-td"><input type="text" class="logs-company-input eval-notes" data-dom-id="${domId}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes" ${isEvaluated ? 'disabled' : ''}></td>
+          <td class="logs-td"><button class="nav-btn eval-save-btn" data-dom-id="${domId}" data-eval-id="${row.id || ''}">${isEvaluated ? 'Edit' : 'Save'}</button></td>
         `;
         tbody.appendChild(tr);
       });
@@ -532,6 +578,14 @@
           const classificationEl = tbody.querySelector(`.eval-classification[data-dom-id="${domId}"]`);
           const confidenceEl = tbody.querySelector(`.eval-confidence[data-dom-id="${domId}"]`);
           const notesEl = tbody.querySelector(`.eval-notes[data-dom-id="${domId}"]`);
+
+          if (btn.textContent === 'Edit') {
+            btn.textContent = 'Save';
+            classificationEl.disabled = false;
+            confidenceEl.disabled = false;
+            notesEl.disabled = false;
+            return;
+          }
 
           // ── Paired validation ─────────────────────────────────────────
           // Classification + Confidence must both be filled or both be empty.
@@ -619,6 +673,169 @@
             await Promise.all([fetchEvaluationSummary(), fetchConfusionMatrix()]);
             // Also refresh the full table so the new eval id is reflected (enables PATCH on next save)
             await fetchResponseEvaluations();
+          } catch (err) {
+            btn.textContent = 'Error!';
+            btn.style.background = '#c0392b';
+            setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; btn.disabled = false; }, 2500);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    function renderQuoteEvaluationsTable() {
+      const tbody = document.getElementById('quoteEvalsTableBody');
+      const countEl = document.getElementById('quoteLogsShowingCount');
+
+      const confidenceFilter = parseFloat(document.getElementById('logsConfidenceFilter').value) || 0;
+      const searchVal = document.getElementById('logsCompanySearch').value.toLowerCase();
+
+      let filtered = _quoteEvaluationRows.filter(row => {
+        const conf = parseFloat(row.confidence_score) || 0;
+        if (conf < confidenceFilter) return false;
+
+        if (searchVal) {
+          const email   = (row.customer_email || '').toLowerCase();
+          const company = (row.company || '').toLowerCase();
+          const timestamp = row.timestamp ? String(row.timestamp).toLowerCase() : '';
+          if (!email.includes(searchVal) && !company.includes(searchVal) && !timestamp.includes(searchVal)) return false;
+        }
+        return true;
+      });
+
+      countEl.textContent = `Showing ${filtered.length} quote evaluations`;
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="10" class="logs-placeholder">No quote evaluations found matching criteria.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      filtered.forEach((row) => {
+        const tr = document.createElement('tr');
+        tr.className = 'logs-row';
+        const created = formatTimestampHtml(row.timestamp);
+        const classification = row.classification || '';
+        const domId = row.id || 'new_' + row.response_log_id;
+        const isEvaluated = classification && classification !== 'Pending';
+
+        const amountStr = row.total_amount ? '$' + Number(row.total_amount).toLocaleString('en-US', {minimumFractionDigits: 2}) : '—';
+        const statusClass = row.status === 'Won' ? 'status-won' : row.status === 'Lost' ? 'status-lost' : 'status-open';
+
+        tr.innerHTML = `
+          <td class="logs-td logs-td-muted" style="white-space:nowrap;">${created}</td>
+          <td class="logs-td">${escapeHtml(row.company || '—')}</td>
+          <td class="logs-td logs-td-bold">${escapeHtml(row.customer_email || '—')}</td>
+          <td class="logs-td">${escapeHtml(String(row.response_log_id || '—'))}</td>
+          <td class="logs-td"><span class="${statusClass}" style="font-size: 0.8em; padding: 2px 6px; border-radius: 3px; font-weight: 500;">${escapeHtml(row.status || 'Draft')}</span></td>
+          <td class="logs-td">${escapeHtml(amountStr)}</td>
+          <td class="logs-td">
+            <select class="logs-status-select eval-classification" data-dom-id="${domId}" ${isEvaluated ? 'disabled' : ''}>
+              <option value="" ${classification ? '' : 'selected'}>Pending</option>
+              <option value="Correct" ${classification === 'Correct' ? 'selected' : ''}>Correct</option>
+              <option value="Incorrect" ${classification === 'Incorrect' ? 'selected' : ''}>Incorrect</option>
+              <option value="Fallback" ${classification === 'Fallback' ? 'selected' : ''}>Fallback</option>
+            </select>
+          </td>
+          <td class="logs-td"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-dom-id="${domId}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;" ${isEvaluated ? 'disabled' : ''}></td>
+          <td class="logs-td"><input type="text" class="logs-company-input eval-notes" data-dom-id="${domId}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes" ${isEvaluated ? 'disabled' : ''}></td>
+          <td class="logs-td"><button class="nav-btn eval-save-btn" data-dom-id="${domId}" data-eval-id="${row.id || ''}">${isEvaluated ? 'Edit' : 'Save'}</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Attach save button listeners (same logic as email logs, but uses _quoteEvaluationRows)
+      tbody.querySelectorAll('.eval-save-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const domId = btn.getAttribute('data-dom-id');
+          const evalId = btn.getAttribute('data-eval-id');
+          const row = filtered.find(r => (r.id || 'new_' + r.response_log_id) === domId);
+          const classificationEl = tbody.querySelector(`.eval-classification[data-dom-id="${domId}"]`);
+          const confidenceEl = tbody.querySelector(`.eval-confidence[data-dom-id="${domId}"]`);
+          const notesEl = tbody.querySelector(`.eval-notes[data-dom-id="${domId}"]`);
+
+          if (btn.textContent === 'Edit') {
+            btn.textContent = 'Save';
+            classificationEl.disabled = false;
+            confidenceEl.disabled = false;
+            notesEl.disabled = false;
+            return;
+          }
+
+          const classVal = classificationEl.value;
+          const confVal  = confidenceEl.value.trim();
+          const classSet = classVal && classVal !== 'Pending';
+          const confSet  = confVal !== '';
+
+          const clearValidation = () => {
+            classificationEl.style.outline = '';
+            confidenceEl.style.outline = '';
+          };
+
+          if (classSet && !confSet) {
+            confidenceEl.style.outline = '2px solid #e74c3c';
+            confidenceEl.focus();
+            confidenceEl.placeholder = 'Required (0–1)';
+            btn.style.animation = 'none';
+            btn.offsetHeight;
+            btn.style.animation = 'shake 0.3s ease';
+            confidenceEl.addEventListener('input', clearValidation, { once: true });
+            return;
+          }
+          if (confSet && !classSet) {
+            classificationEl.style.outline = '2px solid #e74c3c';
+            classificationEl.focus();
+            btn.style.animation = 'none';
+            btn.offsetHeight;
+            btn.style.animation = 'shake 0.3s ease';
+            classificationEl.addEventListener('change', clearValidation, { once: true });
+            return;
+          }
+          clearValidation();
+
+          btn.disabled = true;
+          btn.textContent = 'Saving…';
+          try {
+            let fetchRes;
+            if (evalId) {
+              fetchRes = await fetch(`/admin/response-evaluations/${evalId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  classification: classificationEl.value || null,
+                  confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
+                  review_notes: notesEl.value || null,
+                  reviewed_by: 'admin'
+                }),
+              });
+            } else {
+              fetchRes = await fetch(`/admin/response-evaluations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  response_log_id: row.response_log_id,
+                  customer_email: row.customer_email,
+                  customer_subject: row.customer_subject,
+                  classification: classificationEl.value || null,
+                  confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
+                  evaluator_source: 'Manual',
+                  review_notes: notesEl.value || null,
+                  reviewed_by: 'admin'
+                }),
+              });
+            }
+            const result = await fetchRes.json();
+            if (!fetchRes.ok || !result.success) {
+              btn.textContent = 'Error!';
+              btn.style.background = '#c0392b';
+              setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; btn.disabled = false; }, 2500);
+            } else {
+              btn.textContent = 'Saved ✓';
+              btn.style.background = '#28a745';
+              setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; }, 1500);
+              await Promise.all([fetchEvaluationSummary(), fetchConfusionMatrix()]);
+              await fetchQuoteEvaluations();
+            }
           } catch (err) {
             btn.textContent = 'Error!';
             btn.style.background = '#c0392b';
@@ -729,11 +946,36 @@
         await Promise.all([
           fetchEvaluationSummary(),
           fetchResponseEvaluations(),
+          fetchQuoteEvaluations(),
           fetchConfusionMatrix(),
           fetchAgentTelemetry(),
           fetchUserOrchestratorTraces(),
         ]);
       }
+
+      // Tab switcher
+      document.querySelectorAll('.eval-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.eval-tab').forEach(t => {
+            t.classList.remove('eval-tab-active');
+            t.setAttribute('aria-selected', 'false');
+          });
+          tab.classList.add('eval-tab-active');
+          tab.setAttribute('aria-selected', 'true');
+          
+          _activeTab = tab.dataset.tab;
+          
+          if (_activeTab === 'email') {
+            document.querySelector('.evals-scroll-window').parentNode.removeAttribute('hidden');
+            document.getElementById('quoteEvalsSection').setAttribute('hidden', '');
+            renderResponseEvaluationsTable();
+          } else {
+            document.querySelector('.evals-scroll-window').parentNode.setAttribute('hidden', '');
+            document.getElementById('quoteEvalsSection').removeAttribute('hidden');
+            renderQuoteEvaluationsTable();
+          }
+        });
+      });
 
       document.querySelectorAll('.logs-pill').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -753,12 +995,14 @@
       document.getElementById('logsCompanySearch').addEventListener('input', (e) => {
         clearTimeout(_searchDebounce);
         _searchDebounce = setTimeout(() => {
-          renderResponseEvaluationsTable();
+          if (_activeTab === 'email') renderResponseEvaluationsTable();
+          else renderQuoteEvaluationsTable();
         }, 150);
       });
 
       document.getElementById('logsConfidenceFilter').addEventListener('input', () => {
-        renderResponseEvaluationsTable();
+        if (_activeTab === 'email') renderResponseEvaluationsTable();
+        else renderQuoteEvaluationsTable();
       });
 
       const renderTraces = () => renderUserOrchestratorTracesTable();
@@ -866,6 +1110,18 @@
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#39;');
+      }
+
+      function formatTimestampHtml(isoString) {
+        if (!isoString) return '—';
+        try {
+          const d = new Date(isoString);
+          const dateStr = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d);
+          const timeStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }).format(d);
+          return `<span style="display:block; font-weight:500;">${escapeHtml(dateStr)}</span><span style="display:block; font-size:0.9em; opacity:0.8;">${escapeHtml(timeStr)}</span>`;
+        } catch {
+          return escapeHtml(isoString);
+        }
       }
 
       /**
