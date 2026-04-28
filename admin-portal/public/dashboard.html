@@ -124,33 +124,36 @@
         </div>
       </div>
 
-      <div class="logs-table-meta">
-        <span id="logsShowingCount" class="logs-showing-count">Loading response evaluations…</span>
-      </div>
+      <!-- Email Interactions Table -->
+      <div id="emailEvalsSection">
+        <div class="logs-table-meta">
+          <span id="logsShowingCount" class="logs-showing-count">Loading response evaluations…</span>
+        </div>
 
-      <div class="evals-scroll-window">
-        <table class="logs-table">
-          <thead>
-            <tr class="logs-thead-row">
-              <th class="logs-th">Timestamp</th>
-              <th class="logs-th">Company</th>
-              <th class="logs-th">Customer Email</th>
-              <th class="logs-th">Log ID</th>
-              <th class="logs-th">Customer Request</th>
-              <th class="logs-th">Final System Response</th>
-              <th class="logs-th">Classification</th>
-              <th class="logs-th">Confidence</th>
-              <th class="logs-th">Evaluator Source</th>
-              <th class="logs-th">Notes</th>
-              <th class="logs-th">Save</th>
-            </tr>
-          </thead>
-          <tbody id="logsTableBody">
-            <tr>
-              <td colspan="10" class="logs-placeholder">Loading response evaluations...</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="evals-scroll-window">
+          <table class="logs-table">
+            <thead>
+              <tr class="logs-thead-row">
+                <th class="logs-th">Timestamp</th>
+                <th class="logs-th">Company</th>
+                <th class="logs-th">Customer Email</th>
+                <th class="logs-th">Log ID</th>
+                <th class="logs-th">Customer Request</th>
+                <th class="logs-th">Final System Response</th>
+                <th class="logs-th">Classification</th>
+                <th class="logs-th">Confidence</th>
+                <th class="logs-th">Evaluator Source</th>
+                <th class="logs-th">Notes</th>
+                <th class="logs-th">Save</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody">
+              <tr>
+                <td colspan="11" class="logs-placeholder">Loading response evaluations...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Quote Evaluations Table (hidden by default) -->
@@ -966,11 +969,11 @@
           _activeTab = tab.dataset.tab;
           
           if (_activeTab === 'email') {
-            document.querySelector('.evals-scroll-window').parentNode.removeAttribute('hidden');
+            document.getElementById('emailEvalsSection').removeAttribute('hidden');
             document.getElementById('quoteEvalsSection').setAttribute('hidden', '');
             renderResponseEvaluationsTable();
           } else {
-            document.querySelector('.evals-scroll-window').parentNode.setAttribute('hidden', '');
+            document.getElementById('emailEvalsSection').setAttribute('hidden', '');
             document.getElementById('quoteEvalsSection').removeAttribute('hidden');
             renderQuoteEvaluationsTable();
           }
@@ -1813,7 +1816,7 @@
           const looksLikeHtml = /<[a-z][\s\S]*>/i.test(content);
           modalBody.innerHTML = looksLikeHtml
             ? content
-            : `<pre style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(content)}</pre>`;
+            : formatAgentTextToSafeHtml(content);
         }
         modal.removeAttribute('hidden');
         // Prevent background page scroll while modal is open
