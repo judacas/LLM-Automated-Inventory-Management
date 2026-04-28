@@ -668,26 +668,24 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await request.query(`
       WITH Evals AS (
-        SELECT 
+        SELECT
           re.id,
-          q.quote_id AS response_log_id,
-          ba.email AS customer_email,
-          ba.company_name AS company,
-          COALESCE(re.customer_subject, CONCAT('Quote #', q.quote_id, ' request')) AS customer_subject,
-          COALESCE((
-            SELECT TOP 1 customer_email_content 
-            FROM EmailLogs el 
-            WHERE el.customer_email = ba.email 
-            ORDER BY ABS(DATEDIFF(second, el.created_at, q.created_at)) ASC
-          ), re.customer_email_body, 'Pending review…') AS customer_email_body,
-          COALESCE((
-            SELECT TOP 1 NULLIF(contoso_email_response, ' ') 
-            FROM EmailLogs el 
-            WHERE el.customer_email = ba.email 
-            ORDER BY ABS(DATEDIFF(second, el.created_at, q.created_at)) ASC
-          ), re.final_system_response, CONCAT('[Quote Summary] ', q.status, '; total: $', FORMAT(q.total_amount, 'N2'))) AS final_system_response,
-          COALESCE(re.agent_name, 'userOrchestrator') AS agent_name,
-          COALESCE(re.classification, 'Pending') AS classification,
+          el.id                                               AS response_log_id,
+          el.customer_email,
+          COALESCE(ba.company_name, 'Unknown')               AS company,
+          COALESCE(re.customer_subject, 'Email Interaction') AS customer_subject,
+          COALESCE(
+            NULLIF(LTRIM(RTRIM(el.customer_email_content)), ''),
+            re.customer_email_body,
+            'No content'
+          )                                                   AS customer_email_body,
+          COALESCE(
+            NULLIF(LTRIM(RTRIM(el.contoso_email_response)), ''),
+            re.final_system_response,
+            'No response recorded'
+          )                                                   AS final_system_response,
+          COALESCE(re.agent_name, 'userOrchestrator')        AS agent_name,
+          COALESCE(re.classification, 'Pending')             AS classification,
           re.confidence_score,
           re.evaluator_source,
           re.review_notes,
@@ -695,10 +693,13 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
           re.predicted_label,
           re.reviewed_by,
           re.reviewed_at,
-          q.created_at AS quote_created_at
-        FROM Quotes q
-        JOIN BusinessAccounts ba ON q.account_id = ba.account_id
-        LEFT JOIN dbo.response_evaluations re ON re.response_log_id = q.quote_id
+          el.created_at                                       AS quote_created_at
+        FROM EmailLogs el
+        LEFT JOIN BusinessAccounts ba
+          ON ba.email = el.customer_email
+        LEFT JOIN dbo.response_evaluations re
+          ON  re.customer_email = el.customer_email
+          AND re.response_log_id = el.id
       )
       SELECT TOP 500 *
       FROM Evals
@@ -707,7 +708,7 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
     `);
     const evaluations = result.recordset.map(row => ({
       ...row,
-      timestamp: row.quote_created_at || row.created_at || row.updated_at
+      timestamp: row.quote_created_at || row.created_at
     }));
     return res.json({ success: true, evaluations, total: result.recordset.length });
   } catch (err) {
