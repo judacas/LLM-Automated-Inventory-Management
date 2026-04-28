@@ -933,21 +933,17 @@ app.get('/admin/evaluation-summary', authenticateToken, async (req, res) => {
     const result = await pool.request().query(`
       SELECT
         COUNT(*) AS total_responses,
-        SUM(CASE WHEN classification IN ('Correct','Incorrect','Fallback') THEN 1 ELSE 0 END) AS total_evaluated,
-        SUM(CASE WHEN classification IS NULL OR classification = 'Pending' THEN 1 ELSE 0 END) AS pending_review,
-        SUM(CASE WHEN classification = 'Correct' THEN 1 ELSE 0 END) AS correct_count,
-        SUM(CASE WHEN classification = 'Incorrect' THEN 1 ELSE 0 END) AS incorrect_count,
-        SUM(CASE WHEN classification = 'Fallback' THEN 1 ELSE 0 END) AS fallback_count,
-        AVG(CASE WHEN confidence_score IS NOT NULL THEN confidence_score END) AS average_confidence
-      FROM (
-        SELECT 
-          re.classification, 
-          re.confidence_score,
-          q.created_at AS quote_created_at
-        FROM Quotes q
-        LEFT JOIN dbo.response_evaluations re ON re.response_log_id = q.quote_id
-      ) AS Evals
-      ${whereClause}
+        SUM(CASE WHEN re.classification IN ('Correct','Incorrect','Fallback') THEN 1 ELSE 0 END) AS total_evaluated,
+        SUM(CASE WHEN re.classification IS NULL OR re.classification = 'Pending' THEN 1 ELSE 0 END) AS pending_review,
+        SUM(CASE WHEN re.classification = 'Correct' THEN 1 ELSE 0 END) AS correct_count,
+        SUM(CASE WHEN re.classification = 'Incorrect' THEN 1 ELSE 0 END) AS incorrect_count,
+        SUM(CASE WHEN re.classification = 'Fallback' THEN 1 ELSE 0 END) AS fallback_count,
+        AVG(CASE WHEN re.confidence_score IS NOT NULL THEN re.confidence_score END) AS average_confidence
+      FROM EmailLogs el
+      LEFT JOIN dbo.response_evaluations re
+        ON  re.customer_email = el.customer_email
+        AND re.response_log_id = el.id
+      ${whereClause.replace('quote_created_at', 'el.created_at')}
     `);
     const r = result.recordset[0] || {};
     const totalEvaluated = Number(r.total_evaluated || 0);
@@ -987,16 +983,15 @@ app.get('/admin/confusion-matrix', authenticateToken, async (req, res) => {
     await ensureResponseEvaluationsTable(pool);
     const result = await pool.request().query(`
       SELECT
-        SUM(CASE WHEN true_label = 'Correct' AND predicted_label = 'Correct' THEN 1 ELSE 0 END) AS tp,
-        SUM(CASE WHEN true_label <> 'Correct' AND predicted_label = 'Correct' THEN 1 ELSE 0 END) AS fp,
-        SUM(CASE WHEN true_label <> 'Correct' AND predicted_label <> 'Correct' THEN 1 ELSE 0 END) AS tn,
-        SUM(CASE WHEN true_label = 'Correct' AND predicted_label <> 'Correct' THEN 1 ELSE 0 END) AS fn
-      FROM (
-        SELECT re.*, q.created_at AS quote_created_at
-        FROM dbo.response_evaluations re
-        LEFT JOIN Quotes q ON re.response_log_id = q.quote_id
-      ) AS Evals
-      ${whereClause}
+        SUM(CASE WHEN re.true_label = 'Correct' AND re.predicted_label = 'Correct' THEN 1 ELSE 0 END) AS tp,
+        SUM(CASE WHEN re.true_label <> 'Correct' AND re.predicted_label = 'Correct' THEN 1 ELSE 0 END) AS fp,
+        SUM(CASE WHEN re.true_label <> 'Correct' AND re.predicted_label <> 'Correct' THEN 1 ELSE 0 END) AS tn,
+        SUM(CASE WHEN re.true_label = 'Correct' AND re.predicted_label <> 'Correct' THEN 1 ELSE 0 END) AS fn
+      FROM dbo.response_evaluations re
+      JOIN EmailLogs el
+        ON  el.customer_email = re.customer_email
+        AND el.id = re.response_log_id
+      ${whereClause.replace('quote_created_at', 'el.created_at')}
     `);
     const row = result.recordset[0] || {};
     const tp = Number(row.tp || 0);
