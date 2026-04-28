@@ -463,26 +463,30 @@
         tr.className = 'logs-row';
         const created = row.timestamp ? String(row.timestamp).replace('T', ' ').substring(0, 19) : '—';
         const classification = row.classification || '';
-        filtered.forEach((row) => {
-          const tr = document.createElement('tr');
-          tr.className = 'logs-row';
-          const created = row.timestamp ? String(row.timestamp).replace('T', ' ').substring(0, 19) : '—';
-          const classification = row.classification || '';
-          const domId = row.id || 'new_' + row.response_log_id;
-          tr.innerHTML = `
+        const domId = row.id || 'new_' + row.response_log_id;
+
+        // Customer request: strip HTML for the preview, keep raw HTML for the modal
+        const custRawHtml = row.customer_email_body || '';
+        const custPreview = htmlToPlainText(custRawHtml);
+
+        // Contoso response: also HTML — strip for preview, render in modal
+        const sysRawHtml = row.final_system_response || '';
+        const sysPreview = htmlToPlainText(sysRawHtml);
+
+        tr.innerHTML = `
           <td class="logs-td logs-td-muted">${escapeHtml(created)}</td>
           <td class="logs-td">${escapeHtml(row.company || '—')}</td>
           <td class="logs-td logs-td-bold">${escapeHtml(row.customer_email || '—')}</td>
           <td class="logs-td">${escapeHtml(String(row.response_log_id || '—'))}</td>
           <td class="logs-td">
-            <div class="logs-response-container" title="${escapeHtml(row.customer_email_body || '')}">
-              ${escapeHtml(row.customer_email_body || '')}
-            </div>
+            <div class="logs-response-container">${escapeHtml(custPreview)}</div>
+            <button class="nav-btn" style="padding:4px 8px; font-size:11px; margin-top:5px;"
+              onclick="openEmailModal('Customer Request', ${JSON.stringify(escapeHtml(custRawHtml))})">View Full</button>
           </td>
           <td class="logs-td">
-            <div class="logs-response-container" title="${escapeHtml(row.final_system_response || '')}">
-              ${escapeHtml(row.final_system_response || '')}
-            </div>
+            <div class="logs-response-container">${escapeHtml(sysPreview)}</div>
+            <button class="nav-btn" style="padding:4px 8px; font-size:11px; margin-top:5px;"
+              onclick="openEmailModal('Final System Response', ${JSON.stringify(escapeHtml(sysRawHtml))})">View Full</button>
           </td>
           <td class="logs-td">
             <select class="logs-status-select eval-classification" data-dom-id="${domId}">
@@ -497,8 +501,8 @@
           <td class="logs-td"><input type="text" class="logs-company-input eval-notes" data-dom-id="${domId}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes"></td>
           <td class="logs-td"><button class="nav-btn eval-save-btn" data-dom-id="${domId}" data-eval-id="${row.id || ''}">Save</button></td>
         `;
-          tbody.appendChild(tr);
-        });
+        tbody.appendChild(tr);
+      });
 
         document.querySelectorAll('.eval-save-btn').forEach((btn) => {
           btn.addEventListener('click', async () => {
@@ -784,6 +788,48 @@
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;')
           .replace(/'/g, '&#39;');
+      }
+
+      /**
+       * Strip HTML tags and decode common entities to produce readable plain text.
+       * Used for truncated table cell previews.
+       */
+      function htmlToPlainText(html) {
+        if (!html || !html.trim()) return '';
+        return html
+          // Replace block-level breaks with newlines so sentences don't run together
+          .replace(/<br\s*\/?>/gi, '\n')
+          .replace(/<\/p>/gi, '\n')
+          .replace(/<\/div>/gi, '\n')
+          .replace(/<\/li>/gi, '\n')
+          .replace(/<\/tr>/gi, '\n')
+          .replace(/<\/h[1-6]>/gi, '\n')
+          // Remove all remaining tags
+          .replace(/<[^>]+>/g, '')
+          // Decode common HTML entities
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&nbsp;/g, ' ')
+          // Collapse excessive whitespace / blank lines
+          .replace(/[ \t]+/g, ' ')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+      }
+
+      /**
+       * Decode HTML entities in a string that has already been HTML-escaped,
+       * restoring the original raw HTML so it can be injected into innerHTML.
+       */
+      function unescapeHtml(escaped) {
+        return String(escaped ?? '')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
       }
 
       function createRequestId() {
@@ -1418,7 +1464,48 @@
           if (btn) { btn.textContent = 'Copied!'; setTimeout(reset, 2000); }
         }
       });
-  </script>
-</body>
 
+      // ===== Email Content Modal JS =====
+      // escapedHtml is an HTML-escaped string of the original raw HTML stored in the DB.
+      // We unescape it back to raw HTML and inject it into the modal body for rendering.
+      function openEmailModal(title, escapedHtml) {
+        const modal = document.getElementById('emailModal');
+        const modalBody = document.getElementById('emailModalBody');
+        const modalTitle = document.getElementById('emailModalTitle');
+        modalTitle.textContent = title || 'Email Content';
+        const rawHtml = unescapeHtml(escapedHtml || '');
+        if (!rawHtml.trim()) {
+          modalBody.innerHTML = '<i>No content</i>';
+        } else {
+          // If the content looks like HTML (contains tags), render it;
+          // otherwise fall back to plain text in a <pre> block.
+          const looksLikeHtml = /<[a-z][\s\S]*>/i.test(rawHtml);
+          modalBody.innerHTML = looksLikeHtml ? rawHtml : `<pre style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(rawHtml)}</pre>`;
+        }
+        modal.removeAttribute('hidden');
+      }
+
+      const emailModalClose = document.getElementById('emailModalClose');
+      if (emailModalClose) {
+        emailModalClose.addEventListener('click', () => {
+          document.getElementById('emailModal').setAttribute('hidden', '');
+        });
+      }
+      window.addEventListener('click', (e) => {
+        const modal = document.getElementById('emailModal');
+        if (e.target === modal) {
+          modal.setAttribute('hidden', '');
+        }
+      });
+  </script>
+
+  <!-- Email Content Modal -->
+  <div id="emailModal" class="email-modal" hidden>
+    <div class="email-modal-content">
+      <span class="email-modal-close" id="emailModalClose">&times;</span>
+      <h3 id="emailModalTitle" style="margin-top: 0; color: #333;">Email Content</h3>
+      <div id="emailModalBody" class="email-modal-body"></div>
+    </div>
+  </div>
+</body>
 </html>
