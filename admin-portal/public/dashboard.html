@@ -72,8 +72,8 @@
           </select>
         </div>
         <div class="logs-filter-group" style="flex-grow: 1;">
-          <span class="logs-filter-label">Customer Email / Time</span>
-          <input type="search" id="logsCompanySearch" class="logs-company-input" placeholder="Search by email or time…"
+          <span class="logs-filter-label">Search (Email / Company / Time)</span>
+          <input type="search" id="logsCompanySearch" class="logs-company-input" placeholder="Search by email, company or time…"
             autocomplete="off">
         </div>
         <div class="logs-filter-group">
@@ -444,9 +444,10 @@
         if (conf < confidenceFilter) return false;
 
         if (searchVal) {
-          const email = (row.customer_email || '').toLowerCase();
+          const email   = (row.customer_email || '').toLowerCase();
+          const company = (row.company || '').toLowerCase();
           const timestamp = row.timestamp ? String(row.timestamp).replace('T', ' ').toLowerCase() : '';
-          if (!email.includes(searchVal) && !timestamp.includes(searchVal)) return false;
+          if (!email.includes(searchVal) && !company.includes(searchVal) && !timestamp.includes(searchVal)) return false;
         }
         return true;
       });
@@ -1559,20 +1560,35 @@
             : `<pre style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(content)}</pre>`;
         }
         modal.removeAttribute('hidden');
+        // Prevent background page scroll while modal is open
+        document.body.style.overflow = 'hidden';
       }
 
       // Use event delegation so close always works regardless of DOM order
+      function closeEmailModal() {
+        const modal = document.getElementById('emailModal');
+        if (!modal) return;
+        modal.setAttribute('hidden', '');
+        // Restore page scroll
+        document.body.style.overflow = '';
+      }
+
       document.addEventListener('click', (e) => {
         const modal = document.getElementById('emailModal');
         if (!modal) return;
         // Click on the × button
         if (e.target.id === 'emailModalClose' || e.target.closest('#emailModalClose')) {
-          modal.setAttribute('hidden', '');
+          closeEmailModal();
         }
         // Click on the backdrop (the modal overlay itself, not the inner content box)
         if (e.target === modal) {
-          modal.setAttribute('hidden', '');
+          closeEmailModal();
         }
+      });
+
+      // Also close on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeEmailModal();
       });
   </script>
 
