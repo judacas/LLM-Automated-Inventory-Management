@@ -534,14 +534,17 @@
           <td class="logs-td logs-td-muted" style="white-space:nowrap;">${created}</td>
           <td class="logs-td">${escapeHtml(row.company || '—')}</td>
           <td class="logs-td logs-td-bold">${escapeHtml(row.customer_email || '—')}</td>
-          <td class="logs-td">${escapeHtml(String(row.response_log_id || '—'))}</td>
-          <td class="logs-td">
-            <div class="logs-response-container">${escapeHtml(custPreview)}</div>
-            <button class="nav-btn view-cust-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
+          <td class="logs-td" style="height: 1px;">
+            <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+              <div class="logs-response-container">${escapeHtml(custPreview)}</div>
+              <button class="nav-btn view-cust-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
+            </div>
           </td>
-          <td class="logs-td">
-            <div class="logs-response-container">${escapeHtml(sysPreview)}</div>
-            <button class="nav-btn view-sys-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
+          <td class="logs-td" style="height: 1px;">
+            <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+              <div class="logs-response-container">${escapeHtml(sysPreview)}</div>
+              <button class="nav-btn view-sys-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
+            </div>
           </td>
           <td class="logs-td">
             <select class="logs-status-select eval-classification" data-dom-id="${domId}" ${isEvaluated ? 'disabled' : ''}>
@@ -585,9 +588,13 @@
 
           if (btn.textContent === 'Edit') {
             btn.textContent = 'Save';
+            btn.style.background = '#e67e22';
             classificationEl.disabled = false;
             confidenceEl.disabled = false;
             notesEl.disabled = false;
+            classificationEl.style.border = '2px solid #e67e22';
+            confidenceEl.style.border = '2px solid #e67e22';
+            notesEl.style.border = '2px solid #e67e22';
             return;
           }
 
@@ -626,6 +633,10 @@
             return;
           }
           clearValidation();
+          classificationEl.style.border = '';
+          confidenceEl.style.border = '';
+          notesEl.style.border = '';
+          btn.style.borderColor = '';
           // ─────────────────────────────────────────────────────────────
 
           btn.disabled = true;
@@ -760,9 +771,13 @@
 
           if (btn.textContent === 'Edit') {
             btn.textContent = 'Save';
+            btn.style.background = '#e67e22';
             classificationEl.disabled = false;
             confidenceEl.disabled = false;
             notesEl.disabled = false;
+            classificationEl.style.border = '2px solid #e67e22';
+            confidenceEl.style.border = '2px solid #e67e22';
+            notesEl.style.border = '2px solid #e67e22';
             return;
           }
 
@@ -796,6 +811,9 @@
             return;
           }
           clearValidation();
+          classificationEl.style.border = '';
+          confidenceEl.style.border = '';
+          notesEl.style.border = '';
 
           btn.disabled = true;
           btn.textContent = 'Saving…';
