@@ -531,6 +531,44 @@
           const classificationEl = tbody.querySelector(`.eval-classification[data-dom-id="${domId}"]`);
           const confidenceEl = tbody.querySelector(`.eval-confidence[data-dom-id="${domId}"]`);
           const notesEl = tbody.querySelector(`.eval-notes[data-dom-id="${domId}"]`);
+
+          // ── Paired validation ─────────────────────────────────────────
+          // Classification + Confidence must both be filled or both be empty.
+          // "Pending" and empty string both count as "not set".
+          const classVal = classificationEl.value;
+          const confVal  = confidenceEl.value.trim();
+          const classSet = classVal && classVal !== 'Pending';
+          const confSet  = confVal !== '';
+
+          const clearValidation = () => {
+            classificationEl.style.outline = '';
+            confidenceEl.style.outline = '';
+          };
+
+          if (classSet && !confSet) {
+            // Classification filled but Confidence missing
+            confidenceEl.style.outline = '2px solid #e74c3c';
+            confidenceEl.focus();
+            confidenceEl.placeholder = 'Required (0–1)';
+            btn.style.animation = 'none';
+            btn.offsetHeight; // reflow
+            btn.style.animation = 'shake 0.3s ease';
+            confidenceEl.addEventListener('input', clearValidation, { once: true });
+            return;
+          }
+          if (confSet && !classSet) {
+            // Confidence filled but Classification still on Pending/empty
+            classificationEl.style.outline = '2px solid #e74c3c';
+            classificationEl.focus();
+            btn.style.animation = 'none';
+            btn.offsetHeight;
+            btn.style.animation = 'shake 0.3s ease';
+            classificationEl.addEventListener('change', clearValidation, { once: true });
+            return;
+          }
+          clearValidation();
+          // ─────────────────────────────────────────────────────────────
+
           btn.disabled = true;
           btn.textContent = 'Saving…';
           try {
