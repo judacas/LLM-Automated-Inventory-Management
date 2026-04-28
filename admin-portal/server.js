@@ -1095,9 +1095,10 @@ app.get('/admin/confusion-matrix', authenticateToken, async (req, res) => {
 app.get('/admin/agent-performance', authenticateToken, async (req, res) => {
   const range = normalizeDateRange(req.query.range);
   const lookback = getDateRangeKql(range);
+  const TELEMETRY_CUTOFF = '2026-04-28T22:15:00Z';
   const kql = `
 AppDependencies
-| where TimeGenerated > ago(${lookback})
+| where TimeGenerated > ago(${lookback}) and TimeGenerated > datetime('${TELEMETRY_CUTOFF}')
 | where Name startswith "invoke_agent"
 | extend agent = extract(@"invoke_agent\\s([a-zA-Z0-9_]+)", 1, Name)
 | where agent in ("userOrchestrator", "email", "userQuote", "userPurchaseOrder", "userOnboarding", "adminOrchestrator")
@@ -1111,9 +1112,10 @@ AppDependencies
 app.get('/admin/user-orchestrator-traces', authenticateToken, async (req, res) => {
   const range = normalizeDateRange(req.query.range);
   const lookback = getDateRangeKql(range);
+  const TELEMETRY_CUTOFF = '2026-04-28T22:15:00Z';
   const kql = `
 AppDependencies
-| where TimeGenerated > ago(${lookback})
+| where TimeGenerated > ago(${lookback}) and TimeGenerated > datetime('${TELEMETRY_CUTOFF}')
 | where Name startswith "invoke_agent"
 | where Name contains "userOrchestrator"
 | project timestamp=TimeGenerated, operation_Id=OperationId, id=Id, name=Name, success=Success, duration=DurationMs, resultCode=ResultCode, data=Data, target=Target, customDimensions=Properties
@@ -1127,9 +1129,10 @@ AppDependencies
 app.get('/admin/agent-traces', authenticateToken, async (req, res) => {
   const range = normalizeDateRange(req.query.range);
   const lookback = getDateRangeKql(range);
+  const TELEMETRY_CUTOFF = '2026-04-28T22:15:00Z';
   const kql = `
 AppDependencies
-| where TimeGenerated > ago(${lookback})
+| where TimeGenerated > ago(${lookback}) and TimeGenerated > datetime('${TELEMETRY_CUTOFF}')
 | where Name startswith "invoke_agent"
 | extend agent = extract(@"invoke_agent\\s([a-zA-Z0-9_]+)", 1, Name)
 | where agent in ("userOrchestrator", "email", "userQuote", "userPurchaseOrder", "userOnboarding", "adminOrchestrator")
