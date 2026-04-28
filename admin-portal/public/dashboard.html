@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contoso Admin Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <div class="dashboard-container">
     <h1 class="dashboard-title">Contoso Admin Dashboard</h1>
@@ -71,24 +73,49 @@
         </div>
         <div class="logs-filter-group" style="flex-grow: 1;">
           <span class="logs-filter-label">Customer Email / Time</span>
-          <input type="search" id="logsCompanySearch" class="logs-company-input"
-                 placeholder="Search by email or time…" autocomplete="off">
+          <input type="search" id="logsCompanySearch" class="logs-company-input" placeholder="Search by email or time…"
+            autocomplete="off">
         </div>
         <div class="logs-filter-group">
           <span class="logs-filter-label">Min Confidence</span>
-          <input type="number" id="logsConfidenceFilter" class="logs-status-select" style="width: 100px;" step="0.1" min="0" max="1" placeholder="0.0">
+          <input type="number" id="logsConfidenceFilter" class="logs-status-select" style="width: 100px;" step="0.1"
+            min="0" max="1" placeholder="0.0">
         </div>
       </div>
 
       <div class="stats-grid response-kpi-grid">
-        <div class="stat-card"><h3>Total Responses</h3><div id="kpiTotalResponses">0</div></div>
-        <div class="stat-card"><h3>Pending Review</h3><div id="kpiPendingReview">0</div></div>
-        <div class="stat-card"><h3>Correct</h3><div id="kpiCorrect">0</div></div>
-        <div class="stat-card"><h3>Incorrect</h3><div id="kpiIncorrect">0</div></div>
-        <div class="stat-card"><h3>Fallback</h3><div id="kpiFallback">0</div></div>
-        <div class="stat-card"><h3>Accuracy %</h3><div id="kpiAccuracy">0%</div></div>
-        <div class="stat-card"><h3>Fallback Rate</h3><div id="kpiFallbackRate">0%</div></div>
-        <div class="stat-card"><h3>Average Confidence</h3><div id="kpiAvgConfidence">N/A</div></div>
+        <div class="stat-card">
+          <h3>Total Responses</h3>
+          <div id="kpiTotalResponses">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Pending Review</h3>
+          <div id="kpiPendingReview">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Correct</h3>
+          <div id="kpiCorrect">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Incorrect</h3>
+          <div id="kpiIncorrect">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Fallback</h3>
+          <div id="kpiFallback">0</div>
+        </div>
+        <div class="stat-card">
+          <h3>Accuracy %</h3>
+          <div id="kpiAccuracy">0%</div>
+        </div>
+        <div class="stat-card">
+          <h3>Fallback Rate</h3>
+          <div id="kpiFallbackRate">0%</div>
+        </div>
+        <div class="stat-card">
+          <h3>Average Confidence</h3>
+          <div id="kpiAvgConfidence">N/A</div>
+        </div>
       </div>
 
       <div class="logs-table-meta">
@@ -113,7 +140,9 @@
             </tr>
           </thead>
           <tbody id="logsTableBody">
-            <tr><td colspan="10" class="logs-placeholder">Loading response evaluations...</td></tr>
+            <tr>
+              <td colspan="10" class="logs-placeholder">Loading response evaluations...</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -134,13 +163,15 @@
             </tr>
           </thead>
           <tbody id="agentTelemetryBody">
-            <tr><td colspan="4" class="logs-placeholder">Loading telemetry…</td></tr>
+            <tr>
+              <td colspan="4" class="logs-placeholder">Loading telemetry…</td>
+            </tr>
           </tbody>
         </table>
       </div>
 
       <h3 class="logs-card-title" style="margin-top: 40px;">User Orchestrator Traces</h3>
-      
+
       <!-- Trace Filters -->
       <div class="logs-filter-bar">
 
@@ -194,7 +225,9 @@
             </tr>
           </thead>
           <tbody id="userOrchestratorTracesBody">
-            <tr><td colspan="5" class="logs-placeholder">Loading traces…</td></tr>
+            <tr>
+              <td colspan="5" class="logs-placeholder">Loading traces…</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -289,7 +322,7 @@
         // Animate stats (integers)
         animateValue('outstandingCount', 0, data.outstandingCount ?? 0, 800);
         animateValue('unavailableItems', 0, data.unavailableItems ?? 0, 800);
-        animateValue('totalQuotes',      0, data.totalQuotes      ?? 0, 800);
+        animateValue('totalQuotes', 0, data.totalQuotes ?? 0, 800);
 
         // Do NOT animate currency string
         document.getElementById('outstandingTotal').textContent = data.outstandingTotal ?? '$0.00';
@@ -402,14 +435,14 @@
     function renderResponseEvaluationsTable() {
       const tbody = document.getElementById('logsTableBody');
       const countEl = document.getElementById('logsShowingCount');
-      
+
       const confidenceFilter = parseFloat(document.getElementById('logsConfidenceFilter').value) || 0;
       const searchVal = document.getElementById('logsCompanySearch').value.toLowerCase();
-      
+
       let filtered = _evaluationRows.filter(row => {
         const conf = parseFloat(row.confidence_score) || 0;
         if (conf < confidenceFilter) return false;
-        
+
         if (searchVal) {
           const email = (row.customer_email || '').toLowerCase();
           const timestamp = row.timestamp ? String(row.timestamp).replace('T', ' ').toLowerCase() : '';
@@ -430,7 +463,13 @@
         tr.className = 'logs-row';
         const created = row.timestamp ? String(row.timestamp).replace('T', ' ').substring(0, 19) : '—';
         const classification = row.classification || '';
-        tr.innerHTML = `
+        filtered.forEach((row) => {
+          const tr = document.createElement('tr');
+          tr.className = 'logs-row';
+          const created = row.timestamp ? String(row.timestamp).replace('T', ' ').substring(0, 19) : '—';
+          const classification = row.classification || '';
+          const domId = row.id || 'new_' + row.response_log_id;
+          tr.innerHTML = `
           <td class="logs-td logs-td-muted">${escapeHtml(created)}</td>
           <td class="logs-td">${escapeHtml(row.company || '—')}</td>
           <td class="logs-td logs-td-bold">${escapeHtml(row.customer_email || '—')}</td>
@@ -446,57 +485,79 @@
             </div>
           </td>
           <td class="logs-td">
-            <select class="logs-status-select eval-classification" data-id="${row.id}">
+            <select class="logs-status-select eval-classification" data-dom-id="${domId}">
               <option value="" ${classification ? '' : 'selected'}>Pending</option>
               <option value="Correct" ${classification === 'Correct' ? 'selected' : ''}>Correct</option>
               <option value="Incorrect" ${classification === 'Incorrect' ? 'selected' : ''}>Incorrect</option>
               <option value="Fallback" ${classification === 'Fallback' ? 'selected' : ''}>Fallback</option>
             </select>
           </td>
-          <td class="logs-td"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-id="${row.id}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;"></td>
+          <td class="logs-td"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-dom-id="${domId}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;"></td>
           <td class="logs-td logs-td-muted">${escapeHtml(row.evaluator_source || 'Manual')}</td>
-          <td class="logs-td"><input type="text" class="logs-company-input eval-notes" data-id="${row.id}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes"></td>
-          <td class="logs-td"><button class="nav-btn eval-save-btn" data-id="${row.id}">Save</button></td>
+          <td class="logs-td"><input type="text" class="logs-company-input eval-notes" data-dom-id="${domId}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes"></td>
+          <td class="logs-td"><button class="nav-btn eval-save-btn" data-dom-id="${domId}" data-eval-id="${row.id || ''}">Save</button></td>
         `;
-        tbody.appendChild(tr);
-      });
-
-      document.querySelectorAll('.eval-save-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-id');
-          const classificationEl = document.querySelector(`.eval-classification[data-id="${id}"]`);
-          const confidenceEl = document.querySelector(`.eval-confidence[data-id="${id}"]`);
-          const notesEl = document.querySelector(`.eval-notes[data-id="${id}"]`);
-          btn.disabled = true;
-          try {
-            await fetch(`/admin/response-evaluations/${id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                classification: classificationEl.value || null,
-                confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
-                review_notes: notesEl.value || null,
-                reviewed_by: 'admin'
-              }),
-            });
-            await Promise.all([fetchEvaluationSummary(), fetchResponseEvaluations(), fetchConfusionMatrix()]);
-          } finally {
-            btn.disabled = false;
-          }
+          tbody.appendChild(tr);
         });
-      });
-    }
+
+        document.querySelectorAll('.eval-save-btn').forEach((btn) => {
+          btn.addEventListener('click', async () => {
+            const domId = btn.getAttribute('data-dom-id');
+            const evalId = btn.getAttribute('data-eval-id');
+            const row = filtered.find(r => (r.id || 'new_' + r.response_log_id) === domId);
+            const classificationEl = document.querySelector(`.eval-classification[data-dom-id="${domId}"]`);
+            const confidenceEl = document.querySelector(`.eval-confidence[data-dom-id="${domId}"]`);
+            const notesEl = document.querySelector(`.eval-notes[data-dom-id="${domId}"]`);
+            btn.disabled = true;
+            try {
+              if (evalId) {
+                await fetch(`/admin/response-evaluations/${evalId}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    classification: classificationEl.value || null,
+                    confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
+                    review_notes: notesEl.value || null,
+                    reviewed_by: 'admin'
+                  }),
+                });
+              } else {
+                await fetch(`/admin/response-evaluations`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    response_log_id: row.response_log_id,
+                    customer_email: row.customer_email,
+                    customer_subject: row.customer_subject,
+                    customer_email_body: row.customer_email_body,
+                    final_system_response: row.final_system_response,
+                    agent_name: row.agent_name,
+                    classification: classificationEl.value || null,
+                    confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
+                    evaluator_source: 'Manual',
+                    review_notes: notesEl.value || null,
+                    reviewed_by: 'admin'
+                  }),
+                });
+              }
+              await Promise.all([fetchEvaluationSummary(), fetchResponseEvaluations(), fetchConfusionMatrix()]);
+            } finally {
+              btn.disabled = false;
+            }
+          });
+        });
+      }
 
     async function fetchAgentTelemetry() {
-      const res = await fetch(`/admin/agent-performance?range=${encodeURIComponent(_range)}`);
-      const data = await res.json();
-      const tbody = document.getElementById('agentTelemetryBody');
-      const rows = data.telemetry || [];
-      if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="4" class="logs-placeholder">No telemetry available.</td></tr>`;
-        return;
-      }
-      tbody.innerHTML = rows.map((r) => `
+          const res = await fetch(`/admin/agent-performance?range=${encodeURIComponent(_range)}`);
+          const data = await res.json();
+          const tbody = document.getElementById('agentTelemetryBody');
+          const rows = data.telemetry || [];
+          if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="4" class="logs-placeholder">No telemetry available.</td></tr>`;
+            return;
+          }
+          tbody.innerHTML = rows.map((r) => `
         <tr class="logs-row">
           <td class="logs-td">${escapeHtml(r.agent || '—')}</td>
           <td class="logs-td">${Number(r.calls || 0)}</td>
@@ -504,73 +565,73 @@
           <td class="logs-td">${Number(r.avgDurationSeconds || 0).toFixed(2)}</td>
         </tr>
       `).join('');
-    }
+        }
 
     let _traceRows = [];
 
-    async function fetchUserOrchestratorTraces() {
-      const traceRange = document.getElementById('tracesRangeFilter').value;
-      const res = await fetch(`/admin/user-orchestrator-traces?range=${encodeURIComponent(traceRange)}`);
-      const data = await res.json();
-      _traceRows = data.traces || [];
-      renderUserOrchestratorTracesTable();
-    }
-
-    function renderUserOrchestratorTracesTable() {
-      const tbody = document.getElementById('userOrchestratorTracesBody');
-      const successFilter = document.getElementById('tracesSuccessFilter').value;
-      const durationFilter = document.getElementById('tracesDurationFilter').value;
-      const timeSearch = document.getElementById('tracesTimeSearch').value.toLowerCase();
-      const sortOrder = document.getElementById('tracesSortFilter').value;
-
-      let filtered = _traceRows.filter(r => {
-        const isSuccess = r.success === true || String(r.success).toLowerCase() === 'true';
-        if (successFilter === 'true' && !isSuccess) return false;
-        if (successFilter === 'false' && isSuccess) return false;
-
-        const durationSec = (Number(r.duration) || 0) / 1000;
-        if (durationFilter === 'fast' && durationSec >= 2) return false;
-        if (durationFilter === 'normal' && (durationSec < 2 || durationSec > 10)) return false;
-        if (durationFilter === 'slow' && durationSec <= 10) return false;
-
-        const timestampStr = new Date(r.timestamp).toLocaleString().toLowerCase();
-        if (timeSearch && !timestampStr.includes(timeSearch)) return false;
-
-        return true;
-      });
-
-      filtered.sort((a, b) => {
-        const timeA = new Date(a.timestamp).getTime();
-        const timeB = new Date(b.timestamp).getTime();
-        return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
-      });
-
-      if (!filtered.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="logs-placeholder">No traces found matching criteria.</td></tr>`;
-        return;
+      async function fetchUserOrchestratorTraces() {
+        const traceRange = document.getElementById('tracesRangeFilter').value;
+        const res = await fetch(`/admin/user-orchestrator-traces?range=${encodeURIComponent(traceRange)}`);
+        const data = await res.json();
+        _traceRows = data.traces || [];
+        renderUserOrchestratorTracesTable();
       }
 
-      // TODO: Azure AI Foundry telemetry needs to be enriched with quote_id, customer_email, workflow_type, and request_summary
+      function renderUserOrchestratorTracesTable() {
+        const tbody = document.getElementById('userOrchestratorTracesBody');
+        const successFilter = document.getElementById('tracesSuccessFilter').value;
+        const durationFilter = document.getElementById('tracesDurationFilter').value;
+        const timeSearch = document.getElementById('tracesTimeSearch').value.toLowerCase();
+        const sortOrder = document.getElementById('tracesSortFilter').value;
 
-      tbody.innerHTML = filtered.slice(0, 50).map((r) => {
-        let cd = {};
-        if (r.customDimensions && typeof r.customDimensions === 'string') {
-          try { cd = JSON.parse(r.customDimensions); } catch(e) {}
-        } else if (r.customDimensions) {
-          cd = r.customDimensions;
+        let filtered = _traceRows.filter(r => {
+          const isSuccess = r.success === true || String(r.success).toLowerCase() === 'true';
+          if (successFilter === 'true' && !isSuccess) return false;
+          if (successFilter === 'false' && isSuccess) return false;
+
+          const durationSec = (Number(r.duration) || 0) / 1000;
+          if (durationFilter === 'fast' && durationSec >= 2) return false;
+          if (durationFilter === 'normal' && (durationSec < 2 || durationSec > 10)) return false;
+          if (durationFilter === 'slow' && durationSec <= 10) return false;
+
+          const timestampStr = new Date(r.timestamp).toLocaleString().toLowerCase();
+          if (timeSearch && !timestampStr.includes(timeSearch)) return false;
+
+          return true;
+        });
+
+        filtered.sort((a, b) => {
+          const timeA = new Date(a.timestamp).getTime();
+          const timeB = new Date(b.timestamp).getTime();
+          return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+        });
+
+        if (!filtered.length) {
+          tbody.innerHTML = `<tr><td colspan="5" class="logs-placeholder">No traces found matching criteria.</td></tr>`;
+          return;
         }
 
-        let durationStr = '—';
-        if (r.duration != null) {
-          const d = Number(r.duration);
-          if (d < 1000) {
-            durationStr = `${Math.round(d)} ms`;
-          } else {
-            durationStr = `${(d / 1000).toFixed(2)} s`;
+        // TODO: Azure AI Foundry telemetry needs to be enriched with quote_id, customer_email, workflow_type, and request_summary
+
+        tbody.innerHTML = filtered.slice(0, 50).map((r) => {
+          let cd = {};
+          if (r.customDimensions && typeof r.customDimensions === 'string') {
+            try { cd = JSON.parse(r.customDimensions); } catch (e) { }
+          } else if (r.customDimensions) {
+            cd = r.customDimensions;
           }
-        }
 
-        return `
+          let durationStr = '—';
+          if (r.duration != null) {
+            const d = Number(r.duration);
+            if (d < 1000) {
+              durationStr = `${Math.round(d)} ms`;
+            } else {
+              durationStr = `${(d / 1000).toFixed(2)} s`;
+            }
+          }
+
+          return `
         <tr class="logs-row">
           <td class="logs-td logs-td-muted">${escapeHtml(new Date(r.timestamp).toLocaleString())}</td>
           <td class="logs-td" title="${escapeHtml(r.operation_Id || '')}">${escapeHtml(r.operation_Id || '—')}</td>
@@ -579,784 +640,785 @@
           <td class="logs-td">${escapeHtml(r.resultCode || r.message || 'N/A')}</td>
         </tr>
       `}).join('');
-    }
+      }
 
-    async function refreshMonitoring() {
-      await fetchHealth();
-      await Promise.all([
-        fetchEvaluationSummary(),
-        fetchResponseEvaluations(),
-        fetchConfusionMatrix(),
-        fetchAgentTelemetry(),
-        fetchUserOrchestratorTraces(),
-      ]);
-    }
+      async function refreshMonitoring() {
+        await fetchHealth();
+        await Promise.all([
+          fetchEvaluationSummary(),
+          fetchResponseEvaluations(),
+          fetchConfusionMatrix(),
+          fetchAgentTelemetry(),
+          fetchUserOrchestratorTraces(),
+        ]);
+      }
 
-    document.querySelectorAll('.logs-pill').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.logs-pill').forEach(b => b.classList.remove('logs-pill-active'));
-        btn.classList.add('logs-pill-active');
-        _range = btn.dataset.range;
-        refreshMonitoring();
+      document.querySelectorAll('.logs-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('.logs-pill').forEach(b => b.classList.remove('logs-pill-active'));
+          btn.classList.add('logs-pill-active');
+          _range = btn.dataset.range;
+          refreshMonitoring();
+        });
       });
-    });
 
-    document.getElementById('logsStatusFilter').addEventListener('change', (e) => {
-      _classification = e.target.value;
-      fetchResponseEvaluations();
-    });
+      document.getElementById('logsStatusFilter').addEventListener('change', (e) => {
+        _classification = e.target.value;
+        fetchResponseEvaluations();
+      });
 
-    let _searchDebounce;
-    document.getElementById('logsCompanySearch').addEventListener('input', (e) => {
-      clearTimeout(_searchDebounce);
-      _searchDebounce = setTimeout(() => {
+      let _searchDebounce;
+      document.getElementById('logsCompanySearch').addEventListener('input', (e) => {
+        clearTimeout(_searchDebounce);
+        _searchDebounce = setTimeout(() => {
+          renderResponseEvaluationsTable();
+        }, 150);
+      });
+
+      document.getElementById('logsConfidenceFilter').addEventListener('input', () => {
         renderResponseEvaluationsTable();
-      }, 150);
-    });
+      });
 
-    document.getElementById('logsConfidenceFilter').addEventListener('input', () => {
-      renderResponseEvaluationsTable();
-    });
+      const renderTraces = () => renderUserOrchestratorTracesTable();
+      document.getElementById('tracesSuccessFilter').addEventListener('change', renderTraces);
+      document.getElementById('tracesDurationFilter').addEventListener('change', renderTraces);
+      document.getElementById('tracesSortFilter').addEventListener('change', renderTraces);
+      document.getElementById('tracesTimeSearch').addEventListener('input', renderTraces);
+      document.getElementById('tracesRangeFilter').addEventListener('change', fetchUserOrchestratorTraces);
 
-    const renderTraces = () => renderUserOrchestratorTracesTable();
-    document.getElementById('tracesSuccessFilter').addEventListener('change', renderTraces);
-    document.getElementById('tracesDurationFilter').addEventListener('change', renderTraces);
-    document.getElementById('tracesSortFilter').addEventListener('change', renderTraces);
-    document.getElementById('tracesTimeSearch').addEventListener('input', renderTraces);
-    document.getElementById('tracesRangeFilter').addEventListener('change', fetchUserOrchestratorTraces);
+      document.getElementById('chatSendBtn').addEventListener('click', sendChat);
+      refreshMonitoring();
+      setInterval(refreshMonitoring, 60000);
 
-    document.getElementById('chatSendBtn').addEventListener('click', sendChat);
-    refreshMonitoring();
-    setInterval(refreshMonitoring, 60000);
+      // Auto-refresh stat cards every 60 seconds so metrics stay live without a reload
+      setInterval(fetchDashboardAnimated, 60000);
 
-    // Auto-refresh stat cards every 60 seconds so metrics stay live without a reload
-    setInterval(fetchDashboardAnimated, 60000);
+      const DEBUG_ENABLED = (() => {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          return params.has('debug') || params.get('debug') === '1';
+        } catch {
+          return false;
+        }
+      })();
 
-    const DEBUG_ENABLED = (() => {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        return params.has('debug') || params.get('debug') === '1';
-      } catch {
-        return false;
+      const debugDetails = document.getElementById('chatDebug');
+      const debugLogEl = document.getElementById('chatDebugLog');
+      const debugBuffer = [];
+
+      const DEBUG_LEVEL_CLASS = {
+        info: 'debug-info',
+        success: 'debug-success',
+        warn: 'debug-warn',
+        error: 'debug-error',
+      };
+
+      function logDebug(event, data = {}, level = 'info') {
+        if (!DEBUG_ENABLED) return;
+        const ts = new Date().toISOString();
+        const entry = { ts, level, event, ...data };
+        debugBuffer.push(entry);
+        if (debugBuffer.length > 500) debugBuffer.shift();
+
+        if (debugLogEl) {
+          const line = document.createElement('div');
+          line.className = `debug-entry ${DEBUG_LEVEL_CLASS[level] || 'debug-info'}`;
+          const timeStr = ts.slice(11, 23); // HH:MM:SS.mmm
+          const { ts: _t, level: _l, event: _e, ...rest } = entry;
+          const dataStr = Object.keys(rest).length ? ' ' + JSON.stringify(rest) : '';
+          line.innerHTML =
+            `<span class="debug-ts">${escapeHtml(timeStr)}</span>` +
+            `<span class="debug-lvl">${escapeHtml(level.toUpperCase())}</span>` +
+            `<span class="debug-evt">${escapeHtml(event)}</span>` +
+            (dataStr ? `<span class="debug-data">${escapeHtml(dataStr)}</span>` : '');
+          debugLogEl.appendChild(line);
+          debugLogEl.scrollTop = debugLogEl.scrollHeight;
+        }
+
+        const countEl = document.getElementById('debugEntryCount');
+        if (countEl) countEl.textContent = `${debugBuffer.length} entr${debugBuffer.length === 1 ? 'y' : 'ies'}`;
       }
-    })();
 
-    const debugDetails = document.getElementById('chatDebug');
-    const debugLogEl  = document.getElementById('chatDebugLog');
-    const debugBuffer = [];
-
-    const DEBUG_LEVEL_CLASS = {
-      info:    'debug-info',
-      success: 'debug-success',
-      warn:    'debug-warn',
-      error:   'debug-error',
-    };
-
-    function logDebug(event, data = {}, level = 'info') {
-      if (!DEBUG_ENABLED) return;
-      const ts = new Date().toISOString();
-      const entry = { ts, level, event, ...data };
-      debugBuffer.push(entry);
-      if (debugBuffer.length > 500) debugBuffer.shift();
-
-      if (debugLogEl) {
-        const line = document.createElement('div');
-        line.className = `debug-entry ${DEBUG_LEVEL_CLASS[level] || 'debug-info'}`;
-        const timeStr = ts.slice(11, 23); // HH:MM:SS.mmm
-        const { ts: _t, level: _l, event: _e, ...rest } = entry;
-        const dataStr = Object.keys(rest).length ? ' ' + JSON.stringify(rest) : '';
-        line.innerHTML =
-          `<span class="debug-ts">${escapeHtml(timeStr)}</span>` +
-          `<span class="debug-lvl">${escapeHtml(level.toUpperCase())}</span>` +
-          `<span class="debug-evt">${escapeHtml(event)}</span>` +
-          (dataStr ? `<span class="debug-data">${escapeHtml(dataStr)}</span>` : '');
-        debugLogEl.appendChild(line);
-        debugLogEl.scrollTop = debugLogEl.scrollHeight;
-      }
-
-      const countEl = document.getElementById('debugEntryCount');
-      if (countEl) countEl.textContent = `${debugBuffer.length} entr${debugBuffer.length === 1 ? 'y' : 'ies'}`;
-    }
-
-    async function loadDebugSystemInfo() {
-      const infoEl = document.getElementById('debugSystemInfo');
-      if (!infoEl) return;
-      try {
-        const res = await fetch('/admin/debug/info');
-        if (!res.ok) { infoEl.textContent = `System info unavailable (HTTP ${res.status})`; return; }
-        const d = await res.json();
-        const envRows = Object.entries(d.env).map(([k, v]) => {
-          const cls = v.startsWith('✗') ? 'debug-env-missing'
-                    : v.startsWith('✓') ? 'debug-env-ok'
-                    : 'debug-env-opt';
-          return `<tr><td>${escapeHtml(k)}</td><td class="${cls}">${escapeHtml(v)}</td></tr>`;
-        }).join('');
-        infoEl.innerHTML =
-          `<div class="debug-sysinfo-grid">` +
+      async function loadDebugSystemInfo() {
+        const infoEl = document.getElementById('debugSystemInfo');
+        if (!infoEl) return;
+        try {
+          const res = await fetch('/admin/debug/info');
+          if (!res.ok) { infoEl.textContent = `System info unavailable (HTTP ${res.status})`; return; }
+          const d = await res.json();
+          const envRows = Object.entries(d.env).map(([k, v]) => {
+            const cls = v.startsWith('✗') ? 'debug-env-missing'
+              : v.startsWith('✓') ? 'debug-env-ok'
+                : 'debug-env-opt';
+            return `<tr><td>${escapeHtml(k)}</td><td class="${cls}">${escapeHtml(v)}</td></tr>`;
+          }).join('');
+          infoEl.innerHTML =
+            `<div class="debug-sysinfo-grid">` +
             `<div><strong>Runtime</strong><table class="debug-sysinfo-table">` +
-              `<tr><td>Node.js</td><td>${escapeHtml(d.node)}</td></tr>` +
-              `<tr><td>Platform</td><td>${escapeHtml(d.platform)}</td></tr>` +
-              `<tr><td>PID</td><td>${d.pid}</td></tr>` +
-              `<tr><td>Uptime</td><td>${d.uptimeSec}s</td></tr>` +
-              `<tr><td>RSS memory</td><td>${escapeHtml(d.memory.rss)}</td></tr>` +
-              `<tr><td>Heap used</td><td>${escapeHtml(d.memory.heapUsed)} / ${escapeHtml(d.memory.heapTotal)}</td></tr>` +
+            `<tr><td>Node.js</td><td>${escapeHtml(d.node)}</td></tr>` +
+            `<tr><td>Platform</td><td>${escapeHtml(d.platform)}</td></tr>` +
+            `<tr><td>PID</td><td>${d.pid}</td></tr>` +
+            `<tr><td>Uptime</td><td>${d.uptimeSec}s</td></tr>` +
+            `<tr><td>RSS memory</td><td>${escapeHtml(d.memory.rss)}</td></tr>` +
+            `<tr><td>Heap used</td><td>${escapeHtml(d.memory.heapUsed)} / ${escapeHtml(d.memory.heapTotal)}</td></tr>` +
             `</table></div>` +
             `<div><strong>Environment</strong><table class="debug-sysinfo-table">${envRows}</table></div>` +
-          `</div>`;
-        logDebug('system_info_loaded', { node: d.node, uptimeSec: d.uptimeSec, pid: d.pid }, 'info');
-      } catch (err) {
-        infoEl.textContent = `Failed to fetch system info: ${err.message}`;
-        logDebug('system_info_error', { error: err.message }, 'error');
-      }
-    }
-
-    if (DEBUG_ENABLED && debugDetails) {
-      debugDetails.style.display = '';
-      logDebug('debug_mode_enabled', { url: window.location.href });
-      loadDebugSystemInfo();
-    }
-
-    function escapeHtml(text) {
-      return String(text ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    function createRequestId() {
-      try {
-        if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-      } catch {
-        // ignore
-      }
-      // Fallback: not cryptographically strong, but good enough for correlation.
-      return `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    }
-
-    function formatAgentTextToSafeHtml(text) {
-      // Structured, safe formatting (“markdown-lite”):
-      // - Escapes HTML
-      // - Supports **bold**, inline `code`, fenced ```code blocks```
-      // - Supports headings (#, ##, ###), separators (---), bullet + numbered lists
-      // - Adds a nicer layout for domain-specific section titles (e.g., "Quote #5 (...)")
-      const raw = String(text ?? '');
-
-      // Pull out fenced code blocks first so list/heading parsing can ignore them.
-      const codeBlocks = [];
-      const withPlaceholders = raw.replace(/```([\s\S]*?)```/g, (_m, code) => {
-        const html = `<pre class="chat-code"><code>${escapeHtml(code)}</code></pre>`;
-        codeBlocks.push(html);
-        return `@@CODEBLOCK_${codeBlocks.length - 1}@@`;
-      });
-
-      function renderInline(markupText) {
-        // Escape first, then apply inline transforms on already-escaped text.
-        let escaped = escapeHtml(markupText);
-        escaped = escaped.replace(/`([^`\n]+)`/g, (_m, code) => `<code>${code}</code>`);
-        escaped = escaped.replace(/\*\*([^*\n]+?)\*\*/g, (_m, boldText) => `<strong>${boldText}</strong>`);
-        escaped = escaped.replace(/\*([^*\n]+?)\*/g, (_m, italicText) => `<em>${italicText}</em>`);
-
-        // Key/value highlight: "Label: value" -> bold label
-        // (Works nicely inside list items and paragraphs.)
-        escaped = escaped.replace(
-          /^([A-Za-z][A-Za-z0-9 ()/_-]{0,50}):\s+/,
-          (_m, label) => `<strong>${label}:</strong> `
-        );
-
-        // Standalone section label: "Line Items:" -> bold entire label
-        escaped = escaped.replace(
-          /^([A-Za-z][A-Za-z0-9 ()\/_-]{0,50}):\s*$/,
-          (_m, label) => `<strong>${label}:</strong>`
-        );
-        return escaped;
+            `</div>`;
+          logDebug('system_info_loaded', { node: d.node, uptimeSec: d.uptimeSec, pid: d.pid }, 'info');
+        } catch (err) {
+          infoEl.textContent = `Failed to fetch system info: ${err.message}`;
+          logDebug('system_info_error', { error: err.message }, 'error');
+        }
       }
 
-      function renderMarkdownLite(blockText) {
-        const lines = String(blockText ?? '').split(/\r?\n/);
-        const htmlParts = [];
+      if (DEBUG_ENABLED && debugDetails) {
+        debugDetails.style.display = '';
+        logDebug('debug_mode_enabled', { url: window.location.href });
+        loadDebugSystemInfo();
+      }
 
-        // Nested list support
-        // We build a small tree so nested bullet indentation renders correctly.
-        /** @type {{ type: 'ul'|'ol', items: Array<{ html: string, child: any | null }> } | null} */
-        let listRoot = null;
-        /** @type {Array<{ node: any, level: number }> } */
-        let listPath = [];
-        let listRootType = null;
+      function escapeHtml(text) {
+        return String(text ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
 
-        // Heuristic nesting: if we see a bullet that ends with ':' (and has no value),
-        // treat subsequent bullets at the same indentation as children until a new
-        // section bullet appears.
-        let implicitChildMode = false;
-        let implicitBaseLevel = 0;
+      function createRequestId() {
+        try {
+          if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+        } catch {
+          // ignore
+        }
+        // Fallback: not cryptographically strong, but good enough for correlation.
+        return `req_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+      }
 
-        let paragraphLines = [];
+      function formatAgentTextToSafeHtml(text) {
+        // Structured, safe formatting (“markdown-lite”):
+        // - Escapes HTML
+        // - Supports **bold**, inline `code`, fenced ```code blocks```
+        // - Supports headings (#, ##, ###), separators (---), bullet + numbered lists
+        // - Adds a nicer layout for domain-specific section titles (e.g., "Quote #5 (...)")
+        const raw = String(text ?? '');
 
-        let kvPairs = []; // array of { key: string, valueHtml: string }
+        // Pull out fenced code blocks first so list/heading parsing can ignore them.
+        const codeBlocks = [];
+        const withPlaceholders = raw.replace(/```([\s\S]*?)```/g, (_m, code) => {
+          const html = `<pre class="chat-code"><code>${escapeHtml(code)}</code></pre>`;
+          codeBlocks.push(html);
+          return `@@CODEBLOCK_${codeBlocks.length - 1}@@`;
+        });
 
-        // "Auto-list" lines: many agents return capability/action lists as plain lines
-        // (no '-' bullet markers). We detect short, imperative-style lines and render
-        // them as a list when there are 2+ in a row.
-        let autoBulletLines = [];
-        let tableLines = [];
+        function renderInline(markupText) {
+          // Escape first, then apply inline transforms on already-escaped text.
+          let escaped = escapeHtml(markupText);
+          escaped = escaped.replace(/`([^`\n]+)`/g, (_m, code) => `<code>${code}</code>`);
+          escaped = escaped.replace(/\*\*([^*\n]+?)\*\*/g, (_m, boldText) => `<strong>${boldText}</strong>`);
+          escaped = escaped.replace(/\*([^*\n]+?)\*/g, (_m, italicText) => `<em>${italicText}</em>`);
 
-        function looksLikePlainHeading(t) {
-          // Examples we want: "Inventory Management", "Business Metrics", "Discounts", "Admin Usage Tips"
-          if (!t) return false;
-          if (t.length > 48) return false;
-          if (t.endsWith(':')) return false;
-          if (/[.?!]$/.test(t)) return false;
-          if (/^#{1,3}\s+/.test(t)) return false;
-          if (/^\s*([-*•])\s+/.test(t)) return false;
-          if (/^\s*\d+\.\s+/.test(t)) return false;
-          if (/^https?:\/\//i.test(t)) return false;
-          if (!/^[A-Za-z0-9][A-Za-z0-9 &'()\/_-]*$/.test(t)) return false;
-          if (t.toLowerCase() === t) return false; // all-lowercase is unlikely a section title
-          return true;
+          // Key/value highlight: "Label: value" -> bold label
+          // (Works nicely inside list items and paragraphs.)
+          escaped = escaped.replace(
+            /^([A-Za-z][A-Za-z0-9 ()/_-]{0,50}):\s+/,
+            (_m, label) => `<strong>${label}:</strong> `
+          );
+
+          // Standalone section label: "Line Items:" -> bold entire label
+          escaped = escaped.replace(
+            /^([A-Za-z][A-Za-z0-9 ()\/_-]{0,50}):\s*$/,
+            (_m, label) => `<strong>${label}:</strong>`
+          );
+          return escaped;
         }
 
-        function looksLikeAutoBulletLine(t) {
-          if (!t) return false;
-          if (t.length > 140) return false;
-          if (/^@@CODEBLOCK_\d+@@$/.test(t)) return false;
-          if (/^(---|\*\*\*|___)\s*$/.test(t)) return false;
-          if (/^#{1,3}\s+/.test(t)) return false;
-          if (/^\s*([-*•])\s+/.test(t)) return false;
-          if (/^\s*\d+\.\s+/.test(t)) return false;
-          if (/^quote\s+#\d+/i.test(t)) return false;
-          // Exclude key/value rows
-          if (/^[A-Za-z][A-Za-z0-9 ()\/_-]{0,50}:\s*\S+/.test(t)) return false;
-          // Exclude obvious sentences that are actually "normal" paragraphs.
-          // Heuristic: capability/action lines tend to start with a capital verb.
-          if (!/^[A-Z]/.test(t)) return false;
-          return true;
-        }
+        function renderMarkdownLite(blockText) {
+          const lines = String(blockText ?? '').split(/\r?\n/);
+          const htmlParts = [];
 
-        function renderListNode(node) {
-          const itemsHtml = node.items
-            .map((it) => {
-              const childHtml = it.child ? renderListNode(it.child) : '';
-              return `<li>${it.html}${childHtml}</li>`;
-            })
-            .join('');
-          return `<${node.type} class="chat-list">${itemsHtml}</${node.type}>`;
-        }
+          // Nested list support
+          // We build a small tree so nested bullet indentation renders correctly.
+          /** @type {{ type: 'ul'|'ol', items: Array<{ html: string, child: any | null }> } | null} */
+          let listRoot = null;
+          /** @type {Array<{ node: any, level: number }> } */
+          let listPath = [];
+          let listRootType = null;
 
-        function flushList() {
-          if (!listRoot || !listRoot.items.length) {
+          // Heuristic nesting: if we see a bullet that ends with ':' (and has no value),
+          // treat subsequent bullets at the same indentation as children until a new
+          // section bullet appears.
+          let implicitChildMode = false;
+          let implicitBaseLevel = 0;
+
+          let paragraphLines = [];
+
+          let kvPairs = []; // array of { key: string, valueHtml: string }
+
+          // "Auto-list" lines: many agents return capability/action lists as plain lines
+          // (no '-' bullet markers). We detect short, imperative-style lines and render
+          // them as a list when there are 2+ in a row.
+          let autoBulletLines = [];
+          let tableLines = [];
+
+          function looksLikePlainHeading(t) {
+            // Examples we want: "Inventory Management", "Business Metrics", "Discounts", "Admin Usage Tips"
+            if (!t) return false;
+            if (t.length > 48) return false;
+            if (t.endsWith(':')) return false;
+            if (/[.?!]$/.test(t)) return false;
+            if (/^#{1,3}\s+/.test(t)) return false;
+            if (/^\s*([-*•])\s+/.test(t)) return false;
+            if (/^\s*\d+\.\s+/.test(t)) return false;
+            if (/^https?:\/\//i.test(t)) return false;
+            if (!/^[A-Za-z0-9][A-Za-z0-9 &'()\/_-]*$/.test(t)) return false;
+            if (t.toLowerCase() === t) return false; // all-lowercase is unlikely a section title
+            return true;
+          }
+
+          function looksLikeAutoBulletLine(t) {
+            if (!t) return false;
+            if (t.length > 140) return false;
+            if (/^@@CODEBLOCK_\d+@@$/.test(t)) return false;
+            if (/^(---|\*\*\*|___)\s*$/.test(t)) return false;
+            if (/^#{1,3}\s+/.test(t)) return false;
+            if (/^\s*([-*•])\s+/.test(t)) return false;
+            if (/^\s*\d+\.\s+/.test(t)) return false;
+            if (/^quote\s+#\d+/i.test(t)) return false;
+            // Exclude key/value rows
+            if (/^[A-Za-z][A-Za-z0-9 ()\/_-]{0,50}:\s*\S+/.test(t)) return false;
+            // Exclude obvious sentences that are actually "normal" paragraphs.
+            // Heuristic: capability/action lines tend to start with a capital verb.
+            if (!/^[A-Z]/.test(t)) return false;
+            return true;
+          }
+
+          function renderListNode(node) {
+            const itemsHtml = node.items
+              .map((it) => {
+                const childHtml = it.child ? renderListNode(it.child) : '';
+                return `<li>${it.html}${childHtml}</li>`;
+              })
+              .join('');
+            return `<${node.type} class="chat-list">${itemsHtml}</${node.type}>`;
+          }
+
+          function flushList() {
+            if (!listRoot || !listRoot.items.length) {
+              listRoot = null;
+              listPath = [];
+              listRootType = null;
+              return;
+            }
+            htmlParts.push(renderListNode(listRoot));
             listRoot = null;
             listPath = [];
             listRootType = null;
-            return;
-          }
-          htmlParts.push(renderListNode(listRoot));
-          listRoot = null;
-          listPath = [];
-          listRootType = null;
-        }
-
-        function startNewList(rootType) {
-          listRoot = { type: rootType, items: [] };
-          listPath = [{ node: listRoot, level: 0 }];
-          listRootType = rootType;
-        }
-
-        function getLeadingSpacesCount(s) {
-          const m = String(s ?? '').match(/^(\s*)/);
-          if (!m) return 0;
-          const ws = m[1] || '';
-          // Treat a tab as 2 spaces for our purposes.
-          return ws.replace(/\t/g, '  ').length;
-        }
-
-        function isSectionBullet(text) {
-          // Bullet that ends with ':' and has no value after it
-          return /^[A-Za-z][A-Za-z0-9 ()\/_-]{0,50}:\s*$/.test(text);
-        }
-
-        function addListItem(rootType, level, itemHtml, rawItemText) {
-          if (!listRoot) startNewList(rootType);
-
-          // If the root type changes (ul vs ol), flush and restart.
-          if (listRootType && listRootType !== rootType && level === 0) {
-            flushList();
-            startNewList(rootType);
           }
 
-          // Clamp level to avoid creating children without a parent item.
-          level = Math.max(0, level);
+          function startNewList(rootType) {
+            listRoot = { type: rootType, items: [] };
+            listPath = [{ node: listRoot, level: 0 }];
+            listRootType = rootType;
+          }
 
-          // Ensure listPath ends at requested level.
-          while (listPath.length - 1 > level) listPath.pop();
+          function getLeadingSpacesCount(s) {
+            const m = String(s ?? '').match(/^(\s*)/);
+            if (!m) return 0;
+            const ws = m[1] || '';
+            // Treat a tab as 2 spaces for our purposes.
+            return ws.replace(/\t/g, '  ').length;
+          }
 
-          while (listPath.length - 1 < level) {
-            const parentNode = listPath[listPath.length - 1].node;
-            const parentItems = parentNode.items;
-            const lastItem = parentItems[parentItems.length - 1];
-            if (!lastItem) break;
-            if (!lastItem.child) {
-              lastItem.child = { type: rootType, items: [] };
+          function isSectionBullet(text) {
+            // Bullet that ends with ':' and has no value after it
+            return /^[A-Za-z][A-Za-z0-9 ()\/_-]{0,50}:\s*$/.test(text);
+          }
+
+          function addListItem(rootType, level, itemHtml, rawItemText) {
+            if (!listRoot) startNewList(rootType);
+
+            // If the root type changes (ul vs ol), flush and restart.
+            if (listRootType && listRootType !== rootType && level === 0) {
+              flushList();
+              startNewList(rootType);
             }
-            listPath.push({ node: lastItem.child, level: listPath.length });
+
+            // Clamp level to avoid creating children without a parent item.
+            level = Math.max(0, level);
+
+            // Ensure listPath ends at requested level.
+            while (listPath.length - 1 > level) listPath.pop();
+
+            while (listPath.length - 1 < level) {
+              const parentNode = listPath[listPath.length - 1].node;
+              const parentItems = parentNode.items;
+              const lastItem = parentItems[parentItems.length - 1];
+              if (!lastItem) break;
+              if (!lastItem.child) {
+                lastItem.child = { type: rootType, items: [] };
+              }
+              listPath.push({ node: lastItem.child, level: listPath.length });
+            }
+
+            const targetNode = listPath[listPath.length - 1].node;
+            targetNode.items.push({ html: itemHtml, child: null });
+
+            // Update implicit nesting mode.
+            if (isSectionBullet(rawItemText)) {
+              implicitChildMode = true;
+              implicitBaseLevel = level;
+            }
           }
 
-          const targetNode = listPath[listPath.length - 1].node;
-          targetNode.items.push({ html: itemHtml, child: null });
-
-          // Update implicit nesting mode.
-          if (isSectionBullet(rawItemText)) {
-            implicitChildMode = true;
-            implicitBaseLevel = level;
+          function flushParagraph() {
+            if (!paragraphLines.length) return;
+            const rendered = paragraphLines.map((l) => renderInline(l.trim())).join('<br>');
+            htmlParts.push(`<div class="chat-paragraph">${rendered}</div>`);
+            paragraphLines = [];
           }
-        }
 
-        function flushParagraph() {
-          if (!paragraphLines.length) return;
-          const rendered = paragraphLines.map((l) => renderInline(l.trim())).join('<br>');
-          htmlParts.push(`<div class="chat-paragraph">${rendered}</div>`);
-          paragraphLines = [];
-        }
+          function flushAutoBullets() {
+            if (!autoBulletLines.length) return;
+            if (autoBulletLines.length >= 2) {
+              const itemsHtml = autoBulletLines
+                .map((l) => `<li>${renderInline(l.trim())}</li>`)
+                .join('');
+              htmlParts.push(`<ul class="chat-list">${itemsHtml}</ul>`);
+            } else {
+              // Single line: treat as a normal paragraph.
+              htmlParts.push(
+                `<div class="chat-paragraph">${renderInline(autoBulletLines[0].trim())}</div>`
+              );
+            }
+            autoBulletLines = [];
+          }
 
-        function flushAutoBullets() {
-          if (!autoBulletLines.length) return;
-          if (autoBulletLines.length >= 2) {
-            const itemsHtml = autoBulletLines
-              .map((l) => `<li>${renderInline(l.trim())}</li>`)
+          function flushKv() {
+            if (!kvPairs.length) return;
+            const rows = kvPairs
+              .map((pair) => {
+                const keyHtml = escapeHtml(pair.key);
+                return `<dt>${keyHtml}</dt><dd>${pair.valueHtml}</dd>`;
+              })
               .join('');
-            htmlParts.push(`<ul class="chat-list">${itemsHtml}</ul>`);
-          } else {
-            // Single line: treat as a normal paragraph.
-            htmlParts.push(
-              `<div class="chat-paragraph">${renderInline(autoBulletLines[0].trim())}</div>`
+            htmlParts.push(`<dl class="chat-kv">${rows}</dl>`);
+            kvPairs = [];
+          }
+
+          function flushTable() {
+            if (!tableLines.length) return;
+            const rows = tableLines.map(line =>
+              line.replace(/^\||\|$/g, '').split('|').map(cell => cell.trim())
             );
+            let headerRow = null;
+            let separatorIdx = -1;
+            let alignments = [];
+            if (rows.length >= 2 && rows[1].every(cell => /^[-: ]+$/.test(cell))) {
+              headerRow = rows[0];
+              separatorIdx = 1;
+              alignments = rows[1].map(cell => {
+                const c = cell.trim();
+                if (c.startsWith(':') && c.endsWith(':')) return 'center';
+                if (c.endsWith(':')) return 'right';
+                return 'left';
+              });
+            }
+            const bodyRows = headerRow ? rows.slice(separatorIdx + 1) : rows;
+            let tableHtml = '<div class="chat-table-wrap"><table class="chat-table">';
+            if (headerRow) {
+              tableHtml += '<thead><tr>';
+              headerRow.forEach((cell, idx) => {
+                tableHtml += `<th style="text-align:${alignments[idx] || 'left'}">${renderInline(cell)}</th>`;
+              });
+              tableHtml += '</tr></thead>';
+            }
+            if (bodyRows.length) {
+              const colCount = headerRow ? headerRow.length : (bodyRows[0] ? bodyRows[0].length : 0);
+              tableHtml += '<tbody>';
+              bodyRows.forEach(row => {
+                tableHtml += '<tr>';
+                for (let ci = 0; ci < colCount; ci++) {
+                  const cell = row[ci] != null ? row[ci] : '';
+                  tableHtml += `<td style="text-align:${alignments[ci] || 'left'}">${renderInline(cell)}</td>`;
+                }
+                tableHtml += '</tr>';
+              });
+              tableHtml += '</tbody>';
+            }
+            tableHtml += '</table></div>';
+            htmlParts.push(tableHtml);
+            tableLines = [];
           }
-          autoBulletLines = [];
-        }
 
-        function flushKv() {
-          if (!kvPairs.length) return;
-          const rows = kvPairs
-            .map((pair) => {
-              const keyHtml = escapeHtml(pair.key);
-              return `<dt>${keyHtml}</dt><dd>${pair.valueHtml}</dd>`;
-            })
-            .join('');
-          htmlParts.push(`<dl class="chat-kv">${rows}</dl>`);
-          kvPairs = [];
-        }
+          for (let i = 0; i < lines.length; i++) {
+            const line = String(lines[i] ?? '');
+            const trimmed = line.trim();
+            const nextTrimmed = String(lines[i + 1] ?? '').trim();
 
-        function flushTable() {
-          if (!tableLines.length) return;
-          const rows = tableLines.map(line =>
-            line.replace(/^\||\|$/g, '').split('|').map(cell => cell.trim())
-          );
-          let headerRow = null;
-          let separatorIdx = -1;
-          let alignments = [];
-          if (rows.length >= 2 && rows[1].every(cell => /^[-: ]+$/.test(cell))) {
-            headerRow = rows[0];
-            separatorIdx = 1;
-            alignments = rows[1].map(cell => {
-              const c = cell.trim();
-              if (c.startsWith(':') && c.endsWith(':')) return 'center';
-              if (c.endsWith(':')) return 'right';
-              return 'left';
-            });
-          }
-          const bodyRows = headerRow ? rows.slice(separatorIdx + 1) : rows;
-          let tableHtml = '<div class="chat-table-wrap"><table class="chat-table">';
-          if (headerRow) {
-            tableHtml += '<thead><tr>';
-            headerRow.forEach((cell, idx) => {
-              tableHtml += `<th style="text-align:${alignments[idx] || 'left'}">${renderInline(cell)}</th>`;
-            });
-            tableHtml += '</tr></thead>';
-          }
-          if (bodyRows.length) {
-            const colCount = headerRow ? headerRow.length : (bodyRows[0] ? bodyRows[0].length : 0);
-            tableHtml += '<tbody>';
-            bodyRows.forEach(row => {
-              tableHtml += '<tr>';
-              for (let ci = 0; ci < colCount; ci++) {
-                const cell = row[ci] != null ? row[ci] : '';
-                tableHtml += `<td style="text-align:${alignments[ci] || 'left'}">${renderInline(cell)}</td>`;
+            // Code-block placeholders become standalone blocks.
+            const codeMatch = trimmed.match(/^@@CODEBLOCK_(\d+)@@$/);
+            if (codeMatch) {
+              flushAutoBullets();
+              flushParagraph();
+              flushKv();
+              flushTable();
+              flushList();
+              implicitChildMode = false;
+              htmlParts.push(codeBlocks[Number(codeMatch[1])] || '');
+              continue;
+            }
+
+            // Blank line -> spacing (and ends any active list)
+            if (!trimmed) {
+              flushAutoBullets();
+              flushParagraph();
+              flushKv();
+              flushTable();
+              flushList();
+              implicitChildMode = false;
+              htmlParts.push('<div class="chat-gap"></div>');
+              continue;
+            }
+
+            // Horizontal rule
+            if (/^(---|\*\*\*|___)\s*$/.test(trimmed)) {
+              flushAutoBullets();
+              flushParagraph();
+              flushKv();
+              flushTable();
+              flushList();
+              implicitChildMode = false;
+              htmlParts.push('<hr class="chat-hr">');
+              continue;
+            }
+
+            // Headings (#, ##, ###)
+            const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
+            if (headingMatch) {
+              flushAutoBullets();
+              flushParagraph();
+              flushKv();
+              flushTable();
+              flushList();
+              implicitChildMode = false;
+              const level = headingMatch[1].length;
+              htmlParts.push(
+                `<div class="chat-heading chat-h${level}">${renderInline(headingMatch[2])}</div>`
+              );
+              continue;
+            }
+
+            // Plain headings (no leading '#') for capability-style output.
+            if (
+              looksLikePlainHeading(trimmed) &&
+              (nextTrimmed === '' || looksLikeAutoBulletLine(nextTrimmed))
+            ) {
+              flushAutoBullets();
+              flushParagraph();
+              flushKv();
+              flushTable();
+              flushList();
+              implicitChildMode = false;
+              htmlParts.push(`<div class="chat-heading chat-h2">${renderInline(trimmed)}</div>`);
+              continue;
+            }
+
+            // Domain section title: Quote #N (...)
+            if (/^quote\s+#\d+/i.test(trimmed)) {
+              flushAutoBullets();
+              flushParagraph();
+              flushKv();
+              flushTable();
+              flushList();
+              implicitChildMode = false;
+              htmlParts.push(`<div class="chat-heading chat-h2">${renderInline(trimmed)}</div>`);
+              continue;
+            }
+
+            // Markdown table rows: | col | col |
+            if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 1) {
+              flushAutoBullets();
+              flushParagraph();
+              flushKv();
+              flushList();
+              implicitChildMode = false;
+              tableLines.push(trimmed);
+              continue;
+            }
+            // If we were building a table and hit a non-table line, flush it.
+            flushTable();
+
+            // Key/value rows (non-list): group consecutive "Key: value" lines
+            const kvMatch = trimmed.match(/^([A-Za-z][A-Za-z0-9 ()/_-]{0,50}):\s*(.+)$/);
+            if (kvMatch) {
+              flushAutoBullets();
+              flushParagraph();
+              flushList();
+              implicitChildMode = false;
+              kvPairs.push({
+                key: kvMatch[1],
+                valueHtml: renderInline(kvMatch[2]),
+              });
+              continue;
+            }
+            // If we were in a KV block and we hit a non-KV line, flush it.
+            flushKv();
+
+            // Auto-bullet lines (plain action lists)
+            if (looksLikeAutoBulletLine(trimmed)) {
+              flushParagraph();
+              flushList();
+              implicitChildMode = false;
+              autoBulletLines.push(trimmed);
+              continue;
+            }
+            // If we were collecting auto bullets and this line breaks the run, flush them.
+            flushAutoBullets();
+
+            // Bullet list items: - item, * item, • item (with optional indentation)
+            const bulletMatch = line.match(/^\s*([-*•])\s+(.+)$/);
+            if (bulletMatch) {
+              flushParagraph();
+              const rawItemText = bulletMatch[2].trim();
+              const baseLevel = Math.floor(getLeadingSpacesCount(line) / 2);
+
+              let effectiveLevel = baseLevel;
+              if (implicitChildMode && baseLevel === implicitBaseLevel) {
+                // If this is another section bullet at the same level, keep it as a sibling
+                // and switch the implicit base to this new section.
+                if (isSectionBullet(rawItemText)) {
+                  effectiveLevel = baseLevel;
+                } else {
+                  effectiveLevel = baseLevel + 1;
+                }
               }
-              tableHtml += '</tr>';
-            });
-            tableHtml += '</tbody>';
-          }
-          tableHtml += '</table></div>';
-          htmlParts.push(tableHtml);
-          tableLines = [];
-        }
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = String(lines[i] ?? '');
-          const trimmed = line.trim();
-          const nextTrimmed = String(lines[i + 1] ?? '').trim();
+              addListItem('ul', effectiveLevel, renderInline(rawItemText), rawItemText);
+              continue;
+            }
 
-          // Code-block placeholders become standalone blocks.
-          const codeMatch = trimmed.match(/^@@CODEBLOCK_(\d+)@@$/);
-          if (codeMatch) {
-            flushAutoBullets();
-            flushParagraph();
-            flushKv();
-            flushTable();
+            // Numbered list items: 1. item
+            const numMatch = line.match(/^\s*(\d+)\.\s+(.+)$/);
+            if (numMatch) {
+              flushParagraph();
+              const rawItemText = numMatch[2].trim();
+              const baseLevel = Math.floor(getLeadingSpacesCount(line) / 2);
+
+              let effectiveLevel = baseLevel;
+              if (implicitChildMode && baseLevel === implicitBaseLevel) {
+                if (isSectionBullet(rawItemText)) {
+                  effectiveLevel = baseLevel;
+                } else {
+                  effectiveLevel = baseLevel + 1;
+                }
+              }
+
+              addListItem('ol', effectiveLevel, renderInline(rawItemText), rawItemText);
+              continue;
+            }
+
+            // Normal paragraph line (group consecutive lines)
             flushList();
             implicitChildMode = false;
-            htmlParts.push(codeBlocks[Number(codeMatch[1])] || '');
-            continue;
+            paragraphLines.push(trimmed);
           }
 
-          // Blank line -> spacing (and ends any active list)
-          if (!trimmed) {
-            flushAutoBullets();
-            flushParagraph();
-            flushKv();
-            flushTable();
-            flushList();
-            implicitChildMode = false;
-            htmlParts.push('<div class="chat-gap"></div>');
-            continue;
-          }
-
-          // Horizontal rule
-          if (/^(---|\*\*\*|___)\s*$/.test(trimmed)) {
-            flushAutoBullets();
-            flushParagraph();
-            flushKv();
-            flushTable();
-            flushList();
-            implicitChildMode = false;
-            htmlParts.push('<hr class="chat-hr">');
-            continue;
-          }
-
-          // Headings (#, ##, ###)
-          const headingMatch = trimmed.match(/^(#{1,3})\s+(.+)$/);
-          if (headingMatch) {
-            flushAutoBullets();
-            flushParagraph();
-            flushKv();
-            flushTable();
-            flushList();
-            implicitChildMode = false;
-            const level = headingMatch[1].length;
-            htmlParts.push(
-              `<div class="chat-heading chat-h${level}">${renderInline(headingMatch[2])}</div>`
-            );
-            continue;
-          }
-
-          // Plain headings (no leading '#') for capability-style output.
-          if (
-            looksLikePlainHeading(trimmed) &&
-            (nextTrimmed === '' || looksLikeAutoBulletLine(nextTrimmed))
-          ) {
-            flushAutoBullets();
-            flushParagraph();
-            flushKv();
-            flushTable();
-            flushList();
-            implicitChildMode = false;
-            htmlParts.push(`<div class="chat-heading chat-h2">${renderInline(trimmed)}</div>`);
-            continue;
-          }
-
-          // Domain section title: Quote #N (...)
-          if (/^quote\s+#\d+/i.test(trimmed)) {
-            flushAutoBullets();
-            flushParagraph();
-            flushKv();
-            flushTable();
-            flushList();
-            implicitChildMode = false;
-            htmlParts.push(`<div class="chat-heading chat-h2">${renderInline(trimmed)}</div>`);
-            continue;
-          }
-
-          // Markdown table rows: | col | col |
-          if (trimmed.startsWith('|') && trimmed.endsWith('|') && trimmed.length > 1) {
-            flushAutoBullets();
-            flushParagraph();
-            flushKv();
-            flushList();
-            implicitChildMode = false;
-            tableLines.push(trimmed);
-            continue;
-          }
-          // If we were building a table and hit a non-table line, flush it.
-          flushTable();
-
-          // Key/value rows (non-list): group consecutive "Key: value" lines
-          const kvMatch = trimmed.match(/^([A-Za-z][A-Za-z0-9 ()/_-]{0,50}):\s*(.+)$/);
-          if (kvMatch) {
-            flushAutoBullets();
-            flushParagraph();
-            flushList();
-            implicitChildMode = false;
-            kvPairs.push({
-              key: kvMatch[1],
-              valueHtml: renderInline(kvMatch[2]),
-            });
-            continue;
-          }
-          // If we were in a KV block and we hit a non-KV line, flush it.
-          flushKv();
-
-          // Auto-bullet lines (plain action lists)
-          if (looksLikeAutoBulletLine(trimmed)) {
-            flushParagraph();
-            flushList();
-            implicitChildMode = false;
-            autoBulletLines.push(trimmed);
-            continue;
-          }
-          // If we were collecting auto bullets and this line breaks the run, flush them.
           flushAutoBullets();
-
-          // Bullet list items: - item, * item, • item (with optional indentation)
-          const bulletMatch = line.match(/^\s*([-*•])\s+(.+)$/);
-          if (bulletMatch) {
-            flushParagraph();
-            const rawItemText = bulletMatch[2].trim();
-            const baseLevel = Math.floor(getLeadingSpacesCount(line) / 2);
-
-            let effectiveLevel = baseLevel;
-            if (implicitChildMode && baseLevel === implicitBaseLevel) {
-              // If this is another section bullet at the same level, keep it as a sibling
-              // and switch the implicit base to this new section.
-              if (isSectionBullet(rawItemText)) {
-                effectiveLevel = baseLevel;
-              } else {
-                effectiveLevel = baseLevel + 1;
-              }
-            }
-
-            addListItem('ul', effectiveLevel, renderInline(rawItemText), rawItemText);
-            continue;
-          }
-
-          // Numbered list items: 1. item
-          const numMatch = line.match(/^\s*(\d+)\.\s+(.+)$/);
-          if (numMatch) {
-            flushParagraph();
-            const rawItemText = numMatch[2].trim();
-            const baseLevel = Math.floor(getLeadingSpacesCount(line) / 2);
-
-            let effectiveLevel = baseLevel;
-            if (implicitChildMode && baseLevel === implicitBaseLevel) {
-              if (isSectionBullet(rawItemText)) {
-                effectiveLevel = baseLevel;
-              } else {
-                effectiveLevel = baseLevel + 1;
-              }
-            }
-
-            addListItem('ol', effectiveLevel, renderInline(rawItemText), rawItemText);
-            continue;
-          }
-
-          // Normal paragraph line (group consecutive lines)
+          flushParagraph();
+          flushKv();
+          flushTable();
           flushList();
-          implicitChildMode = false;
-          paragraphLines.push(trimmed);
+          return htmlParts.join('');
         }
 
-        flushAutoBullets();
-        flushParagraph();
-        flushKv();
-        flushTable();
-        flushList();
-        return htmlParts.join('');
+        return renderMarkdownLite(withPlaceholders);
       }
 
-      return renderMarkdownLite(withPlaceholders);
-    }
+      function renderReplyHtml(reply) {
+        const replyText = typeof reply === 'string' ? reply : JSON.stringify(reply, null, 2);
+        const trimmed = replyText.trim();
 
-    function renderReplyHtml(reply) {
-      const replyText = typeof reply === 'string' ? reply : JSON.stringify(reply, null, 2);
-      const trimmed = replyText.trim();
-
-      // If the agent returns JSON as a string, pretty-print it.
-      if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          return `<pre class="chat-json">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
-        } catch {
-          // fall through
+        // If the agent returns JSON as a string, pretty-print it.
+        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            return `<pre class="chat-json">${escapeHtml(JSON.stringify(parsed, null, 2))}</pre>`;
+          } catch {
+            // fall through
+          }
         }
+
+        return formatAgentTextToSafeHtml(replyText);
       }
 
-      return formatAgentTextToSafeHtml(replyText);
-    }
+      const AGENT_LABEL = 'Contoso Admin Agent';
 
-    const AGENT_LABEL = 'Contoso Admin Agent';
+      // ===== Scroll helpers =====
+      function chatScrollToBottom(chat, behavior = 'smooth') {
+        chat.scrollTo({ top: chat.scrollHeight, behavior });
+      }
 
-    // ===== Scroll helpers =====
-    function chatScrollToBottom(chat, behavior = 'smooth') {
-      chat.scrollTo({ top: chat.scrollHeight, behavior });
-    }
+      // Returns true when the user is close enough to the bottom that
+      // auto-scrolling won't feel intrusive.
+      function chatIsNearBottom(chat, threshold = 100) {
+        return chat.scrollHeight - chat.scrollTop - chat.clientHeight <= threshold;
+      }
 
-    // Returns true when the user is close enough to the bottom that
-    // auto-scrolling won't feel intrusive.
-    function chatIsNearBottom(chat, threshold = 100) {
-      return chat.scrollHeight - chat.scrollTop - chat.clientHeight <= threshold;
-    }
+      // ===== Admin Chat =====
+      async function sendChat() {
+        const input = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('chatSendBtn');
+        const message = input.value.trim();
+        if (!message) return;
 
-    // ===== Admin Chat =====
-    async function sendChat() {
-      const input = document.getElementById('chatInput');
-      const sendBtn = document.getElementById('chatSendBtn');
-      const message = input.value.trim();
-      if (!message) return;
+        const chat = document.getElementById('chatBox');
+        chat.innerHTML += `<div class="chat-line chat-user"><div class="chat-meta"><b>You</b></div><div class="chat-bubble">${escapeHtml(message)}</div></div>`;
+        input.value = '';
 
-      const chat = document.getElementById('chatBox');
-      chat.innerHTML += `<div class="chat-line chat-user"><div class="chat-meta"><b>You</b></div><div class="chat-bubble">${escapeHtml(message)}</div></div>`;
-      input.value = '';
-
-      // Show a loading placeholder immediately.
-      const pending = document.createElement('div');
-      pending.className = 'chat-line chat-agent';
-      pending.innerHTML = `
+        // Show a loading placeholder immediately.
+        const pending = document.createElement('div');
+        pending.className = 'chat-line chat-agent';
+        pending.innerHTML = `
         <div class="chat-meta"><b>${AGENT_LABEL}</b> <span class="chat-status">Thinking</span></div>
         <div class="chat-bubble">
           <span class="chat-loading"><span class="chat-spinner" aria-hidden="true"></span> Loading</span>
         </div>
       `;
-      chat.appendChild(pending);
-      // Always scroll when the user sends — they initiated the action.
-      chatScrollToBottom(chat, 'instant');
+        chat.appendChild(pending);
+        // Always scroll when the user sends — they initiated the action.
+        chatScrollToBottom(chat, 'instant');
 
-      // Prevent duplicate sends while request is in-flight.
-      input.disabled = true;
-      sendBtn.disabled = true;
+        // Prevent duplicate sends while request is in-flight.
+        input.disabled = true;
+        sendBtn.disabled = true;
 
-      const requestId = createRequestId();
-      logDebug('chat_request_start', { requestId, messageLength: message.length }, 'info');
+        const requestId = createRequestId();
+        logDebug('chat_request_start', { requestId, messageLength: message.length }, 'info');
 
-      const controller = new AbortController();
-      const timeoutMs = 60000;
-      const timeout = setTimeout(() => controller.abort('timeout'), timeoutMs);
+        const controller = new AbortController();
+        const timeoutMs = 60000;
+        const timeout = setTimeout(() => controller.abort('timeout'), timeoutMs);
 
-      try {
-        const res = await fetch('/admin/chat', {
-          method: 'POST',
-          body: JSON.stringify({ message }),
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            'x-request-id': requestId,
-            ...(DEBUG_ENABLED ? { 'x-client-debug': '1' } : {})
-          }
-        });
-        const data = await res.json();
+        try {
+          const res = await fetch('/admin/chat', {
+            method: 'POST',
+            body: JSON.stringify({ message }),
+            signal: controller.signal,
+            headers: {
+              'Content-Type': 'application/json',
+              'x-request-id': requestId,
+              ...(DEBUG_ENABLED ? { 'x-client-debug': '1' } : {})
+            }
+          });
+          const data = await res.json();
 
-        const serverRequestId = data?.requestId || requestId;
-        const metaSuffix = DEBUG_ENABLED ? ` <span class="chat-request">(${escapeHtml(serverRequestId)})</span>` : '';
+          const serverRequestId = data?.requestId || requestId;
+          const metaSuffix = DEBUG_ENABLED ? ` <span class="chat-request">(${escapeHtml(serverRequestId)})</span>` : '';
 
-        logDebug('chat_response_received', {
-          requestId: serverRequestId,
-          status: res.status,
-          ok: res.ok,
-          success: Boolean(data?.success),
-          empty: Boolean(data?.empty),
-          durationMs: data?.debug?.durationMs,
-          conversationId: data?.debug?.conversationId,
-          newConversation: data?.debug?.newConversation,
-          replyChars: data?.debug?.replyChars,
-          outputTypes: data?.debug?.outputSummary?.outputTypes,
-        }, res.ok && data?.success ? 'success' : 'warn');
+          logDebug('chat_response_received', {
+            requestId: serverRequestId,
+            status: res.status,
+            ok: res.ok,
+            success: Boolean(data?.success),
+            empty: Boolean(data?.empty),
+            durationMs: data?.debug?.durationMs,
+            conversationId: data?.debug?.conversationId,
+            newConversation: data?.debug?.newConversation,
+            replyChars: data?.debug?.replyChars,
+            outputTypes: data?.debug?.outputSummary?.outputTypes,
+          }, res.ok && data?.success ? 'success' : 'warn');
 
-        // Capture scroll position before swapping content so the check
-        // reflects where the user actually was while waiting.
-        const wasNearBottom = chatIsNearBottom(chat);
+          // Capture scroll position before swapping content so the check
+          // reflects where the user actually was while waiting.
+          const wasNearBottom = chatIsNearBottom(chat);
 
-        if (res.status === 429) {
-          logDebug('rate_limited', { requestId: serverRequestId, conversationReset: Boolean(data?.conversationReset) }, 'warn');
-          pending.innerHTML = `
+          if (res.status === 429) {
+            logDebug('rate_limited', { requestId: serverRequestId, conversationReset: Boolean(data?.conversationReset) }, 'warn');
+            pending.innerHTML = `
             <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
             <div class="chat-bubble chat-bubble-rate-limit">
               ⏳ ${escapeHtml(data?.error || 'Rate limit reached — conversation reset. Wait a moment and resend your message.')}
             </div>
           `;
-        } else if (!res.ok || !data.success) {
-          pending.innerHTML = `
+          } else if (!res.ok || !data.success) {
+            pending.innerHTML = `
             <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
             <div class="chat-bubble chat-bubble-error">${escapeHtml(data?.error || 'Request failed')}</div>
           `;
-        } else if (data?.empty || !String(data?.reply || '').trim()) {
-          // The agent returned successfully but did not provide any text output.
-          pending.innerHTML = `
+          } else if (data?.empty || !String(data?.reply || '').trim()) {
+            // The agent returned successfully but did not provide any text output.
+            pending.innerHTML = `
             <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
             <div class="chat-bubble chat-bubble-warn">No text response from agent. Try rephrasing, or check server logs with the request ID.</div>
           `;
-        } else {
-          pending.innerHTML = `
+          } else {
+            pending.innerHTML = `
             <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
             <div class="chat-bubble">${renderReplyHtml(data.reply)}</div>
           `;
-        }
+          }
 
-        // Only scroll if the user was already near the bottom — don't
-        // yank them away if they scrolled up to re-read something.
-        if (wasNearBottom) chatScrollToBottom(chat);
-      } catch {
-        const metaSuffix = DEBUG_ENABLED ? ` <span class="chat-request">(${escapeHtml(requestId)})</span>` : '';
-        pending.innerHTML = `
+          // Only scroll if the user was already near the bottom — don't
+          // yank them away if they scrolled up to re-read something.
+          if (wasNearBottom) chatScrollToBottom(chat);
+        } catch {
+          const metaSuffix = DEBUG_ENABLED ? ` <span class="chat-request">(${escapeHtml(requestId)})</span>` : '';
+          pending.innerHTML = `
           <div class="chat-meta"><b>${AGENT_LABEL}</b>${metaSuffix}</div>
           <div class="chat-bubble chat-bubble-error">Request failed (network/timeout). Check server logs with the request ID.</div>
         `;
-        logDebug('chat_request_failed', { requestId }, 'error');
-        // Always surface errors — smooth scroll to make it obvious.
-        chatScrollToBottom(chat);
-      } finally {
-        clearTimeout(timeout);
-        input.disabled = false;
-        sendBtn.disabled = false;
-        input.focus();
+          logDebug('chat_request_failed', { requestId }, 'error');
+          // Always surface errors — smooth scroll to make it obvious.
+          chatScrollToBottom(chat);
+        } finally {
+          clearTimeout(timeout);
+          input.disabled = false;
+          sendBtn.disabled = false;
+          input.focus();
+        }
       }
-    }
 
-    document.getElementById('chatSendBtn').addEventListener('click', sendChat);
-    document.getElementById('chatInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendChat();
-    });
+      document.getElementById('chatSendBtn').addEventListener('click', sendChat);
+      document.getElementById('chatInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendChat();
+      });
 
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await fetch('/auth/logout', { method: 'POST' });
-      window.location.href = '/';
-    });
+      // Logout
+      document.getElementById('logoutBtn').addEventListener('click', async () => {
+        await fetch('/auth/logout', { method: 'POST' });
+        window.location.href = '/';
+      });
 
-    // Debug panel — Clear button
-    document.getElementById('debugClearBtn')?.addEventListener('click', () => {
-      debugBuffer.length = 0;
-      if (debugLogEl) debugLogEl.innerHTML = '';
-      const countEl = document.getElementById('debugEntryCount');
-      if (countEl) countEl.textContent = '0 entries';
-      logDebug('log_cleared');
-    });
+      // Debug panel — Clear button
+      document.getElementById('debugClearBtn')?.addEventListener('click', () => {
+        debugBuffer.length = 0;
+        if (debugLogEl) debugLogEl.innerHTML = '';
+        const countEl = document.getElementById('debugEntryCount');
+        if (countEl) countEl.textContent = '0 entries';
+        logDebug('log_cleared');
+      });
 
-    // Debug panel — Copy log button
-    document.getElementById('debugCopyBtn')?.addEventListener('click', async () => {
-      const text = debugBuffer.map(e => JSON.stringify(e)).join('\n');
-      const btn = document.getElementById('debugCopyBtn');
-      const reset = () => { if (btn) btn.textContent = 'Copy log'; };
-      try {
-        await navigator.clipboard.writeText(text);
-        if (btn) { btn.textContent = 'Copied!'; setTimeout(reset, 2000); }
-      } catch {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        if (btn) { btn.textContent = 'Copied!'; setTimeout(reset, 2000); }
-      }
-    });
+      // Debug panel — Copy log button
+      document.getElementById('debugCopyBtn')?.addEventListener('click', async () => {
+        const text = debugBuffer.map(e => JSON.stringify(e)).join('\n');
+        const btn = document.getElementById('debugCopyBtn');
+        const reset = () => { if (btn) btn.textContent = 'Copy log'; };
+        try {
+          await navigator.clipboard.writeText(text);
+          if (btn) { btn.textContent = 'Copied!'; setTimeout(reset, 2000); }
+        } catch {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          if (btn) { btn.textContent = 'Copied!'; setTimeout(reset, 2000); }
+        }
+      });
   </script>
 </body>
+
 </html>

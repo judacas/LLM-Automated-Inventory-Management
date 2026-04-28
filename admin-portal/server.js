@@ -678,15 +678,13 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
             SELECT TOP 1 customer_email_content 
             FROM EmailLogs el 
             WHERE el.customer_email = ba.email 
-              AND el.created_at <= q.created_at 
-            ORDER BY el.created_at DESC
+            ORDER BY ABS(DATEDIFF(second, el.created_at, q.created_at)) ASC
           ), re.customer_email_body, 'Pending review…') AS customer_email_body,
           COALESCE((
             SELECT TOP 1 NULLIF(contoso_email_response, ' ') 
             FROM EmailLogs el 
             WHERE el.customer_email = ba.email 
-              AND el.created_at <= q.created_at 
-            ORDER BY el.created_at DESC
+            ORDER BY ABS(DATEDIFF(second, el.created_at, q.created_at)) ASC
           ), re.final_system_response, CONCAT('[Quote Summary] ', q.status, '; total: $', FORMAT(q.total_amount, 'N2'))) AS final_system_response,
           COALESCE(re.agent_name, 'userOrchestrator') AS agent_name,
           COALESCE(re.classification, 'Pending') AS classification,
@@ -895,6 +893,23 @@ app.patch('/admin/response-evaluations/:id', authenticateToken, async (req, res)
   } catch (err) {
     logger.error(`[response-evaluations] patch failed: ${err?.message || err}`);
     return res.status(500).json({ success: false, error: `Failed to update evaluation: ${err?.message || err}` });
+  }
+});
+
+app.delete('/admin/clear-all-quotes', authenticateToken, async (req, res) => {
+  const sqlConfig = buildSqlConfig();
+  if (!sqlConfig) return res.status(503).json({ success: false, error: 'AZURE_SQL_* is not configured.' });
+  try {
+    const pool = await sql.connect(sqlConfig);
+    await pool.request().query(`DELETE FROM dbo.response_evaluations`);
+    await pool.request().query(`DELETE FROM QuoteItems`);
+    const result = await pool.request().query(`DELETE FROM Quotes`);
+    const deleted = result.rowsAffected?.[0] ?? 0;
+    logger.info(`[clear-all-quotes] Deleted all quotes (${deleted} rows) by admin.`);
+    return res.json({ success: true, deleted });
+  } catch (err) {
+    logger.error(`[clear-all-quotes] failed: ${err?.message || err}`);
+    return res.status(500).json({ success: false, error: `Failed to clear quotes: ${err?.message || err}` });
   }
 });
 

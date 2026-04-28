@@ -202,7 +202,7 @@ az webapp config appsettings set \
   --settings \
     WEBSITES_PORT=3000 \
     JWT_SECRET="<SET_A_LONG_RANDOM_STRING>" \
-    PROJECT_ENDPOINT="https://test-agentusf1-resource.services.ai.azure.com/api/projects/test-agentusf1" \
+    PROJECT_ENDPOINT="https://test-agentusf1-resource.services.ai.azure.com/api/projects/Prod" \
     AGENT_NAME="AdminOrchestrator" \
     MCP_BASE_URL="https://seniorproject-mcp-container.azurewebsites.net/mcp"
 ```
