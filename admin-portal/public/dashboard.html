@@ -129,7 +129,7 @@
               <th class="logs-th">Timestamp</th>
               <th class="logs-th">Company</th>
               <th class="logs-th">Customer Email</th>
-              <th class="logs-th">Quote #</th>
+              <th class="logs-th">Log ID</th>
               <th class="logs-th">Customer Request</th>
               <th class="logs-th">Final System Response</th>
               <th class="logs-th">Classification</th>
@@ -457,6 +457,9 @@
         return;
       }
 
+      // Map domId -> { custRawHtml, sysRawHtml } so event listeners can access raw HTML safely
+      const _rowHtmlMap = {};
+
       tbody.innerHTML = '';
       filtered.forEach((row) => {
         const tr = document.createElement('tr');
@@ -473,6 +476,9 @@
         const sysRawHtml = row.final_system_response || '';
         const sysPreview = htmlToPlainText(sysRawHtml);
 
+        // Store raw HTML for safe retrieval in event listener (avoids onclick+JSON escaping issues)
+        _rowHtmlMap[domId] = { custRawHtml, sysRawHtml };
+
         tr.innerHTML = `
           <td class="logs-td logs-td-muted">${escapeHtml(created)}</td>
           <td class="logs-td">${escapeHtml(row.company || '—')}</td>
@@ -480,13 +486,11 @@
           <td class="logs-td">${escapeHtml(String(row.response_log_id || '—'))}</td>
           <td class="logs-td">
             <div class="logs-response-container">${escapeHtml(custPreview)}</div>
-            <button class="nav-btn" style="padding:4px 8px; font-size:11px; margin-top:5px;"
-              onclick="openEmailModal('Customer Request', ${JSON.stringify(escapeHtml(custRawHtml))})">View Full</button>
+            <button class="nav-btn view-cust-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
           </td>
           <td class="logs-td">
             <div class="logs-response-container">${escapeHtml(sysPreview)}</div>
-            <button class="nav-btn" style="padding:4px 8px; font-size:11px; margin-top:5px;"
-              onclick="openEmailModal('Final System Response', ${JSON.stringify(escapeHtml(sysRawHtml))})">View Full</button>
+            <button class="nav-btn view-sys-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
           </td>
           <td class="logs-td">
             <select class="logs-status-select eval-classification" data-dom-id="${domId}">
@@ -504,53 +508,88 @@
         tbody.appendChild(tr);
       });
 
-        document.querySelectorAll('.eval-save-btn').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const domId = btn.getAttribute('data-dom-id');
-            const evalId = btn.getAttribute('data-eval-id');
-            const row = filtered.find(r => (r.id || 'new_' + r.response_log_id) === domId);
-            const classificationEl = document.querySelector(`.eval-classification[data-dom-id="${domId}"]`);
-            const confidenceEl = document.querySelector(`.eval-confidence[data-dom-id="${domId}"]`);
-            const notesEl = document.querySelector(`.eval-notes[data-dom-id="${domId}"]`);
-            btn.disabled = true;
-            try {
-              if (evalId) {
-                await fetch(`/admin/response-evaluations/${evalId}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    classification: classificationEl.value || null,
-                    confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
-                    review_notes: notesEl.value || null,
-                    reviewed_by: 'admin'
-                  }),
-                });
-              } else {
-                await fetch(`/admin/response-evaluations`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    response_log_id: row.response_log_id,
-                    customer_email: row.customer_email,
-                    customer_subject: row.customer_subject,
-                    customer_email_body: row.customer_email_body,
-                    final_system_response: row.final_system_response,
-                    agent_name: row.agent_name,
-                    classification: classificationEl.value || null,
-                    confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
-                    evaluator_source: 'Manual',
-                    review_notes: notesEl.value || null,
-                    reviewed_by: 'admin'
-                  }),
-                });
-              }
-              await Promise.all([fetchEvaluationSummary(), fetchResponseEvaluations(), fetchConfusionMatrix()]);
-            } finally {
-              btn.disabled = false;
-            }
-          });
+      // Attach View Full listeners after DOM insertion
+      tbody.querySelectorAll('.view-cust-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-dom-id');
+          openEmailModal('Customer Request', (_rowHtmlMap[id] || {}).custRawHtml || '');
         });
-      }
+      });
+      tbody.querySelectorAll('.view-sys-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-dom-id');
+          openEmailModal('Final System Response', (_rowHtmlMap[id] || {}).sysRawHtml || '');
+        });
+      });
+
+      // Attach save button listeners after DOM insertion (scoped to tbody to avoid duplicates)
+      tbody.querySelectorAll('.eval-save-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const domId = btn.getAttribute('data-dom-id');
+          const evalId = btn.getAttribute('data-eval-id');
+          const row = filtered.find(r => (r.id || 'new_' + r.response_log_id) === domId);
+          const classificationEl = tbody.querySelector(`.eval-classification[data-dom-id="${domId}"]`);
+          const confidenceEl = tbody.querySelector(`.eval-confidence[data-dom-id="${domId}"]`);
+          const notesEl = tbody.querySelector(`.eval-notes[data-dom-id="${domId}"]`);
+          btn.disabled = true;
+          btn.textContent = 'Saving…';
+          try {
+            let fetchRes;
+            if (evalId) {
+              fetchRes = await fetch(`/admin/response-evaluations/${evalId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  classification: classificationEl.value || null,
+                  confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
+                  review_notes: notesEl.value || null,
+                  reviewed_by: 'admin'
+                }),
+              });
+            } else {
+              fetchRes = await fetch(`/admin/response-evaluations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  response_log_id: row.response_log_id,
+                  customer_email: row.customer_email,
+                  customer_subject: row.customer_subject,
+                  customer_email_body: row.customer_email_body,
+                  final_system_response: row.final_system_response,
+                  agent_name: row.agent_name,
+                  classification: classificationEl.value || null,
+                  confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
+                  evaluator_source: 'Manual',
+                  review_notes: notesEl.value || null,
+                  reviewed_by: 'admin'
+                }),
+              });
+            }
+            const result = await fetchRes.json();
+            if (!fetchRes.ok || !result.success) {
+              btn.textContent = 'Error!';
+              btn.style.background = '#c0392b';
+              setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; btn.disabled = false; }, 2500);
+              return;
+            }
+            btn.textContent = 'Saved ✓';
+            btn.style.background = '#28a745';
+            setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; }, 1500);
+            // Refresh KPIs + confusion matrix without re-rendering the whole table
+            // (avoids losing the user's current scroll position)
+            await Promise.all([fetchEvaluationSummary(), fetchConfusionMatrix()]);
+            // Also refresh the full table so the new eval id is reflected (enables PATCH on next save)
+            await fetchResponseEvaluations();
+          } catch (err) {
+            btn.textContent = 'Error!';
+            btn.style.background = '#c0392b';
+            setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; btn.disabled = false; }, 2500);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+    }
 
     async function fetchAgentTelemetry() {
           const res = await fetch(`/admin/agent-performance?range=${encodeURIComponent(_range)}`);
@@ -1466,33 +1505,33 @@
       });
 
       // ===== Email Content Modal JS =====
-      // escapedHtml is an HTML-escaped string of the original raw HTML stored in the DB.
-      // We unescape it back to raw HTML and inject it into the modal body for rendering.
-      function openEmailModal(title, escapedHtml) {
+      // Accepts raw HTML string (not HTML-escaped) and renders it directly into the modal.
+      function openEmailModal(title, rawHtml) {
         const modal = document.getElementById('emailModal');
         const modalBody = document.getElementById('emailModalBody');
         const modalTitle = document.getElementById('emailModalTitle');
         modalTitle.textContent = title || 'Email Content';
-        const rawHtml = unescapeHtml(escapedHtml || '');
-        if (!rawHtml.trim()) {
+        const content = String(rawHtml || '').trim();
+        if (!content) {
           modalBody.innerHTML = '<i>No content</i>';
         } else {
-          // If the content looks like HTML (contains tags), render it;
-          // otherwise fall back to plain text in a <pre> block.
-          const looksLikeHtml = /<[a-z][\s\S]*>/i.test(rawHtml);
-          modalBody.innerHTML = looksLikeHtml ? rawHtml : `<pre style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(rawHtml)}</pre>`;
+          const looksLikeHtml = /<[a-z][\s\S]*>/i.test(content);
+          modalBody.innerHTML = looksLikeHtml
+            ? content
+            : `<pre style="white-space:pre-wrap;word-break:break-word;">${escapeHtml(content)}</pre>`;
         }
         modal.removeAttribute('hidden');
       }
 
-      const emailModalClose = document.getElementById('emailModalClose');
-      if (emailModalClose) {
-        emailModalClose.addEventListener('click', () => {
-          document.getElementById('emailModal').setAttribute('hidden', '');
-        });
-      }
-      window.addEventListener('click', (e) => {
+      // Use event delegation so close always works regardless of DOM order
+      document.addEventListener('click', (e) => {
         const modal = document.getElementById('emailModal');
+        if (!modal) return;
+        // Click on the × button
+        if (e.target.id === 'emailModalClose' || e.target.closest('#emailModalClose')) {
+          modal.setAttribute('hidden', '');
+        }
+        // Click on the backdrop (the modal overlay itself, not the inner content box)
         if (e.target === modal) {
           modal.setAttribute('hidden', '');
         }
