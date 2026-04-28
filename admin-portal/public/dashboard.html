@@ -441,6 +441,7 @@
       const res = await fetch(`/admin/confusion-matrix?range=${encodeURIComponent(_range)}`);
       const data = await res.json();
       const summary = document.getElementById('confusionSummary');
+      if (!summary) return; // Guard against missing DOM element
       if (data.message) {
         summary.textContent = data.message;
         return;
@@ -819,6 +820,8 @@
                   response_log_id: row.response_log_id,
                   customer_email: row.customer_email,
                   customer_subject: row.customer_subject,
+                  customer_email_body: `Quote request evaluation for Quote #${row.response_log_id}`,
+                  final_system_response: `Quote #${row.response_log_id} (Status: ${row.status || 'Draft'}, Amount: ${row.total_amount || 0})`,
                   classification: classificationEl.value || null,
                   confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
                   evaluator_source: 'Manual',
@@ -1357,7 +1360,7 @@
 
           function flushParagraph() {
             if (!paragraphLines.length) return;
-            const rendered = paragraphLines.map((l) => renderInline(l.trim())).join('<br>');
+            const rendered = paragraphLines.map((l) => renderInline(l.trim())).join(' ');
             htmlParts.push(`<div class="chat-paragraph">${rendered}</div>`);
             paragraphLines = [];
           }
