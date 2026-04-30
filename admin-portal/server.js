@@ -21,6 +21,8 @@ const {
 
 const express = require('express');
 const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
+const rateLimit = require('express-rate-limit');
 const jwt = require('jsonwebtoken');
 const path = require('path');
 const crypto = require('crypto');
@@ -40,6 +42,43 @@ const ADMIN_PASSWORD = 'contoso123';
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many auth requests, please retry in a few minutes.' },
+});
+
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 240,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, error: 'Too many requests, please slow down and retry.' },
+});
+
+const csrfProtection = csrf({
+  cookie: {
+    key: '_csrf',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  },
+});
+
+app.use('/auth', authLimiter);
+app.use('/admin', adminLimiter);
+app.use((req, res, next) => {
+  const method = String(req.method || 'GET').toUpperCase();
+  if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return next();
+  return csrfProtection(req, res, next);
+});
+
+app.get('/auth/csrf-token', csrfProtection, (_req, res) => {
+  return res.json({ success: true, csrfToken: _req.csrfToken() });
+});
 
 // Middleware to check auth
 function authenticateToken(req, res, next) {
@@ -145,6 +184,14 @@ app.post('/auth/logout', (req, res) => {
   res.clearCookie('conversationId');
   logger.info('User logged out');
   res.json({ success: true });
+});
+
+app.use((err, req, res, next) => {
+  if (err && err.code === 'EBADCSRFTOKEN') {
+    logger.warn(`[csrf] Invalid CSRF token on ${req.method} ${req.originalUrl}`);
+    return res.status(403).json({ success: false, error: 'Invalid CSRF token.' });
+  }
+  return next(err);
 });
 
 app.post('/admin/chat', authenticateToken, async (req, res) => {

@@ -362,6 +362,28 @@
   <script>
     let _sortColumn = 'timestamp';
     let _sortOrder = 'desc';
+    let _csrfToken = '';
+
+    async function getCsrfToken() {
+      if (_csrfToken) return _csrfToken;
+      const res = await fetch('/auth/csrf-token');
+      const data = await res.json();
+      _csrfToken = data.csrfToken || '';
+      return _csrfToken;
+    }
+
+    async function fetchWithCsrf(url, options = {}) {
+      const method = String(options.method || 'GET').toUpperCase();
+      if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+        return fetch(url, options);
+      }
+      const csrfToken = await getCsrfToken();
+      const headers = {
+        ...(options.headers || {}),
+        'x-csrf-token': csrfToken,
+      };
+      return fetch(url, { ...options, headers });
+    }
 
     // Animate numbers (for plain integers only)
     function animateValue(id, start, end, duration) {
@@ -854,7 +876,7 @@
           try {
             let fetchRes;
             if (evalId) {
-              fetchRes = await fetch(`/admin/response-evaluations/${evalId}`, {
+              fetchRes = await fetchWithCsrf(`/admin/response-evaluations/${evalId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -865,7 +887,7 @@
                 }),
               });
             } else {
-              fetchRes = await fetch(`/admin/response-evaluations`, {
+              fetchRes = await fetchWithCsrf(`/admin/response-evaluations`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1061,7 +1083,7 @@
           try {
             let fetchRes;
             if (evalId) {
-              fetchRes = await fetch(`/admin/response-evaluations/${evalId}`, {
+              fetchRes = await fetchWithCsrf(`/admin/response-evaluations/${evalId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1072,7 +1094,7 @@
                 }),
               });
             } else {
-              fetchRes = await fetch(`/admin/response-evaluations`, {
+              fetchRes = await fetchWithCsrf(`/admin/response-evaluations`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1467,40 +1489,16 @@
      */
     function htmlToPlainText(html) {
       if (!html || !html.trim()) return '';
-      return html
-        // Replace block-level breaks with newlines so sentences don't run together
-        .replace(/<br\s*\/?>/gi, '\n')
-        .replace(/<\/p>/gi, '\n')
-        .replace(/<\/div>/gi, '\n')
-        .replace(/<\/li>/gi, '\n')
-        .replace(/<\/tr>/gi, '\n')
-        .replace(/<\/h[1-6]>/gi, '\n')
-        // Remove all remaining tags
-        .replace(/<[^>]+>/g, '')
-        // Decode common HTML entities
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&nbsp;/g, ' ')
-        // Collapse excessive whitespace / blank lines
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(String(html), 'text/html');
+      const root = doc.body;
+      root.querySelectorAll('br,p,div,li,tr,h1,h2,h3,h4,h5,h6').forEach((el) => {
+        el.insertAdjacentText('afterend', '\n');
+      });
+      return (root.textContent || '')
         .replace(/[ \t]+/g, ' ')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
-    }
-
-    /**
-     * Decode HTML entities in a string that has already been HTML-escaped,
-     * restoring the original raw HTML so it can be injected into innerHTML.
-     */
-    function unescapeHtml(escaped) {
-      return String(escaped ?? '')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'");
     }
 
     function createRequestId() {
@@ -2029,7 +2027,7 @@
       const timeout = setTimeout(() => controller.abort('timeout'), timeoutMs);
 
       try {
-        const res = await fetch('/admin/chat', {
+        const res = await fetchWithCsrf('/admin/chat', {
           method: 'POST',
           body: JSON.stringify({ message }),
           signal: controller.signal,
@@ -2114,7 +2112,7 @@
 
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await fetch('/auth/logout', { method: 'POST' });
+      await fetchWithCsrf('/auth/logout', { method: 'POST' });
       window.location.href = '/';
     });
 
