@@ -15,6 +15,7 @@ A Node.js / Express web application that gives Contoso administrators a protecte
 | **Admin Chat** | Full conversation with Foundry agent; rich markdown rendering (tables, bold, code) |
 | **Trace Explorer** | Integrated **Azure Monitor Trace Viewer** for the `userOrchestrator` agent |
 | **Evaluation KPIs** | Real-time accuracy, fallback rate, and confusion matrix calculation from logs |
+| **Deterministic KPI chat** | KPI card clicks route to deterministic SQL-backed chat responses for count/total consistency |
 | **MCP tool routing** | Keyword-dispatched tool calls (quotes, inventory, out-of-stock) |
 | **Request tracing** | Every request carries a `requestId` tracked via Application Insights & UI logs |
 
@@ -59,6 +60,8 @@ AZURE_SQL_PASSWORD=...
 
 # Required — Azure Monitor / Application Insights
 APPLICATIONINSIGHTS_CONNECTION_STRING=...
+APPLICATIONINSIGHTS_WORKSPACE_ID=...
+# Optional alias used by some scripts/docs:
 AZURE_LOG_WORKSPACE_ID=...
 
 # Optional — MCP service base URL
@@ -85,6 +88,18 @@ Open `http://localhost:3000` and log in with:
 
 - **Username:** `admin`
 - **Password:** `contoso123`
+
+### 5. Verify telemetry workspace ID (important)
+
+For Log Analytics queries, `APPLICATIONINSIGHTS_WORKSPACE_ID` must be the **workspace customer ID (GUID)**, not the workspace name and not the `DefaultWorkspace-...` resource suffix.
+
+Quick check:
+
+```bash
+az monitor log-analytics workspace list --query "[].{name:name,customerId:customerId}" -o table
+```
+
+Use the `customerId` value in `.env`.
 
 ---
 
@@ -139,6 +154,27 @@ The portal features a specialized **Control Tower** for monitoring the AI's perf
 - **Confusion Matrix**: Real-time calculation of Precision, Recall, and F1-score based on the evaluation logs.
 - **Trace Viewer**: Filterable view of raw orchestrator traces, including success rates and duration thresholds (Fast/Slow).
 - **Agent Telemetry**: Aggregated stats (calls, errors, avg duration) across different agent personas.
+
+### KPI card chat behavior
+
+KPI card clicks in the dashboard intentionally send plain-language prompts but route to deterministic handlers in `server.js` to keep outputs aligned with dashboard cards.
+
+Current trigger phrases:
+
+- `show all outstanding quotes`
+- `show the total of all outstanding quotes`
+- `show all unavailable items requested by customers`
+- `show total quotes`
+
+These return formatted table responses from SQL-backed logic (instead of conversational paraphrases) to avoid count/total drift.
+
+### Accuracy calculation note
+
+The dashboard `Accuracy %` treats both `Correct` and `Fallback` as acceptable outcomes:
+
+```text
+Accuracy = (Correct + Fallback) / (Correct + Incorrect + Fallback)
+```
 
 ---
 
