@@ -177,15 +177,16 @@ def inventory_admin_summary(low_stock_threshold: int = 5) -> dict[str, Any]:
 
 @mcp.tool()
 def inventory_unavailable_requested_items(
-    quote_status: str = "Pending",
+    quote_status: str = "active",
     top_n: int = 20,
 ) -> dict[str, Any]:
     """List items requested by customers that are currently not fulfillable from stock.
 
-    Inventory-relevant definition (based on provided schema):
-    - Aggregate QuoteItems for Quotes with the given `quote_status` (default: Pending)
-    - Compare requested quantity to Inventory.quantity_in_stock
+    Unified requested-unavailable definition:
+    - Aggregate QuoteItems for Quotes with the given `quote_status` (default: active)
+    - Use current inventory snapshot per product
     - Return products where requested_qty > in_stock_qty
+      (includes both out-of-stock and partial-shortfall)
 
     Output is shaped as a dict containing an `items` array.
     """

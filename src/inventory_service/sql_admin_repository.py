@@ -107,7 +107,10 @@ class AzureSqlInventoryAdminRepository(InventoryAdminRepository):
         quote_status: str,
         top_n: int,
     ) -> list[UnavailableRequestedItem]:
-        # Inventory-relevant signal: items on pending quotes that cannot be fulfilled from stock.
+        # Unified "requested but unavailable" semantics:
+        # - active requested demand by product
+        # - compare against current stock snapshot
+        # - include both zero-stock and partial-shortfall items (requested > in_stock)
         query = """
         WITH requested AS (
             SELECT

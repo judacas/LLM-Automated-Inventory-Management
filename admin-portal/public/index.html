@@ -27,6 +27,15 @@
   </div>
 
   <script>
+    let _csrfToken = '';
+    async function getCsrfToken() {
+      if (_csrfToken) return _csrfToken;
+      const res = await fetch('/auth/csrf-token');
+      const data = await res.json();
+      _csrfToken = data.csrfToken || '';
+      return _csrfToken;
+    }
+
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const username = document.getElementById('username').value;
@@ -34,9 +43,13 @@
       const messageEl = document.getElementById('message');
 
       try {
+        const csrfToken = await getCsrfToken();
         const res = await fetch('/auth/login', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrfToken,
+          },
           body: JSON.stringify({ username, password })
         });
 

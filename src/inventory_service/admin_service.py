@@ -31,7 +31,7 @@ class InventoryAdminService:
     def get_unavailable_requested_items(
         self,
         *,
-        quote_status: str = "Pending",
+        quote_status: str = "active",
         top_n: int = 20,
     ) -> list[UnavailableRequestedItem]:
         if not quote_status:

@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Contoso Admin Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
   <div class="dashboard-container">
     <h1 class="dashboard-title">Contoso Admin Dashboard</h1>
@@ -13,30 +15,35 @@
 
     <div id="dashboardMetricsWarning" class="dashboard-metrics-warning" role="alert" hidden></div>
 
-    <!-- Row 1: Stats -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <h3>Outstanding Quotes</h3>
-        <div id="outstandingCount">-</div>
-      </div>
-      <div class="stat-card">
-        <h3>Outstanding Total</h3>
-        <div id="outstandingTotal">$-</div>
-      </div>
-      <div class="stat-card">
-        <h3>Unavailable Items Requested</h3>
-        <div id="unavailableItems">-</div>
-      </div>
-      <div class="stat-card">
-        <h3>Total Quotes</h3>
-        <div id="totalQuotes">-</div>
-      </div>
+    <!-- Row 1: KPI Statistics & Navigation Triggers -->
+    <div class="stats-grid"
+      style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px;">
+      <button class="stat-card" id="btnOutstandingQuotes"
+        style="border: none; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); cursor: pointer; background: #fff; text-align: left; padding: 20px; transition: transform 0.2s ease; border-radius: 12px;">
+        <h3 style="margin: 0 0 10px; color: #555; font-size: 1.05em;">Outstanding Quotes</h3>
+        <div id="outstandingCount" style="font-size: 2.2em; font-weight: bold; color: #0078d4;">-</div>
+      </button>
+      <button class="stat-card" id="btnOutstandingTotal"
+        style="border: none; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); cursor: pointer; background: #fff; text-align: left; padding: 20px; transition: transform 0.2s ease; border-radius: 12px;">
+        <h3 style="margin: 0 0 10px; color: #555; font-size: 1.05em;">Outstanding Total</h3>
+        <div id="outstandingTotal" style="font-size: 2.2em; font-weight: bold; color: #0078d4;">$-</div>
+      </button>
+      <button class="stat-card" id="btnUnavailableItems"
+        style="border: none; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); cursor: pointer; background: #fff; text-align: left; padding: 20px; transition: transform 0.2s ease; border-radius: 12px;">
+        <h3 style="margin: 0 0 10px; color: #555; font-size: 1.05em;">Unavailable Items Requested</h3>
+        <div id="unavailableItems" style="font-size: 2.2em; font-weight: bold; color: #0078d4;">-</div>
+      </button>
+      <button class="stat-card" id="btnTotalQuotes"
+        style="border: none; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.08); cursor: pointer; background: #fff; text-align: left; padding: 20px; transition: transform 0.2s ease; border-radius: 12px;">
+        <h3 style="margin: 0 0 10px; color: #555; font-size: 1.05em;">Total Quotes</h3>
+        <div id="totalQuotes" style="font-size: 2.2em; font-weight: bold; color: #0078d4;">-</div>
+      </button>
     </div>
 
     <!-- Row 2: System Performance Monitoring -->
     <div class="logs-card">
       <div class="logs-card-header">
-        <h3 class="logs-card-title">Response Evaluation Logs</h3>
+        <h3 class="logs-card-title">Email Logs</h3>
         <span id="systemHealthBead" class="logs-health-bead">
           <span id="healthDot" class="health-dot"></span>
           System Status: Loading...
@@ -47,9 +54,9 @@
       <div id="logsWarningBanner" class="logs-warning-banner" hidden></div>
 
       <!-- Filter toolbar -->
-      <div class="logs-filter-bar">
+      <div class="logs-filter-bar" style="flex-wrap: wrap; gap: 15px;">
         <div class="logs-filter-group">
-          <span class="logs-filter-label">Date</span>
+          <span class="logs-filter-label">Date Range</span>
           <div class="logs-date-pills" role="group" aria-label="Date range">
             <button class="logs-pill" data-range="24h">Last 24 Hours</button>
             <button class="logs-pill logs-pill-active" data-range="7d">Last 7 Days</button>
@@ -59,168 +66,292 @@
             <button class="logs-pill" data-range="ytd">Year-to-date</button>
           </div>
         </div>
+
         <div class="logs-filter-group">
-          <span class="logs-filter-label">Classification</span>
-          <select id="logsStatusFilter" class="logs-status-select">
-            <option value="all">All Classifications</option>
-            <option value="Correct">Correct</option>
-            <option value="Incorrect">Incorrect</option>
-            <option value="Fallback">Fallback</option>
-            <option value="Pending">Pending</option>
+          <span class="logs-filter-label">View/Status Filter</span>
+          <select id="logsStatusFilter" class="logs-status-select" style="min-width: 200px;">
+            <option value="all">Total Interactions (-)</option>
+            <option value="Correct">Correct Evaluations (-)</option>
+            <option value="Incorrect">Incorrect Evaluations (-)</option>
+            <option value="Fallback">Fallback Responses (-)</option>
+            <option value="Pending">Pending Review (-)</option>
           </select>
         </div>
-        <div class="logs-filter-group" style="flex-grow: 1;">
-          <span class="logs-filter-label">Customer Email / Time</span>
-          <input type="search" id="logsCompanySearch" class="logs-company-input"
-                 placeholder="Search by email or time…" autocomplete="off">
+
+        <div class="logs-filter-group">
+          <span class="logs-filter-label">Filter By Specific Value</span>
+          <select id="logsUniqueFilter" class="logs-status-select" style="min-width: 250px;">
+            <option value="all">Show All Records</option>
+            <optgroup id="filterOptCompany" label="Companies"></optgroup>
+            <optgroup id="filterOptEmail" label="Customer Emails"></optgroup>
+            <optgroup id="filterOptDate" label="Dates"></optgroup>
+          </select>
         </div>
+
         <div class="logs-filter-group">
           <span class="logs-filter-label">Min Confidence</span>
-          <input type="number" id="logsConfidenceFilter" class="logs-status-select" style="width: 100px;" step="0.1" min="0" max="1" placeholder="0.0">
+          <input type="number" id="logsConfidenceFilter" class="logs-status-select" style="width: 80px;" step="0.1"
+            min="0" max="1" placeholder="0.0">
         </div>
-      </div>
 
-      <div class="stats-grid response-kpi-grid">
-        <div class="stat-card"><h3>Total Responses</h3><div id="kpiTotalResponses">0</div></div>
-        <div class="stat-card"><h3>Pending Review</h3><div id="kpiPendingReview">0</div></div>
-        <div class="stat-card"><h3>Correct</h3><div id="kpiCorrect">0</div></div>
-        <div class="stat-card"><h3>Incorrect</h3><div id="kpiIncorrect">0</div></div>
-        <div class="stat-card"><h3>Fallback</h3><div id="kpiFallback">0</div></div>
-        <div class="stat-card"><h3>Accuracy %</h3><div id="kpiAccuracy">0%</div></div>
-        <div class="stat-card"><h3>Fallback Rate</h3><div id="kpiFallbackRate">0%</div></div>
-        <div class="stat-card"><h3>Average Confidence</h3><div id="kpiAvgConfidence">N/A</div></div>
-      </div>
-
-      <div class="logs-table-meta">
-        <span id="logsShowingCount" class="logs-showing-count">Loading response evaluations…</span>
-      </div>
-
-      <div class="evals-scroll-window">
-        <table class="logs-table">
-          <thead>
-            <tr class="logs-thead-row">
-              <th class="logs-th">Timestamp</th>
-              <th class="logs-th">Company</th>
-              <th class="logs-th">Customer Email</th>
-              <th class="logs-th">Quote #</th>
-              <th class="logs-th">Customer Request</th>
-              <th class="logs-th">Final System Response</th>
-              <th class="logs-th">Classification</th>
-              <th class="logs-th">Confidence</th>
-              <th class="logs-th">Evaluator Source</th>
-              <th class="logs-th">Notes</th>
-              <th class="logs-th">Save</th>
-            </tr>
-          </thead>
-          <tbody id="logsTableBody">
-            <tr><td colspan="10" class="logs-placeholder">Loading response evaluations...</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="logs-table-meta">
-        <span id="confusionSummary" class="logs-showing-count">Confusion matrix: loading…</span>
-      </div>
-
-      <h3 class="logs-card-title" style="margin-top: 20px;">Agent Telemetry</h3>
-      <div style="overflow-x:auto;">
-        <table class="logs-table">
-          <thead>
-            <tr class="logs-thead-row">
-              <th class="logs-th">Agent</th>
-              <th class="logs-th">Calls</th>
-              <th class="logs-th">Errors</th>
-              <th class="logs-th">Avg Duration (s)</th>
-            </tr>
-          </thead>
-          <tbody id="agentTelemetryBody">
-            <tr><td colspan="4" class="logs-placeholder">Loading telemetry…</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 class="logs-card-title" style="margin-top: 40px;">User Orchestrator Traces</h3>
-      
-      <!-- Trace Filters -->
-      <div class="logs-filter-bar">
-
-        <div class="logs-filter-group">
-          <span class="logs-filter-label">Range</span>
-          <select id="tracesRangeFilter" class="logs-status-select">
-            <option value="24h">Last 24 Hours</option>
-            <option value="7d" selected>Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-          </select>
-        </div>
-        <div class="logs-filter-group">
-          <span class="logs-filter-label">Sort</span>
-          <select id="tracesSortFilter" class="logs-status-select">
-            <option value="desc">Newest First</option>
-            <option value="asc">Oldest First</option>
-          </select>
-        </div>
-        <div class="logs-filter-group">
-          <span class="logs-filter-label">Success</span>
-          <select id="tracesSuccessFilter" class="logs-status-select">
-            <option value="all">Any</option>
-            <option value="true">Yes</option>
-            <option value="false">No</option>
-          </select>
-        </div>
-        <div class="logs-filter-group">
-          <span class="logs-filter-label">Duration</span>
-          <select id="tracesDurationFilter" class="logs-status-select">
-            <option value="all">Any</option>
-            <option value="fast">Fast (< 2s)</option>
-            <option value="normal">Normal (2s - 10s)</option>
-            <option value="slow">Slow (> 10s)</option>
-          </select>
-        </div>
         <div class="logs-filter-group" style="flex-grow: 1;">
-          <span class="logs-filter-label">Filter Time</span>
-          <input type="text" id="tracesTimeSearch" class="logs-company-input" placeholder="Search timestamp…">
+          <span class="logs-filter-label">Keyword Search</span>
+          <input type="search" id="logsCompanySearch" class="logs-company-input" placeholder="Search across logs…"
+            autocomplete="off">
         </div>
       </div>
 
-      <div class="traces-scroll-window">
-        <table class="logs-table">
-          <thead>
-            <tr class="logs-thead-row">
-              <th class="logs-th">Time</th>
-              <th class="logs-th">Operation</th>
-              <th class="logs-th">Success</th>
-              <th class="logs-th">Duration</th>
-              <th class="logs-th">Error/Notes</th>
-            </tr>
-          </thead>
-          <tbody id="userOrchestratorTracesBody">
-            <tr><td colspan="5" class="logs-placeholder">Loading traces…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
 
-    <!-- Row 3: Admin Chat -->
-    <div class="chat-card">
-      <h3>Admin Chat</h3>
-      <div id="chatBox" class="chat-box"></div>
-
-      <div class="chat-input-row">
-        <input id="chatInput" type="text" placeholder="Try: what can you do?" />
-        <button id="chatSendBtn" class="chat-send-btn">Send</button>
-      </div>
-
-      <details id="chatDebug" class="chat-debug" style="display:none;">
-        <summary>🐛 Debug</summary>
-        <div id="debugSystemInfo" class="debug-system-info">Loading system info…</div>
-        <div class="debug-toolbar">
-          <span id="debugEntryCount" class="debug-entry-count">0 entries</span>
-          <button class="debug-action-btn" id="debugCopyBtn">Copy log</button>
-          <button class="debug-action-btn" id="debugClearBtn">Clear</button>
+      <!-- Email KPIs Section -->
+      <div id="emailKpiSection">
+        <h4 class="logs-card-title" style="margin: 20px 0 10px; font-size: 1.1em; color: #0078d4; font-weight: bold;">📊
+          Email Log Performance</h4>
+        <div class="stats-grid response-kpi-grid" style="margin-bottom: 25px;">
+          <div class="stat-card">
+            <h3>Total Responses</h3>
+            <div id="kpiTotalResponses">0</div>
+          </div>
+          <div class="stat-card">
+            <h3>Pending Review</h3>
+            <div id="kpiPendingReview">0</div>
+          </div>
+          <div class="stat-card">
+            <h3>Correct</h3>
+            <div id="kpiCorrect">0</div>
+          </div>
+          <div class="stat-card">
+            <h3>Incorrect</h3>
+            <div id="kpiIncorrect">0</div>
+          </div>
+          <div class="stat-card">
+            <h3>Fallback</h3>
+            <div id="kpiFallback">0</div>
+          </div>
+          <div class="stat-card">
+            <h3>Accuracy %</h3>
+            <div id="kpiAccuracy">0%</div>
+          </div>
+          <div class="stat-card">
+            <h3>Fallback Rate</h3>
+            <div id="kpiFallbackRate">0%</div>
+          </div>
+          <div class="stat-card">
+            <h3>Average Confidence</h3>
+            <div id="kpiAvgConfidence">N/A</div>
+          </div>
         </div>
-        <div id="chatDebugLog" class="chat-debug-log"></div>
-      </details>
+      </div>
+
+
+
+      <!-- Email Logs Table -->
+      <div id="emailEvalsSection">
+
+
+        <div class="evals-scroll-window">
+          <table class="logs-table">
+            <thead>
+              <tr class="logs-thead-row">
+                <th class="logs-th" style="width: 100px; cursor: pointer;" id="headerLogId">Log ID <span
+                    id="sortLogIdArrow"></span></th>
+                <th class="logs-th" style="width: 160px; cursor: pointer;" id="headerTimestamp">Timestamp <span
+                    id="sortTimestampArrow">↓</span>
+                  <select id="colFilterTimestamp"
+                    style="width: 130px; margin-top: 5px; font-size: 11px; padding: 2px 4px; border: 1px solid #0078d4; border-radius: 4px; background: #fff; cursor: pointer;">
+                    <option value="all">All</option>
+                  </select>
+                </th>
+                <th class="logs-th" style="width: 150px;">
+                  Company
+                  <select id="colFilterCompany"
+                    style="width: 110px; margin-top: 5px; font-size: 11px; padding: 2px 4px; border: 1px solid #0078d4; border-radius: 4px; background: #fff; cursor: pointer;">
+                    <option value="all">All</option>
+                  </select>
+                </th>
+                <th class="logs-th" style="width: 180px;">
+                  Customer Email
+                  <select id="colFilterEmail"
+                    style="width: 130px; margin-top: 5px; font-size: 11px; padding: 2px 4px; border: 1px solid #0078d4; border-radius: 4px; background: #fff; cursor: pointer;">
+                    <option value="all">All</option>
+                  </select>
+                </th>
+                <th class="logs-th">Customer Request</th>
+                <th class="logs-th">Final System Response</th>
+                <th class="logs-th" style="padding-left: 15px; background-color: #f7faff;">Classification</th>
+                <th class="logs-th" style="background-color: #f7faff;">Confidence</th>
+                <th class="logs-th" style="background-color: #f7faff;">Notes</th>
+                <th class="logs-th" style="background-color: #f7faff;">Save</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody">
+              <tr>
+                <td colspan="10" class="logs-placeholder">Loading response evaluations...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="logs-table-meta" style="margin-top: 10px; text-align: right;">
+          <span id="logsShowingCount" class="logs-showing-count">Loading response evaluations…</span>
+        </div>
+      </div>
+
+
+
+      <!-- Bottom Section: Side-by-Side Telemetry & Traces -->
+      <div class="telemetry-traces-container" style="display: flex; gap: 20px; margin-top: 40px; flex-wrap: wrap;">
+
+        <!-- Left: Agent Telemetry -->
+        <div class="telemetry-box" style="flex: 0.85; min-width: 320px; height: 560px; display: flex; flex-direction: column;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 8px;">
+            <h3 class="logs-card-title" style="margin: 0;">Agent Telemetry</h3>
+            <div class="logs-filter-group" style="margin-bottom: 0; min-width: 190px;">
+              <span class="logs-filter-label" style="font-size: 0.8em;">Range</span>
+              <select id="telemetryRangeFilter" class="logs-status-select" style="padding: 5px; font-size: 0.9em;">
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d" selected>Last 7 Days</option>
+                <option value="30d">Last 30 Days</option>
+                <option value="60d">Last 60 Days</option>
+                <option value="all">All (up to ~730d retention)</option>
+              </select>
+            </div>
+          </div>
+          <div id="agentTelemetryWarning" class="logs-warning-banner" hidden></div>
+          <div style="flex: 1; min-height: 0; display: flex; padding-top: 26px;">
+            <div class="telemetry-scroll-window" style="height: 430px; width: 100%; overflow-y: auto; overflow-x:auto;">
+              <table class="logs-table" style="width: 100%;">
+                <thead>
+                  <tr class="logs-thead-row">
+                    <th class="logs-th" style="padding: 8px;">Agent</th>
+                    <th class="logs-th" style="padding: 8px;">Calls</th>
+                    <th class="logs-th" style="padding: 8px;">Errors</th>
+                    <th class="logs-th" style="padding: 8px;">Success %</th>
+                    <th class="logs-th" style="padding: 8px;">Avg Duration (s)</th>
+                  </tr>
+                </thead>
+                <tbody id="agentTelemetryBody">
+                  <tr>
+                    <td colspan="5" class="logs-placeholder">Loading telemetry…</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: User Orchestrator Traces -->
+        <div class="traces-box" style="flex: 1.15; min-width: 520px; height: 560px; display: flex; flex-direction: column;">
+          <div style="display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin-bottom: 8px; flex-wrap: wrap;">
+            <h3 class="logs-card-title" style="margin: 0;">User Orchestrator Traces</h3>
+            <div style="display:flex; align-items:flex-end; gap:10px; flex-wrap: wrap;">
+              <div class="logs-filter-group" style="margin-bottom: 0; min-width: 190px;">
+                <span class="logs-filter-label" style="font-size: 0.8em;">Range</span>
+                <select id="tracesRangeFilter" class="logs-status-select" style="padding: 5px; font-size: 0.9em;">
+                  <option value="24h">Last 24 Hours</option>
+                  <option value="7d" selected>Last 7 Days</option>
+                  <option value="30d">Last 30 Days</option>
+                  <option value="60d">Last 60 Days</option>
+                  <option value="all">All (up to ~730d retention)</option>
+                </select>
+              </div>
+              <div class="logs-filter-group" style="margin-bottom: 0; min-width: 90px;">
+                <span class="logs-filter-label" style="font-size: 0.8em;">Success</span>
+                <select id="tracesSuccessFilter" class="logs-status-select" style="padding: 5px; font-size: 0.9em;">
+                  <option value="all">Any</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+              </div>
+              <div class="logs-filter-group" style="margin-bottom: 0; min-width: 140px;">
+                <span class="logs-filter-label" style="font-size: 0.8em;">Duration</span>
+                <select id="tracesDurationFilter" class="logs-status-select" style="padding: 5px; font-size: 0.9em;">
+                  <option value="all">Any</option>
+                  <option value="fast">Fast (&lt; 2s)</option>
+                  <option value="normal">Normal (2s - 10s)</option>
+                  <option value="slow">Slow (&gt; 10s)</option>
+                </select>
+              </div>
+              <div class="logs-filter-group" style="margin-bottom: 0; min-width: 220px;">
+                <span class="logs-filter-label" style="font-size: 0.8em;">Filter Time</span>
+                <input type="text" id="tracesTimeSearch" class="logs-company-input"
+                  style="padding: 5px; font-size: 0.9em;" placeholder="Search timestamp…">
+              </div>
+            </div>
+          </div>
+          <div id="tracesWarningBanner" class="logs-warning-banner" hidden></div>
+          <div class="traces-scroll-window" style="height: 430px; overflow-y: auto;">
+            <table class="logs-table" style="width: 100%;">
+              <thead>
+                <tr class="logs-thead-row">
+                  <th class="logs-th" style="padding: 8px;">Time</th>
+                  <th class="logs-th" style="padding: 8px;">Operation</th>
+                  <th class="logs-th" style="padding: 8px;">Success</th>
+                  <th class="logs-th" style="padding: 8px;">Duration</th>
+                  <th class="logs-th" style="padding: 8px;">Error/Notes</th>
+                </tr>
+              </thead>
+              <tbody id="userOrchestratorTracesBody">
+                <tr>
+                  <td colspan="5" class="logs-placeholder">Loading traces…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
     </div>
+
+    <!-- Row 3: Admin Chat (Persistent Pop-up Widget) -->
+    <div id="adminChatWidget" class="chat-card"
+      style="position: fixed; bottom: 20px; right: 20px; width: 1000px; height: 800px; display: none; flex-direction: column; z-index: 10000; box-shadow: 0 5px 25px rgba(0,0,0,0.2); border: 1px solid #ddd; background: #fff; border-radius: 12px; transition: transform 0.3s ease, height 0.3s ease; overflow: hidden; padding: 0;">
+
+      <!-- Chat Header (Clickable to Minimize) -->
+      <div id="chatWidgetHeader"
+        style="background: #0078d4; color: #fff; padding: 12px 15px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-weight: bold; font-size: 1.1em; border-top-left-radius: 12px; border-top-right-radius: 12px;">
+        <span style="display: flex; align-items: center; gap: 8px;">💬 Contoso Admin Chat</span>
+        <span id="chatWidgetToggleBtn" style="font-size: 1.2em; font-weight: bold;">−</span>
+      </div>
+
+      <!-- Chat Body and Input -->
+      <div id="chatWidgetContent"
+        style="display: flex; flex-direction: column; flex-grow: 1; height: calc(100% - 45px); padding: 15px; overflow: hidden;">
+        <div id="chatBox" class="chat-box"
+          style="flex-grow: 1; overflow-y: auto; margin-bottom: 10px; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #eaeaea;">
+        </div>
+
+        <div class="chat-input-row" style="display: flex; gap: 10px; align-items: center;">
+          <input id="chatInput" type="text"
+            style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 0.95em;"
+            placeholder="Try: what can you do?" />
+          <button id="chatSendBtn" class="chat-send-btn"
+            style="background: #0078d4; color: #fff; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; font-weight: bold;">Send</button>
+        </div>
+
+        <details id="chatDebug" class="chat-debug" style="display:none; margin-top: 10px;">
+          <summary style="cursor: pointer; font-size: 0.85em; color: #666;">🐛 Debug</summary>
+          <div id="debugSystemInfo" class="debug-system-info"
+            style="font-size: 0.8em; color: #555; background: #eee; padding: 5px; border-radius: 4px; margin-top: 5px;">
+            Loading system info…</div>
+          <div class="debug-toolbar"
+            style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8em; margin-top: 5px;">
+            <span id="debugEntryCount" class="debug-entry-count">0 entries</span>
+            <div>
+              <button class="debug-action-btn" id="debugCopyBtn" style="font-size: 0.8em; padding: 2px 6px;">Copy
+                log</button>
+              <button class="debug-action-btn" id="debugClearBtn"
+                style="font-size: 0.8em; padding: 2px 6px;">Clear</button>
+            </div>
+          </div>
+          <div id="chatDebugLog" class="chat-debug-log"
+            style="font-size: 0.8em; max-height: 100px; overflow-y: auto; background: #222; color: #0f0; padding: 5px; border-radius: 4px; margin-top: 5px; font-family: monospace;">
+          </div>
+        </details>
+      </div>
+    </div>
+    <button id="chatLauncherBtn" type="button"
+      style="position: fixed; right: 24px; bottom: 24px; width: 60px; height: 60px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: none; background: #0078d4; color: #fff; font-size: 24px; line-height: 1; box-shadow: 0 8px 20px rgba(0,0,0,0.25); cursor: pointer; z-index: 10001;"
+      title="Open Contoso Admin Chat" aria-label="Open Contoso Admin Chat">💬</button>
 
     <!-- Logout -->
     <div class="logout-container">
@@ -229,6 +360,31 @@
   </div>
 
   <script>
+    let _sortColumn = 'timestamp';
+    let _sortOrder = 'desc';
+    let _csrfToken = '';
+
+    async function getCsrfToken() {
+      if (_csrfToken) return _csrfToken;
+      const res = await fetch('/auth/csrf-token');
+      const data = await res.json();
+      _csrfToken = data.csrfToken || '';
+      return _csrfToken;
+    }
+
+    async function fetchWithCsrf(url, options = {}) {
+      const method = String(options.method || 'GET').toUpperCase();
+      if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
+        return fetch(url, options);
+      }
+      const csrfToken = await getCsrfToken();
+      const headers = {
+        ...(options.headers || {}),
+        'x-csrf-token': csrfToken,
+      };
+      return fetch(url, { ...options, headers });
+    }
+
     // Animate numbers (for plain integers only)
     function animateValue(id, start, end, duration) {
       let obj = document.getElementById(id);
@@ -289,7 +445,7 @@
         // Animate stats (integers)
         animateValue('outstandingCount', 0, data.outstandingCount ?? 0, 800);
         animateValue('unavailableItems', 0, data.unavailableItems ?? 0, 800);
-        animateValue('totalQuotes',      0, data.totalQuotes      ?? 0, 800);
+        animateValue('totalQuotes', 0, data.totalQuotes ?? 0, 800);
 
         // Do NOT animate currency string
         document.getElementById('outstandingTotal').textContent = data.outstandingTotal ?? '$0.00';
@@ -328,10 +484,12 @@
     fetchDashboardAnimated();
 
     // ====== Response Evaluation State ======
+    let _viewMode = 'email'; // 'email', 'quotes', or 'both'
     let _range = '7d';
     let _classification = 'all';
     let _customerEmail = '';
     let _evaluationRows = [];
+    let _quoteEvaluationRows = [];
 
     function classifyBadgeClass(value) {
       if (value === 'Correct') return 'logs-badge logs-badge-correct';
@@ -363,16 +521,23 @@
       document.getElementById('kpiCorrect').textContent = data.correct_count ?? 0;
       document.getElementById('kpiIncorrect').textContent = data.incorrect_count ?? 0;
       document.getElementById('kpiFallback').textContent = data.fallback_count ?? 0;
-      document.getElementById('kpiAccuracy').textContent = `${Number(data.accuracy_percent || 0).toFixed(1)}%`;
-      document.getElementById('kpiFallbackRate').textContent = `${Number(data.fallback_rate_percent || 0).toFixed(1)}%`;
+      const evaluated = Number(data.total_evaluated ?? 0);
+      document.getElementById('kpiAccuracy').textContent =
+        evaluated > 0 ? `${Number(data.accuracy_percent || 0).toFixed(1)}%` : 'N/A';
+      document.getElementById('kpiFallbackRate').textContent =
+        evaluated > 0 ? `${Number(data.fallback_rate_percent || 0).toFixed(1)}%` : 'N/A';
       document.getElementById('kpiAvgConfidence').textContent =
         data.average_confidence == null ? 'N/A' : Number(data.average_confidence).toFixed(2);
+
+      // Update badge
+      // document.getElementById('pendingEmailCountBadge').textContent = data.pending_review ?? 0;
     }
 
     async function fetchConfusionMatrix() {
       const res = await fetch(`/admin/confusion-matrix?range=${encodeURIComponent(_range)}`);
       const data = await res.json();
       const summary = document.getElementById('confusionSummary');
+      if (!summary) return; // Guard against missing DOM element
       if (data.message) {
         summary.textContent = data.message;
         return;
@@ -384,8 +549,7 @@
     async function fetchResponseEvaluations() {
       const params = new URLSearchParams();
       params.set('range', _range);
-      if (_classification !== 'all') params.set('classification', _classification);
-      if (_customerEmail) params.set('customer_email', _customerEmail);
+      // Fetch all evaluations client-side to satisfy sorting and filtering metrics
       const res = await fetch(`/admin/response-evaluations?${params.toString()}`);
       const data = await res.json();
       const warningBanner = document.getElementById('logsWarningBanner');
@@ -396,26 +560,143 @@
         warningBanner.setAttribute('hidden', '');
       }
       _evaluationRows = data.evaluations || [];
+
+      populateUniqueFilterOptions();
       renderResponseEvaluationsTable();
+    }
+
+    function populateUniqueFilterOptions() {
+      const select = document.getElementById('logsStatusFilter');
+      const counts = { all: 0, Pending: 0, Correct: 0, Incorrect: 0, Fallback: 0 };
+
+      const companies = new Set();
+      const emails = new Set();
+      const dates = new Set();
+
+      _evaluationRows.forEach(row => {
+        counts.all++;
+        const cls = row.classification || 'Pending';
+        if (counts[cls] !== undefined) counts[cls]++;
+
+        if (row.company) companies.add(row.company);
+        if (row.customer_email) emails.add(row.customer_email);
+        if (row.timestamp) dates.add(String(row.timestamp));
+      });
+
+      select.options[0].textContent = `Total Logs (${counts.all})`;
+      select.options[1].textContent = `Correct Evaluations (${counts.Correct})`;
+      select.options[2].textContent = `Incorrect Evaluations (${counts.Incorrect})`;
+      select.options[3].textContent = `Fallback Responses (${counts.Fallback})`;
+      select.options[4].textContent = `Pending Review (${counts.Pending})`;
+
+      const colFilterCompany = document.getElementById('colFilterCompany');
+      const colFilterEmail = document.getElementById('colFilterEmail');
+      const colFilterTimestamp = document.getElementById('colFilterTimestamp');
+
+      if (colFilterCompany) {
+        const currentCompany = colFilterCompany.value;
+        colFilterCompany.innerHTML = '<option value="all">All</option>' + [...companies].sort().map(c => `<option value="${c}" ${c === currentCompany ? 'selected' : ''}>${c}</option>`).join('');
+      }
+      if (colFilterEmail) {
+        const currentEmail = colFilterEmail.value;
+        colFilterEmail.innerHTML = '<option value="all">All</option>' + [...emails].sort().map(e => `<option value="${e}" ${e === currentEmail ? 'selected' : ''}>${e}</option>`).join('');
+      }
+      if (colFilterTimestamp) {
+        const currentTs = colFilterTimestamp.value;
+        const sortedTimestamps = [...dates].sort((a, b) => new Date(b) - new Date(a));
+        colFilterTimestamp.innerHTML = '<option value="all">All</option>' + sortedTimestamps.map(ts => {
+          const label = formatTimestampHtml(ts).replace(/<br>/g, ' ').replace(/<\/?[^>]+(>|$)/g, '');
+          return `<option value="${escapeHtml(ts)}" ${ts === currentTs ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+        }).join('');
+      }
+
+      const uf = document.getElementById('logsUniqueFilter');
+      if (uf) {
+        const prev = uf.value;
+        const opt = (type, raw) =>
+          `<option value="${type}:${encodeURIComponent(raw)}">${escapeHtml(raw)}</option>`;
+        const companyOpts = [...companies].sort().map((c) => opt('company', c)).join('');
+        const emailOpts = [...emails].sort().map((e) => opt('email', e)).join('');
+        const dateOpts = [...dates].sort().map((d) => opt('date', d)).join('');
+        uf.innerHTML =
+          '<option value="all">Show All Records</option>' +
+          (companyOpts ? `<optgroup label="Companies">${companyOpts}</optgroup>` : '') +
+          (emailOpts ? `<optgroup label="Customer Emails">${emailOpts}</optgroup>` : '') +
+          (dateOpts ? `<optgroup label="Dates">${dateOpts}</optgroup>` : '');
+        const stillValid = [...uf.options].some((o) => o.value === prev);
+        uf.value = stillValid ? prev : 'all';
+      }
     }
 
     function renderResponseEvaluationsTable() {
       const tbody = document.getElementById('logsTableBody');
       const countEl = document.getElementById('logsShowingCount');
-      
+
       const confidenceFilter = parseFloat(document.getElementById('logsConfidenceFilter').value) || 0;
       const searchVal = document.getElementById('logsCompanySearch').value.toLowerCase();
-      
+
+      const statusVal = document.getElementById('logsStatusFilter').value;
+      const uniqueFilterVal = document.getElementById('logsUniqueFilter').value;
+
+      const colCompVal = document.getElementById('colFilterCompany')?.value || 'all';
+      const colEmailVal = document.getElementById('colFilterEmail')?.value || 'all';
+      const colTsVal = document.getElementById('colFilterTimestamp')?.value || 'all';
+
       let filtered = _evaluationRows.filter(row => {
         const conf = parseFloat(row.confidence_score) || 0;
         if (conf < confidenceFilter) return false;
-        
+
+        if (statusVal !== 'all') {
+          const cls = row.classification || 'Pending';
+          if (cls !== statusVal) return false;
+        }
+
+        if (colCompVal !== 'all' && (row.company || '') !== colCompVal) return false;
+        if (colEmailVal !== 'all' && (row.customer_email || '') !== colEmailVal) return false;
+        if (colTsVal !== 'all') {
+          const rowTs = row.timestamp ? String(row.timestamp) : '';
+          if (rowTs !== colTsVal) return false;
+        }
+
+        if (uniqueFilterVal && uniqueFilterVal !== 'all') {
+          const colon = uniqueFilterVal.indexOf(':');
+          if (colon === -1) return true;
+          const type = uniqueFilterVal.slice(0, colon);
+          let val;
+          try {
+            val = decodeURIComponent(uniqueFilterVal.slice(colon + 1));
+          } catch {
+            val = uniqueFilterVal.slice(colon + 1);
+          }
+          if (type === 'company' && (row.company || '') !== val) return false;
+          if (type === 'email' && (row.customer_email || '') !== val) return false;
+          if (type === 'date') {
+            const rowDate = row.timestamp ? new Date(row.timestamp).toLocaleDateString() : '';
+            if (rowDate !== val) return false;
+          }
+        }
+
         if (searchVal) {
           const email = (row.customer_email || '').toLowerCase();
-          const timestamp = row.timestamp ? String(row.timestamp).replace('T', ' ').toLowerCase() : '';
-          if (!email.includes(searchVal) && !timestamp.includes(searchVal)) return false;
+          const company = (row.company || '').toLowerCase();
+          const timestamp = row.timestamp ? String(row.timestamp).toLowerCase() : '';
+          if (!email.includes(searchVal) && !company.includes(searchVal) && !timestamp.includes(searchVal)) return false;
         }
         return true;
+      });
+
+      filtered.sort((a, b) => {
+        if (_sortColumn === 'timestamp') {
+          const d1 = a.timestamp ? new Date(a.timestamp) : new Date(0);
+          const d2 = b.timestamp ? new Date(b.timestamp) : new Date(0);
+          return _sortOrder === 'desc' ? d2 - d1 : d1 - d2;
+        }
+        if (_sortColumn === 'id') {
+          const id1 = parseInt(a.response_log_id) || 0;
+          const id2 = parseInt(b.response_log_id) || 0;
+          return _sortOrder === 'desc' ? id2 - id1 : id1 - id2;
+        }
+        return 0;
       });
 
       countEl.textContent = `Showing ${filtered.length} response evaluations`;
@@ -424,62 +705,436 @@
         return;
       }
 
+      // Map domId -> { custRawHtml, sysRawHtml } so event listeners can access raw HTML safely
+      const _rowHtmlMap = {};
+
       tbody.innerHTML = '';
       filtered.forEach((row) => {
         const tr = document.createElement('tr');
         tr.className = 'logs-row';
-        const created = row.timestamp ? String(row.timestamp).replace('T', ' ').substring(0, 19) : '—';
+        const created = formatTimestampHtml(row.timestamp);
         const classification = row.classification || '';
+        const domId = row.id || 'new_' + row.response_log_id;
+
+        // Customer request: strip HTML for the preview, keep raw HTML for the modal
+        const custRawHtml = row.customer_email_body || '';
+        const custPreview = htmlToPlainText(custRawHtml);
+
+        // Contoso response: also HTML — strip for preview, render in modal
+        const sysRawHtml = row.final_system_response || '';
+        const sysPreview = htmlToPlainText(sysRawHtml);
+
+        // Store row payload for safe retrieval in event listeners.
+        _rowHtmlMap[domId] = { custRawHtml, sysRawHtml, reviewNotes: row.review_notes || '' };
+
+        const isEvaluated = classification && classification !== 'Pending';
+
         tr.innerHTML = `
-          <td class="logs-td logs-td-muted">${escapeHtml(created)}</td>
+           <td class="logs-td logs-td-bold">${escapeHtml(String(row.response_log_id || '—'))}</td>
+           <td class="logs-td logs-td-muted" style="white-space:nowrap;">${created}</td>
+           <td class="logs-td"><span style="cursor: pointer; color: #0078d4; text-decoration: underline;" onclick="triggerChatSearch('${escapeHtml(row.company || '')}')">${escapeHtml(row.company || '—')}</span></td>
+           <td class="logs-td logs-td-bold"><span style="cursor: pointer; color: #0078d4; text-decoration: underline;" onclick="triggerChatSearch('${escapeHtml(row.customer_email || '')}')">${escapeHtml(row.customer_email || '—')}</span></td>
+           <td class="logs-td" style="height: 1px;">
+             <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+               <div class="logs-response-container">${escapeHtml(custPreview)}</div>
+               <button class="nav-btn view-cust-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
+             </div>
+           </td>
+           <td class="logs-td" style="height: 1px;">
+             <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+               <div class="logs-response-container">${escapeHtml(sysPreview)}</div>
+               <button class="nav-btn view-sys-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">View Full</button>
+             </div>
+           </td>
+           <td class="logs-td" style="background-color: #f7faff; padding-left: 15px;">
+             <div style="display: flex; align-items: center; gap: 8px;">
+               <span class="eval-lock-icon" data-dom-id="${domId}" style="font-size: 14px;">${isEvaluated ? '🔒' : '🔓'}</span>
+               <select class="logs-status-select eval-classification" data-dom-id="${domId}" ${isEvaluated ? 'disabled' : ''}>
+                 <option value="" ${classification ? '' : 'selected'}>Pending</option>
+                 <option value="Correct" ${classification === 'Correct' ? 'selected' : ''}>Correct</option>
+                 <option value="Incorrect" ${classification === 'Incorrect' ? 'selected' : ''}>Incorrect</option>
+                 <option value="Fallback" ${classification === 'Fallback' ? 'selected' : ''}>Fallback</option>
+               </select>
+             </div>
+           </td>
+           <td class="logs-td" style="background-color: #f7faff;">
+             <div style="display: flex; align-items: center; gap: 8px;">
+               <span class="eval-lock-icon" data-dom-id="${domId}" style="font-size: 14px;">${isEvaluated ? '🔒' : '🔓'}</span>
+               <input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-dom-id="${domId}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;" ${isEvaluated ? 'disabled' : ''}>
+             </div>
+           </td>
+           <td class="logs-td" style="background-color: #f7faff; height: 1px;">
+             <div style="display: flex; flex-direction: column; justify-content: space-between; height: 100%;">
+               <div class="logs-response-container eval-notes-preview" data-dom-id="${domId}">${escapeHtml(row.review_notes || '') || '—'}</div>
+               <button class="nav-btn view-notes-btn" data-dom-id="${domId}" style="padding:4px 8px; font-size:11px; margin-top:5px;">
+                 ${isEvaluated ? 'View Full' : 'Edit Full'}
+               </button>
+               <input type="hidden" class="eval-notes" data-dom-id="${domId}" value="${escapeHtml(row.review_notes || '')}" ${isEvaluated ? 'disabled' : ''}>
+             </div>
+           </td>
+           <td class="logs-td" style="background-color: #f7faff;"><button class="nav-btn eval-save-btn" data-dom-id="${domId}" data-eval-id="${row.id || ''}" style="${isEvaluated ? 'background-color: #0078d4; border-color: #0078d4; color: white;' : 'background-color: #27ae60; border-color: #27ae60; color: white;'}">${isEvaluated ? 'Edit' : 'Save'}</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Attach View Full listeners after DOM insertion
+      tbody.querySelectorAll('.view-cust-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-dom-id');
+          openEmailModal('Customer Request', (_rowHtmlMap[id] || {}).custRawHtml || '');
+        });
+      });
+      tbody.querySelectorAll('.view-sys-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-dom-id');
+          openEmailModal('Final System Response', (_rowHtmlMap[id] || {}).sysRawHtml || '');
+        });
+      });
+      tbody.querySelectorAll('.view-notes-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const id = btn.getAttribute('data-dom-id');
+          const notesEl = tbody.querySelector(`.eval-notes[data-dom-id="${id}"]`);
+          const previewEl = tbody.querySelector(`.eval-notes-preview[data-dom-id="${id}"]`);
+          const isEditable = notesEl && !notesEl.disabled;
+          openNotesModal({
+            title: isEditable ? 'Edit Review Notes' : 'Review Notes',
+            text: notesEl ? notesEl.value : ((_rowHtmlMap[id] || {}).reviewNotes || ''),
+            editable: isEditable,
+            onSave: (nextText) => {
+              if (notesEl) notesEl.value = nextText;
+              if (previewEl) previewEl.textContent = nextText || '—';
+            },
+          });
+        });
+      });
+
+      // Attach save button listeners after DOM insertion
+      tbody.querySelectorAll('.eval-save-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const domId = btn.getAttribute('data-dom-id');
+          const evalId = btn.getAttribute('data-eval-id');
+          const row = filtered.find(r => (r.id || 'new_' + r.response_log_id) === domId);
+          const classificationEl = tbody.querySelector(`.eval-classification[data-dom-id="${domId}"]`);
+          const confidenceEl = tbody.querySelector(`.eval-confidence[data-dom-id="${domId}"]`);
+          const notesEl = tbody.querySelector(`.eval-notes[data-dom-id="${domId}"]`);
+
+          if (btn.textContent === 'Edit') {
+            btn.textContent = 'Save';
+            btn.style.background = '#27ae60';
+            btn.style.borderColor = '#27ae60';
+            classificationEl.disabled = false;
+            confidenceEl.disabled = false;
+            notesEl.disabled = false;
+            classificationEl.style.border = '2px solid #27ae60';
+            confidenceEl.style.border = '2px solid #27ae60';
+            notesEl.style.border = '2px solid #27ae60';
+            const notesBtn = tbody.querySelector(`.view-notes-btn[data-dom-id="${domId}"]`);
+            if (notesBtn) notesBtn.textContent = 'Edit Full';
+
+            tbody.querySelectorAll(`.eval-lock-icon[data-dom-id="${domId}"]`).forEach(icon => {
+              icon.textContent = '🔓';
+            });
+            return;
+          }
+
+          // Strict validation: Both Classification AND Confidence are mandatory
+          const classVal = classificationEl.value;
+          const confVal = confidenceEl.value.trim();
+
+          let hasError = false;
+          if (!classVal || classVal === 'Pending') {
+            classificationEl.style.outline = '2px solid #e74c3c';
+            hasError = true;
+          } else {
+            classificationEl.style.outline = '';
+          }
+
+          const confNum = parseFloat(confVal);
+          if (!confVal || isNaN(confNum) || confNum < 0 || confNum > 1) {
+            confidenceEl.style.outline = '2px solid #e74c3c';
+            hasError = true;
+          } else {
+            confidenceEl.style.outline = '';
+          }
+
+          if (hasError) {
+            btn.style.animation = 'none';
+            btn.offsetHeight; // Trigger reflow
+            btn.style.animation = 'shake 0.3s ease';
+            return;
+          }
+
+          // Clear layout outlines
+          classificationEl.style.outline = '';
+          confidenceEl.style.outline = '';
+          classificationEl.style.border = '';
+          confidenceEl.style.border = '';
+          notesEl.style.border = '';
+
+          btn.disabled = true;
+          btn.textContent = 'Saving…';
+          try {
+            let fetchRes;
+            if (evalId) {
+              fetchRes = await fetchWithCsrf(`/admin/response-evaluations/${evalId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  classification: classificationEl.value || null,
+                  confidence_score: Number(confidenceEl.value),
+                  review_notes: notesEl.value || null,
+                  reviewed_by: 'admin'
+                }),
+              });
+            } else {
+              fetchRes = await fetchWithCsrf(`/admin/response-evaluations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  response_log_id: row.response_log_id,
+                  customer_email: row.customer_email,
+                  customer_subject: row.customer_subject,
+                  customer_email_body: row.customer_email_body,
+                  final_system_response: row.final_system_response,
+                  agent_name: row.agent_name,
+                  classification: classificationEl.value || null,
+                  confidence_score: Number(confidenceEl.value),
+                  evaluator_source: 'Manual',
+                  review_notes: notesEl.value || null,
+                  reviewed_by: 'admin'
+                }),
+              });
+            }
+            const result = await fetchRes.json();
+            if (!fetchRes.ok || !result.success) {
+              btn.textContent = 'Error!';
+              btn.style.background = '#c0392b';
+              btn.style.borderColor = '#c0392b';
+              setTimeout(() => {
+                btn.textContent = 'Save';
+                btn.style.background = '#0078d4';
+                btn.style.borderColor = '#0078d4';
+                btn.disabled = false;
+              }, 2500);
+              return;
+            }
+
+            // SUCCESS
+            btn.textContent = 'Edit';
+            btn.style.background = '#0078d4';
+            btn.style.borderColor = '#0078d4';
+
+            tbody.querySelectorAll(`.eval-lock-icon[data-dom-id="${domId}"]`).forEach(icon => {
+              icon.textContent = '🔒';
+            });
+
+            classificationEl.disabled = true;
+            confidenceEl.disabled = true;
+            notesEl.disabled = true;
+            const notesBtn = tbody.querySelector(`.view-notes-btn[data-dom-id="${domId}"]`);
+            if (notesBtn) notesBtn.textContent = 'View Full';
+
+            await Promise.all([fetchEvaluationSummary(), fetchConfusionMatrix()]);
+
+            // Sync local state
+            if (evalId && result.evaluation) {
+              const idx = _evaluationRows.findIndex(r => r.id === Number(evalId));
+              if (idx !== -1) _evaluationRows[idx] = result.evaluation;
+            } else if (result.evaluation) {
+              const idx = _evaluationRows.findIndex(r => r.response_log_id === row.response_log_id);
+              if (idx !== -1) _evaluationRows[idx] = result.evaluation;
+            }
+            populateUniqueFilterOptions();
+          } catch (err) {
+            btn.textContent = 'Error!';
+            btn.style.background = '#c0392b';
+            btn.style.borderColor = '#c0392b';
+            setTimeout(() => {
+              btn.textContent = 'Save';
+              btn.style.background = '#0078d4';
+              btn.style.borderColor = '#0078d4';
+              btn.disabled = false;
+            }, 2500);
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    function renderQuoteEvaluationsTable() {
+      const tbody = document.getElementById('quoteEvalsTableBody');
+      const countEl = document.getElementById('quoteLogsShowingCount');
+
+      const confidenceFilter = parseFloat(document.getElementById('logsConfidenceFilter').value) || 0;
+      const searchVal = document.getElementById('logsCompanySearch').value.toLowerCase();
+
+      let filtered = _quoteEvaluationRows.filter(row => {
+        const conf = parseFloat(row.confidence_score) || 0;
+        if (conf < confidenceFilter) return false;
+
+        if (searchVal) {
+          const email = (row.customer_email || '').toLowerCase();
+          const company = (row.company || '').toLowerCase();
+          const timestamp = row.timestamp ? String(row.timestamp).toLowerCase() : '';
+          if (!email.includes(searchVal) && !company.includes(searchVal) && !timestamp.includes(searchVal)) return false;
+        }
+        return true;
+      });
+
+      countEl.textContent = `Showing ${filtered.length} quote evaluations`;
+      if (!filtered.length) {
+        tbody.innerHTML = `<tr><td colspan="10" class="logs-placeholder">No quote evaluations found matching criteria.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      filtered.forEach((row) => {
+        const tr = document.createElement('tr');
+        tr.className = 'logs-row';
+        const created = formatTimestampHtml(row.timestamp);
+        const classification = row.classification || '';
+        const domId = row.id || 'new_' + row.response_log_id;
+        const isEvaluated = classification && classification !== 'Pending';
+
+        const amountStr = row.total_amount ? '$' + Number(row.total_amount).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—';
+        const statusClass = row.status === 'Won' ? 'status-won' : row.status === 'Lost' ? 'status-lost' : 'status-open';
+
+        tr.innerHTML = `
+          <td class="logs-td logs-td-muted" style="white-space:nowrap;">${created}</td>
           <td class="logs-td">${escapeHtml(row.company || '—')}</td>
           <td class="logs-td logs-td-bold">${escapeHtml(row.customer_email || '—')}</td>
           <td class="logs-td">${escapeHtml(String(row.response_log_id || '—'))}</td>
-          <td class="logs-td">
-            <div class="logs-response-container" title="${escapeHtml(row.customer_email_body || '')}">
-              ${escapeHtml(row.customer_email_body || '')}
-            </div>
-          </td>
-          <td class="logs-td">
-            <div class="logs-response-container" title="${escapeHtml(row.final_system_response || '')}">
-              ${escapeHtml(row.final_system_response || '')}
-            </div>
-          </td>
-          <td class="logs-td">
-            <select class="logs-status-select eval-classification" data-id="${row.id}">
+          <td class="logs-td"><span class="${statusClass}" style="font-size: 0.8em; padding: 2px 6px; border-radius: 3px; font-weight: 500;">${escapeHtml(row.status || 'Draft')}</span></td>
+          <td class="logs-td">${escapeHtml(amountStr)}</td>
+          <td class="logs-td" style="border-left: 3px double #0078d4; padding-left: 15px; background-color: #f7faff;">
+            <select class="logs-status-select eval-classification" data-dom-id="${domId}" ${isEvaluated ? 'disabled' : ''}>
               <option value="" ${classification ? '' : 'selected'}>Pending</option>
               <option value="Correct" ${classification === 'Correct' ? 'selected' : ''}>Correct</option>
               <option value="Incorrect" ${classification === 'Incorrect' ? 'selected' : ''}>Incorrect</option>
               <option value="Fallback" ${classification === 'Fallback' ? 'selected' : ''}>Fallback</option>
             </select>
           </td>
-          <td class="logs-td"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-id="${row.id}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;"></td>
-          <td class="logs-td logs-td-muted">${escapeHtml(row.evaluator_source || 'Manual')}</td>
-          <td class="logs-td"><input type="text" class="logs-company-input eval-notes" data-id="${row.id}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes"></td>
-          <td class="logs-td"><button class="nav-btn eval-save-btn" data-id="${row.id}">Save</button></td>
+          <td class="logs-td" style="background-color: #f7faff;"><input type="number" step="0.01" min="0" max="1" class="logs-company-input eval-confidence" data-dom-id="${domId}" value="${row.confidence_score ?? ''}" placeholder="0-1" style="width: 70px;" ${isEvaluated ? 'disabled' : ''}></td>
+          <td class="logs-td" style="background-color: #f7faff;"><input type="text" class="logs-company-input eval-notes" data-dom-id="${domId}" value="${escapeHtml(row.review_notes || '')}" placeholder="Review notes" ${isEvaluated ? 'disabled' : ''}></td>
+          <td class="logs-td" style="background-color: #f7faff;"><button class="nav-btn eval-save-btn" data-dom-id="${domId}" data-eval-id="${row.id || ''}">${isEvaluated ? 'Edit' : 'Save'}</button></td>
         `;
         tbody.appendChild(tr);
       });
 
-      document.querySelectorAll('.eval-save-btn').forEach((btn) => {
+      // Attach save button listeners (same logic as email logs, but uses _quoteEvaluationRows)
+      tbody.querySelectorAll('.eval-save-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
-          const id = btn.getAttribute('data-id');
-          const classificationEl = document.querySelector(`.eval-classification[data-id="${id}"]`);
-          const confidenceEl = document.querySelector(`.eval-confidence[data-id="${id}"]`);
-          const notesEl = document.querySelector(`.eval-notes[data-id="${id}"]`);
+          const domId = btn.getAttribute('data-dom-id');
+          const evalId = btn.getAttribute('data-eval-id');
+          const row = filtered.find(r => (r.id || 'new_' + r.response_log_id) === domId);
+          const classificationEl = tbody.querySelector(`.eval-classification[data-dom-id="${domId}"]`);
+          const confidenceEl = tbody.querySelector(`.eval-confidence[data-dom-id="${domId}"]`);
+          const notesEl = tbody.querySelector(`.eval-notes[data-dom-id="${domId}"]`);
+
+          if (btn.textContent === 'Edit') {
+            btn.textContent = 'Save';
+            btn.style.background = '#e67e22';
+            classificationEl.disabled = false;
+            confidenceEl.disabled = false;
+            notesEl.disabled = false;
+            classificationEl.style.border = '2px solid #e67e22';
+            confidenceEl.style.border = '2px solid #e67e22';
+            notesEl.style.border = '2px solid #e67e22';
+            return;
+          }
+
+          const classVal = classificationEl.value;
+          const confVal = confidenceEl.value.trim();
+          const classSet = classVal && classVal !== 'Pending';
+          const confSet = confVal !== '';
+
+          const clearValidation = () => {
+            classificationEl.style.outline = '';
+            confidenceEl.style.outline = '';
+          };
+
+          if (classSet && !confSet) {
+            confidenceEl.style.outline = '2px solid #e74c3c';
+            confidenceEl.focus();
+            confidenceEl.placeholder = 'Required (0–1)';
+            btn.style.animation = 'none';
+            btn.offsetHeight;
+            btn.style.animation = 'shake 0.3s ease';
+            confidenceEl.addEventListener('input', clearValidation, { once: true });
+            return;
+          }
+          if (confSet && !classSet) {
+            classificationEl.style.outline = '2px solid #e74c3c';
+            classificationEl.focus();
+            btn.style.animation = 'none';
+            btn.offsetHeight;
+            btn.style.animation = 'shake 0.3s ease';
+            classificationEl.addEventListener('change', clearValidation, { once: true });
+            return;
+          }
+          clearValidation();
+          classificationEl.style.border = '';
+          confidenceEl.style.border = '';
+          notesEl.style.border = '';
+
           btn.disabled = true;
+          btn.textContent = 'Saving…';
           try {
-            await fetch(`/admin/response-evaluations/${id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                classification: classificationEl.value || null,
-                confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
-                review_notes: notesEl.value || null,
-                reviewed_by: 'admin'
-              }),
-            });
-            await Promise.all([fetchEvaluationSummary(), fetchResponseEvaluations(), fetchConfusionMatrix()]);
+            let fetchRes;
+            if (evalId) {
+              fetchRes = await fetchWithCsrf(`/admin/response-evaluations/${evalId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  classification: classificationEl.value || null,
+                  confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
+                  review_notes: notesEl.value || null,
+                  reviewed_by: 'admin'
+                }),
+              });
+            } else {
+              fetchRes = await fetchWithCsrf(`/admin/response-evaluations`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  response_log_id: row.response_log_id,
+                  customer_email: row.customer_email,
+                  customer_subject: row.customer_subject,
+                  customer_email_body: `Quote request evaluation for Quote #${row.response_log_id}`,
+                  final_system_response: `Quote #${row.response_log_id} (Status: ${row.status || 'Draft'}, Amount: ${row.total_amount || 0})`,
+                  classification: classificationEl.value || null,
+                  confidence_score: confidenceEl.value === '' ? null : Number(confidenceEl.value),
+                  evaluator_source: 'Manual',
+                  review_notes: notesEl.value || null,
+                  reviewed_by: 'admin'
+                }),
+              });
+            }
+            const result = await fetchRes.json();
+            if (!fetchRes.ok || !result.success) {
+              btn.textContent = 'Error!';
+              btn.style.background = '#c0392b';
+              setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; btn.disabled = false; }, 2500);
+            } else {
+              btn.textContent = 'Saved ✓';
+              btn.style.background = '#28a745';
+              setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; }, 1500);
+
+              classificationEl.disabled = true;
+              confidenceEl.disabled = true;
+              notesEl.disabled = true;
+              classificationEl.style.border = '';
+              confidenceEl.style.border = '';
+              notesEl.style.border = '';
+
+              await Promise.all([fetchEvaluationSummary(), fetchConfusionMatrix(), fetchOverallPendingCounts()]);
+              await fetchQuoteEvaluations();
+            }
+          } catch (err) {
+            btn.textContent = 'Error!';
+            btn.style.background = '#c0392b';
+            setTimeout(() => { btn.textContent = 'Save'; btn.style.background = ''; btn.disabled = false; }, 2500);
           } finally {
             btn.disabled = false;
           }
@@ -488,12 +1143,20 @@
     }
 
     async function fetchAgentTelemetry() {
-      const res = await fetch(`/admin/agent-performance?range=${encodeURIComponent(_range)}`);
+      const telemetryRange = document.getElementById('telemetryRangeFilter').value;
+      const res = await fetch(`/admin/agent-performance?range=${encodeURIComponent(telemetryRange)}`);
       const data = await res.json();
       const tbody = document.getElementById('agentTelemetryBody');
+      const warningEl = document.getElementById('agentTelemetryWarning');
+      if (data.warning) {
+        warningEl.textContent = `⚠ ${data.warning}`;
+        warningEl.removeAttribute('hidden');
+      } else {
+        warningEl.setAttribute('hidden', '');
+      }
       const rows = data.telemetry || [];
       if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="4" class="logs-placeholder">No telemetry available.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="logs-placeholder">No telemetry available.</td></tr>`;
         return;
       }
       tbody.innerHTML = rows.map((r) => `
@@ -501,6 +1164,13 @@
           <td class="logs-td">${escapeHtml(r.agent || '—')}</td>
           <td class="logs-td">${Number(r.calls || 0)}</td>
           <td class="logs-td">${Number(r.errors || 0)}</td>
+          <td class="logs-td">${(() => {
+            const calls = Number(r.calls || 0);
+            const errors = Number(r.errors || 0);
+            if (calls <= 0) return 'N/A';
+            const success = Math.max(0, ((calls - errors) / calls) * 100);
+            return `${success.toFixed(1)}%`;
+          })()}</td>
           <td class="logs-td">${Number(r.avgDurationSeconds || 0).toFixed(2)}</td>
         </tr>
       `).join('');
@@ -512,6 +1182,13 @@
       const traceRange = document.getElementById('tracesRangeFilter').value;
       const res = await fetch(`/admin/user-orchestrator-traces?range=${encodeURIComponent(traceRange)}`);
       const data = await res.json();
+      const warningEl = document.getElementById('tracesWarningBanner');
+      if (data.warning) {
+        warningEl.textContent = `⚠ ${data.warning}`;
+        warningEl.removeAttribute('hidden');
+      } else {
+        warningEl.setAttribute('hidden', '');
+      }
       _traceRows = data.traces || [];
       renderUserOrchestratorTracesTable();
     }
@@ -521,7 +1198,6 @@
       const successFilter = document.getElementById('tracesSuccessFilter').value;
       const durationFilter = document.getElementById('tracesDurationFilter').value;
       const timeSearch = document.getElementById('tracesTimeSearch').value.toLowerCase();
-      const sortOrder = document.getElementById('tracesSortFilter').value;
 
       let filtered = _traceRows.filter(r => {
         const isSuccess = r.success === true || String(r.success).toLowerCase() === 'true';
@@ -542,7 +1218,7 @@
       filtered.sort((a, b) => {
         const timeA = new Date(a.timestamp).getTime();
         const timeB = new Date(b.timestamp).getTime();
-        return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+        return timeB - timeA;
       });
 
       if (!filtered.length) {
@@ -552,10 +1228,10 @@
 
       // TODO: Azure AI Foundry telemetry needs to be enriched with quote_id, customer_email, workflow_type, and request_summary
 
-      tbody.innerHTML = filtered.slice(0, 50).map((r) => {
+      tbody.innerHTML = filtered.map((r) => {
         let cd = {};
         if (r.customDimensions && typeof r.customDimensions === 'string') {
-          try { cd = JSON.parse(r.customDimensions); } catch(e) {}
+          try { cd = JSON.parse(r.customDimensions); } catch (e) { }
         } else if (r.customDimensions) {
           cd = r.customDimensions;
         }
@@ -592,6 +1268,8 @@
       ]);
     }
 
+
+
     document.querySelectorAll('.logs-pill').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.logs-pill').forEach(b => b.classList.remove('logs-pill-active'));
@@ -601,9 +1279,12 @@
       });
     });
 
-    document.getElementById('logsStatusFilter').addEventListener('change', (e) => {
-      _classification = e.target.value;
-      fetchResponseEvaluations();
+    document.getElementById('logsStatusFilter').addEventListener('change', () => {
+      renderResponseEvaluationsTable();
+    });
+
+    document.getElementById('logsUniqueFilter').addEventListener('change', () => {
+      renderResponseEvaluationsTable();
     });
 
     let _searchDebounce;
@@ -621,11 +1302,76 @@
     const renderTraces = () => renderUserOrchestratorTracesTable();
     document.getElementById('tracesSuccessFilter').addEventListener('change', renderTraces);
     document.getElementById('tracesDurationFilter').addEventListener('change', renderTraces);
-    document.getElementById('tracesSortFilter').addEventListener('change', renderTraces);
     document.getElementById('tracesTimeSearch').addEventListener('input', renderTraces);
-    document.getElementById('tracesRangeFilter').addEventListener('change', fetchUserOrchestratorTraces);
+    document.getElementById('tracesRangeFilter').addEventListener('change', async () => {
+      await fetchUserOrchestratorTraces();
+    });
+    document.getElementById('telemetryRangeFilter').addEventListener('change', async () => {
+      await fetchAgentTelemetry();
+    });
+
+    function openAndPromptChat(promptText) {
+      if (!isChatOpen) openChatWidget();
+      const input = document.getElementById('chatInput');
+      input.value = promptText;
+      document.getElementById('chatSendBtn').click();
+    }
+
+    document.getElementById('btnOutstandingQuotes').addEventListener('click', () => {
+      openAndPromptChat("show all outstanding quotes");
+    });
+    document.getElementById('btnOutstandingTotal').addEventListener('click', () => {
+      openAndPromptChat("show the total of all outstanding quotes");
+    });
+    document.getElementById('btnUnavailableItems').addEventListener('click', () => {
+      openAndPromptChat("show all unavailable items requested by customers");
+    });
+    document.getElementById('btnTotalQuotes').addEventListener('click', () => {
+      openAndPromptChat("show total quotes");
+    });
 
     document.getElementById('chatSendBtn').addEventListener('click', sendChat);
+
+    // Chat launcher + panel open/close
+    let isChatOpen = false;
+    const chatWidget = document.getElementById('adminChatWidget');
+    const chatWidgetContent = document.getElementById('chatWidgetContent');
+    const chatWidgetToggleBtn = document.getElementById('chatWidgetToggleBtn');
+    const chatWidgetHeader = document.getElementById('chatWidgetHeader');
+    const chatLauncherBtn = document.getElementById('chatLauncherBtn');
+
+    function openChatWidget() {
+      isChatOpen = true;
+      chatWidget.style.display = 'flex';
+      chatWidgetContent.style.display = 'flex';
+      chatWidget.style.height = '800px';
+      chatWidgetToggleBtn.textContent = '−';
+      chatLauncherBtn.style.display = 'none';
+      const chatBoxEl = document.getElementById('chatBox');
+      chatBoxEl.scrollTop = chatBoxEl.scrollHeight;
+    }
+
+    function closeChatWidget() {
+      isChatOpen = false;
+      chatWidget.style.display = 'none';
+      chatLauncherBtn.style.display = 'inline-flex';
+      chatLauncherBtn.style.alignItems = 'center';
+      chatLauncherBtn.style.justifyContent = 'center';
+    }
+
+    function toggleChatWidget() {
+      if (isChatOpen) closeChatWidget();
+      else openChatWidget();
+    }
+
+    chatWidgetHeader.addEventListener('click', toggleChatWidget);
+    chatLauncherBtn.addEventListener('click', openChatWidget);
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isChatOpen) {
+        closeChatWidget();
+      }
+    });
+
     refreshMonitoring();
     setInterval(refreshMonitoring, 60000);
 
@@ -642,14 +1388,14 @@
     })();
 
     const debugDetails = document.getElementById('chatDebug');
-    const debugLogEl  = document.getElementById('chatDebugLog');
+    const debugLogEl = document.getElementById('chatDebugLog');
     const debugBuffer = [];
 
     const DEBUG_LEVEL_CLASS = {
-      info:    'debug-info',
+      info: 'debug-info',
       success: 'debug-success',
-      warn:    'debug-warn',
-      error:   'debug-error',
+      warn: 'debug-warn',
+      error: 'debug-error',
     };
 
     function logDebug(event, data = {}, level = 'info') {
@@ -687,21 +1433,21 @@
         const d = await res.json();
         const envRows = Object.entries(d.env).map(([k, v]) => {
           const cls = v.startsWith('✗') ? 'debug-env-missing'
-                    : v.startsWith('✓') ? 'debug-env-ok'
-                    : 'debug-env-opt';
+            : v.startsWith('✓') ? 'debug-env-ok'
+              : 'debug-env-opt';
           return `<tr><td>${escapeHtml(k)}</td><td class="${cls}">${escapeHtml(v)}</td></tr>`;
         }).join('');
         infoEl.innerHTML =
           `<div class="debug-sysinfo-grid">` +
-            `<div><strong>Runtime</strong><table class="debug-sysinfo-table">` +
-              `<tr><td>Node.js</td><td>${escapeHtml(d.node)}</td></tr>` +
-              `<tr><td>Platform</td><td>${escapeHtml(d.platform)}</td></tr>` +
-              `<tr><td>PID</td><td>${d.pid}</td></tr>` +
-              `<tr><td>Uptime</td><td>${d.uptimeSec}s</td></tr>` +
-              `<tr><td>RSS memory</td><td>${escapeHtml(d.memory.rss)}</td></tr>` +
-              `<tr><td>Heap used</td><td>${escapeHtml(d.memory.heapUsed)} / ${escapeHtml(d.memory.heapTotal)}</td></tr>` +
-            `</table></div>` +
-            `<div><strong>Environment</strong><table class="debug-sysinfo-table">${envRows}</table></div>` +
+          `<div><strong>Runtime</strong><table class="debug-sysinfo-table">` +
+          `<tr><td>Node.js</td><td>${escapeHtml(d.node)}</td></tr>` +
+          `<tr><td>Platform</td><td>${escapeHtml(d.platform)}</td></tr>` +
+          `<tr><td>PID</td><td>${d.pid}</td></tr>` +
+          `<tr><td>Uptime</td><td>${d.uptimeSec}s</td></tr>` +
+          `<tr><td>RSS memory</td><td>${escapeHtml(d.memory.rss)}</td></tr>` +
+          `<tr><td>Heap used</td><td>${escapeHtml(d.memory.heapUsed)} / ${escapeHtml(d.memory.heapTotal)}</td></tr>` +
+          `</table></div>` +
+          `<div><strong>Environment</strong><table class="debug-sysinfo-table">${envRows}</table></div>` +
           `</div>`;
         logDebug('system_info_loaded', { node: d.node, uptimeSec: d.uptimeSec, pid: d.pid }, 'info');
       } catch (err) {
@@ -723,6 +1469,36 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function formatTimestampHtml(isoString) {
+      if (!isoString) return '—';
+      try {
+        const d = new Date(isoString);
+        const dateStr = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(d);
+        const timeStr = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }).format(d);
+        return `<span style="display:block; font-weight:500;">${escapeHtml(dateStr)}</span><span style="display:block; font-size:0.9em; opacity:0.8;">${escapeHtml(timeStr)}</span>`;
+      } catch {
+        return escapeHtml(isoString);
+      }
+    }
+
+    /**
+     * Strip HTML tags and decode common entities to produce readable plain text.
+     * Used for truncated table cell previews.
+     */
+    function htmlToPlainText(html) {
+      if (!html || !html.trim()) return '';
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(String(html), 'text/html');
+      const root = doc.body;
+      root.querySelectorAll('br,p,div,li,tr,h1,h2,h3,h4,h5,h6').forEach((el) => {
+        el.insertAdjacentText('afterend', '\n');
+      });
+      return (root.textContent || '')
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
     }
 
     function createRequestId() {
@@ -913,7 +1689,7 @@
 
         function flushParagraph() {
           if (!paragraphLines.length) return;
-          const rendered = paragraphLines.map((l) => renderInline(l.trim())).join('<br>');
+          const rendered = paragraphLines.map((l) => renderInline(l.trim())).join(' ');
           htmlParts.push(`<div class="chat-paragraph">${rendered}</div>`);
           paragraphLines = [];
         }
@@ -1205,6 +1981,16 @@
       return chat.scrollHeight - chat.scrollTop - chat.clientHeight <= threshold;
     }
 
+    function triggerChatSearch(term) {
+      const input = document.getElementById('chatInput');
+      if (input && term && term !== '—') {
+        if (!isChatOpen) openChatWidget();
+        input.value = term;
+        sendChat();
+      }
+    }
+    window.triggerChatSearch = triggerChatSearch;
+
     // ===== Admin Chat =====
     async function sendChat() {
       const input = document.getElementById('chatInput');
@@ -1241,7 +2027,7 @@
       const timeout = setTimeout(() => controller.abort('timeout'), timeoutMs);
 
       try {
-        const res = await fetch('/admin/chat', {
+        const res = await fetchWithCsrf('/admin/chat', {
           method: 'POST',
           body: JSON.stringify({ message }),
           signal: controller.signal,
@@ -1326,7 +2112,7 @@
 
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', async () => {
-      await fetch('/auth/logout', { method: 'POST' });
+      await fetchWithCsrf('/auth/logout', { method: 'POST' });
       window.location.href = '/';
     });
 
@@ -1357,6 +2143,166 @@
         if (btn) { btn.textContent = 'Copied!'; setTimeout(reset, 2000); }
       }
     });
+
+    // ===== Email Content Modal JS =====
+    // Accepts raw HTML string (not HTML-escaped) and renders it directly into the modal.
+    function openEmailModal(title, rawHtml) {
+      const modal = document.getElementById('emailModal');
+      const modalBody = document.getElementById('emailModalBody');
+      const modalTitle = document.getElementById('emailModalTitle');
+      modalTitle.textContent = title || 'Email Content';
+      const content = String(rawHtml || '').trim();
+      if (!content) {
+        modalBody.innerHTML = '<i>No content</i>';
+      } else {
+        const looksLikeHtml = /<[a-z][\s\S]*>/i.test(content);
+        modalBody.innerHTML = looksLikeHtml
+          ? content
+          : formatAgentTextToSafeHtml(content);
+      }
+      modal.removeAttribute('hidden');
+      // Prevent background page scroll while modal is open
+      document.body.style.overflow = 'hidden';
+    }
+
+    // Use event delegation so close always works regardless of DOM order
+    function closeEmailModal() {
+      const modal = document.getElementById('emailModal');
+      if (!modal) return;
+      modal.setAttribute('hidden', '');
+      // Restore page scroll
+      document.body.style.overflow = '';
+    }
+
+    let _notesModalSaveHandler = null;
+    function openNotesModal({ title, text, editable, onSave }) {
+      const modal = document.getElementById('notesModal');
+      const titleEl = document.getElementById('notesModalTitle');
+      const bodyEl = document.getElementById('notesModalBody');
+      const actionsEl = document.getElementById('notesModalActions');
+      const saveBtn = document.getElementById('notesModalSaveBtn');
+      const cancelBtn = document.getElementById('notesModalCancelBtn');
+      if (!modal || !titleEl || !bodyEl || !actionsEl || !saveBtn || !cancelBtn) return;
+
+      titleEl.textContent = title || 'Review Notes';
+      const normalized = String(text || '');
+      _notesModalSaveHandler = typeof onSave === 'function' ? onSave : null;
+      if (editable) {
+        bodyEl.innerHTML = `<textarea id="notesModalTextarea" class="notes-modal-textarea">${escapeHtml(normalized)}</textarea>`;
+        actionsEl.removeAttribute('hidden');
+      } else {
+        bodyEl.innerHTML = `<div class="notes-modal-view">${escapeHtml(normalized) || '<i>No notes</i>'}</div>`;
+        actionsEl.setAttribute('hidden', '');
+      }
+      modal.removeAttribute('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeNotesModal() {
+      const modal = document.getElementById('notesModal');
+      if (!modal) return;
+      modal.setAttribute('hidden', '');
+      _notesModalSaveHandler = null;
+      document.body.style.overflow = '';
+    }
+
+    // Column Sort & Filter Listeners
+    document.getElementById('headerLogId').addEventListener('click', () => {
+      if (_sortColumn === 'id') {
+        _sortOrder = _sortOrder === 'desc' ? 'asc' : 'desc';
+      } else {
+        _sortColumn = 'id';
+        _sortOrder = 'desc';
+      }
+      document.getElementById('sortLogIdArrow').textContent = _sortOrder === 'desc' ? '↓' : '↑';
+      document.getElementById('sortTimestampArrow').textContent = '↓';
+      renderResponseEvaluationsTable();
+    });
+
+    document.getElementById('headerTimestamp').addEventListener('click', () => {
+      if (_sortColumn === 'timestamp') {
+        _sortOrder = _sortOrder === 'desc' ? 'asc' : 'desc';
+      } else {
+        _sortColumn = 'timestamp';
+        _sortOrder = 'desc';
+      }
+      document.getElementById('sortTimestampArrow').textContent = _sortOrder === 'desc' ? '↓' : '↑';
+      document.getElementById('sortLogIdArrow').textContent = '↓';
+      renderResponseEvaluationsTable();
+    });
+
+    document.getElementById('colFilterCompany').addEventListener('change', () => {
+      renderResponseEvaluationsTable();
+    });
+    document.getElementById('colFilterCompany').addEventListener('click', (e) => e.stopPropagation());
+
+    document.getElementById('colFilterEmail').addEventListener('change', () => {
+      renderResponseEvaluationsTable();
+    });
+    document.getElementById('colFilterEmail').addEventListener('click', (e) => e.stopPropagation());
+    document.getElementById('colFilterTimestamp').addEventListener('change', () => {
+      renderResponseEvaluationsTable();
+    });
+    document.getElementById('colFilterTimestamp').addEventListener('click', (e) => e.stopPropagation());
+
+    document.addEventListener('click', (e) => {
+      const modal = document.getElementById('emailModal');
+      if (!modal) return;
+      // Click on the × button
+      if (e.target.id === 'emailModalClose' || e.target.closest('#emailModalClose')) {
+        closeEmailModal();
+      }
+      if (e.target.id === 'notesModalClose' || e.target.closest('#notesModalClose')) {
+        closeNotesModal();
+      }
+      if (e.target.id === 'notesModalCancelBtn' || e.target.closest('#notesModalCancelBtn')) {
+        closeNotesModal();
+      }
+      if (e.target.id === 'notesModalSaveBtn' || e.target.closest('#notesModalSaveBtn')) {
+        const ta = document.getElementById('notesModalTextarea');
+        const nextText = ta ? ta.value : '';
+        if (typeof _notesModalSaveHandler === 'function') _notesModalSaveHandler(nextText);
+        closeNotesModal();
+      }
+      // Click on the backdrop (the modal overlay itself, not the inner content box)
+      if (e.target === modal) {
+        closeEmailModal();
+      }
+      const notesModal = document.getElementById('notesModal');
+      if (e.target === notesModal) {
+        closeNotesModal();
+      }
+    });
+
+    // Also close on Escape key
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeEmailModal();
+        closeNotesModal();
+      }
+    });
   </script>
+
+  <!-- Email Content Modal -->
+  <div id="emailModal" class="email-modal" hidden>
+    <div class="email-modal-content">
+      <span class="email-modal-close" id="emailModalClose">&times;</span>
+      <h3 id="emailModalTitle" style="margin-top: 0; color: #333;">Email Content</h3>
+      <div id="emailModalBody" class="email-modal-body"></div>
+    </div>
+  </div>
+  <div id="notesModal" class="email-modal" hidden>
+    <div class="email-modal-content">
+      <span class="email-modal-close" id="notesModalClose">&times;</span>
+      <h3 id="notesModalTitle" style="margin-top: 0; color: #333;">Review Notes</h3>
+      <div id="notesModalBody" class="email-modal-body"></div>
+      <div id="notesModalActions" style="display:flex; gap:10px; justify-content:flex-end; margin-top:12px;" hidden>
+        <button id="notesModalCancelBtn" class="nav-btn" type="button">Cancel</button>
+        <button id="notesModalSaveBtn" class="nav-btn" type="button"
+          style="background-color:#27ae60; border-color:#27ae60; color:white;">Apply</button>
+      </div>
+    </div>
+  </div>
 </body>
+
 </html>
