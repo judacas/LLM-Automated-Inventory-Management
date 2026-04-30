@@ -73,6 +73,7 @@ class DashboardMetricsResponse(TypedDict):
     outstanding_quotes_count: int
     outstanding_total_amount: float
     out_of_stock_count: int
+    total_quotes_count: int
 
 
 class QuoteSummary(TypedDict):
@@ -505,19 +506,23 @@ def get_dashboard_metrics() -> DashboardMetricsResponse:
     with get_connection() as conn:
         cursor = conn.cursor()
 
+        # Same aggregates as admin-portal/server.js dashboard SQL (stay consistent over MCP fallback)
         cursor.execute(
             """
-            SELECT COUNT(*), COALESCE(SUM(total_amount), 0)
+            SELECT
+              COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0),
+              COALESCE(SUM(CASE WHEN status = 'active' THEN total_amount ELSE 0 END), 0),
+              COUNT(*)
             FROM Quotes
-            WHERE status = 'active'
             """
         )
         row = cursor.fetchone()
         if row is None:
             raise RuntimeError("Failed to fetch dashboard metrics.")
 
-        outstanding_count = row[0]
+        outstanding_count = int(row[0])
         outstanding_total = float(row[1])
+        total_quotes_count = int(row[2])
 
         # Count DISTINCT products customers requested in active quotes
         # that are currently out of stock (matches requirement:
@@ -542,6 +547,7 @@ def get_dashboard_metrics() -> DashboardMetricsResponse:
             "outstanding_quotes_count": outstanding_count,
             "outstanding_total_amount": outstanding_total,
             "out_of_stock_count": out_of_stock,
+            "total_quotes_count": total_quotes_count,
         }
 
 
