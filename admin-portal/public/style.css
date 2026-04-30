@@ -477,6 +477,23 @@ button, .nav-btn {
 
 .debug-env-ok      { color: #1a7f37; font-weight: 600; }
 .debug-env-missing { color: #cf222e; font-weight: 600; }
+
+.notes-modal-textarea {
+  width: 100%;
+  min-height: 300px;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.notes-modal-view {
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
 .debug-env-opt     { color: #888; }
 
 /* ── Toolbar (entry count + buttons) ──────── */
@@ -760,6 +777,8 @@ tbody tr:nth-child(odd) {
   padding: 14px 0 12px;
   border-bottom: 1px solid #f0f0f0;
   margin-bottom: 8px;
+  position: relative;
+  z-index: 2;
 }
 
 .logs-filter-group {
@@ -882,6 +901,20 @@ tbody tr:nth-child(odd) {
   border-radius: 8px;
   background: #fff;
   margin-bottom: 20px;
+}
+
+/* Keep headers visible while scrolling specific log tables */
+.evals-scroll-window thead .logs-th,
+.traces-scroll-window thead .logs-th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #fff;
+  box-shadow: 0 1px 0 #e9ecef;
+}
+
+.evals-scroll-window thead .logs-th[style*="background-color: #f7faff"] {
+  background: #f7faff;
 }
 
 

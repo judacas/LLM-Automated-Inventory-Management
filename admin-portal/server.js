@@ -162,6 +162,205 @@ app.post('/admin/chat', authenticateToken, async (req, res) => {
   }
 
   try {
+    const lower = String(message).toLowerCase();
+    const normalizedMessage = lower
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    const useDeterministicKpi = lower.includes('[deterministic-kpi]');
+    const wantsOutstandingDetails =
+      normalizedMessage === 'show all outstanding quotes' ||
+      normalizedMessage === 'show outstanding quotes details';
+    const wantsTotalQuotesDetails =
+      normalizedMessage === 'show total quotes' ||
+      normalizedMessage === 'show total quotes details';
+    const wantsOutstandingTotal =
+      normalizedMessage === 'show the total of all outstanding quotes' ||
+      normalizedMessage === 'how much is the outstanding total for quotes';
+    const wantsUnavailableRequested =
+      normalizedMessage === 'show all unavailable items requested by customers' ||
+      normalizedMessage === 'display requested items that are currently unavailable due to being out of stock';
+    // KPI quick action should be deterministic and not depend on Foundry conversation context.
+    if (wantsOutstandingDetails || (useDeterministicKpi && lower.includes('outstanding'))) {
+      let rows = [];
+      const sqlConfig = buildSqlConfig();
+      if (sqlConfig) {
+        const pool = await getSqlPool(sqlConfig);
+        const result = await pool.request().query(`
+          SELECT
+            q.quote_id,
+            q.account_id,
+            q.status,
+            q.created_at,
+            q.valid_until,
+            q.total_amount
+          FROM Quotes q
+          WHERE q.status = 'active'
+          ORDER BY q.created_at DESC
+        `);
+        rows = result.recordset || [];
+      } else {
+        const quotesApiBase = mcpQuotesApiBase();
+        if (!quotesApiBase) {
+          return res.status(503).json({
+            success: false,
+            error: 'Neither Azure SQL nor MCP_BASE_URL is configured for outstanding quote details.',
+            requestId,
+          });
+        }
+        const mcpApiKey = process.env.MCP_API_KEY || '';
+        const resp = await fetch(`${quotesApiBase}/quotes/admin/outstanding`, {
+          headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          return res.status(502).json({
+            success: false,
+            error: `Outstanding quotes failed: ${resp.status} ${txt}`,
+            requestId,
+          });
+        }
+        rows = await resp.json();
+      }
+      const header = `Outstanding Quotes: ${Array.isArray(rows) ? rows.length : 0}`;
+      const tableHeader =
+        '| Quote ID | Account ID | Status | Created Date | Valid Until | Total Amount |\n' +
+        '|---:|---:|---|---|---|---:|';
+      const lines = rows.map((q) => {
+        const id = q?.quote_id ?? '—';
+        const acct = q?.account_id ?? '—';
+        const status = q?.status || 'unknown';
+        const created = q?.created_at ? new Date(q.created_at).toISOString().slice(0, 10) : '—';
+        const validUntil = q?.valid_until ? new Date(q.valid_until).toISOString().slice(0, 10) : '—';
+        const amount = Number(q?.total_amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `| ${id} | ${acct} | ${status} | ${created} | ${validUntil} | $${amount} |`;
+      });
+      return res.json({
+        success: true,
+        reply: `${header}\n\n${tableHeader}\n${lines.join('\n') || '| — | — | — | — | — | $0.00 |'}`,
+        requestId,
+      });
+    }
+    if (wantsTotalQuotesDetails || (useDeterministicKpi && lower.includes('total quotes'))) {
+      const sqlConfig = buildSqlConfig();
+      if (!sqlConfig) {
+        return res.status(503).json({
+          success: false,
+          error: 'AZURE_SQL_* is not configured. Cannot resolve all quotes deterministically.',
+          requestId,
+        });
+      }
+      const pool = await getSqlPool(sqlConfig);
+      const result = await pool.request().query(`
+        SELECT
+          q.quote_id,
+          q.account_id,
+          q.status,
+          q.created_at,
+          q.total_amount
+        FROM Quotes q
+        ORDER BY q.created_at DESC
+      `);
+      const rows = result.recordset || [];
+      const total = rows.length;
+      const tableHeader =
+        '| Quote ID | Account ID | Status | Created Date | Total Amount |\n' +
+        '|---:|---:|---|---|---:|';
+      const lines = rows.map((q) => {
+        const id = q?.quote_id ?? '—';
+        const acct = q?.account_id ?? '—';
+        const status = q?.status || 'unknown';
+        const created = q?.created_at ? new Date(q.created_at).toISOString().slice(0, 10) : '—';
+        const amount = Number(q?.total_amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return `| ${id} | ${acct} | ${status} | ${created} | $${amount} |`;
+      });
+      return res.json({
+        success: true,
+        reply: `Total Quotes (all statuses): ${total}\n\n${tableHeader}\n${lines.join('\n') || '| — | — | — | — | $0.00 |'}`,
+        requestId,
+      });
+    }
+    if (wantsOutstandingTotal || (useDeterministicKpi && lower.includes('outstanding total'))) {
+      const sqlConfig = buildSqlConfig();
+      if (!sqlConfig) {
+        return res.status(503).json({
+          success: false,
+          error: 'AZURE_SQL_* is not configured. Cannot resolve outstanding total deterministically.',
+          requestId,
+        });
+      }
+      const pool = await getSqlPool(sqlConfig);
+      const result = await pool.request().query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN status = 'active' THEN total_amount ELSE 0 END), 0) AS outstanding_total_amount,
+          COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) AS outstanding_quotes_count
+        FROM Quotes
+      `);
+      const row = result.recordset?.[0] || {};
+      const total = Number(row.outstanding_total_amount ?? 0).toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+      const count = Number(row.outstanding_quotes_count ?? 0);
+      const detailRows = await pool.request().query(`
+        SELECT quote_id, account_id, total_amount
+        FROM Quotes
+        WHERE status = 'active'
+        ORDER BY created_at DESC
+      `);
+      const tableHeader =
+        '| Quote ID | Account ID | Total Amount |\n' +
+        '|---:|---:|---:|';
+      const lines = (detailRows.recordset || []).map((q) => {
+        const id = q?.quote_id ?? '—';
+        const acct = q?.account_id ?? '—';
+        const amount = Number(q?.total_amount ?? 0).toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+        return `| ${id} | ${acct} | $${amount} |`;
+      });
+      return res.json({
+        success: true,
+        reply: `Outstanding Total: $${total}\nOutstanding Quotes: ${count}\n\n${tableHeader}\n${lines.join('\n') || '| — | — | $0.00 |'}`,
+        requestId,
+      });
+    }
+    if (wantsUnavailableRequested || (useDeterministicKpi && lower.includes('unavailable'))) {
+      const sqlConfig = buildSqlConfig();
+      if (!sqlConfig) {
+        return res.status(503).json({
+          success: false,
+          error: 'AZURE_SQL_* is not configured. Cannot resolve unavailable requested items deterministically.',
+          requestId,
+        });
+      }
+      const pool = await getSqlPool(sqlConfig);
+      const { count, items } = await fetchUnavailableRequestedItemsFromSql(pool, null, 'active');
+      const outOfStock = items.filter((r) => Number(r.in_stock_qty ?? 0) === 0).length;
+      const partialShortfall = items.filter((r) => Number(r.in_stock_qty ?? 0) > 0).length;
+      const header =
+        `Total Unavailable Requested Items (unique products, active demand shortfall): ${count}\n` +
+        `Out-of-stock items: ${outOfStock}\n` +
+        `Partial-shortfall items: ${partialShortfall}`;
+      const tableHeader =
+        '| Product ID | Product Name | Requested Qty | In-Stock Qty | Shortfall Qty |\n' +
+        '|---:|---|---:|---:|---:|';
+      const lines = items.map((r) => {
+        const pid = r.product_id ?? '—';
+        const name = r.product_name || 'Unknown';
+        const reqQty = Number(r.requested_qty ?? 0);
+        const stockQty = Number(r.in_stock_qty ?? 0);
+        const shortfall = Number(r.shortfall_qty ?? 0);
+        return `| ${pid} | ${name} | ${reqQty} | ${stockQty} | ${shortfall} |`;
+      });
+      return res.json({
+        success: true,
+        reply: `${header}\n\n${tableHeader}\n${lines.join('\n') || '| — | — | 0 | 0 | 0 |'}`,
+        requestId,
+      });
+    }
+
     let conversationId = req.cookies.conversationId;
     let newConversation = false;
 
@@ -280,7 +479,79 @@ function buildSqlConfig() {
     database,
     server,
     options: { encrypt: true, trustServerCertificate: false },
+    pool: {
+      max: 10,
+      min: 0,
+      idleTimeoutMillis: 30000,
+    },
+    connectionTimeout: 15000,
+    requestTimeout: 30000,
   };
+}
+
+let cachedSqlPool = null;
+let poolConnectPromise = null;
+
+function isTransientSqlConnectionError(err) {
+  const msg = String(err?.message || err || '').toLowerCase();
+  return (
+    msg.includes('econnreset') ||
+    msg.includes('esocket') ||
+    msg.includes('etimedout') ||
+    msg.includes('connectionerror') ||
+    msg.includes('socket hang up')
+  );
+}
+
+async function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getSqlPool(sqlConfig) {
+  if (cachedSqlPool && cachedSqlPool.connected) {
+    return cachedSqlPool;
+  }
+  if (poolConnectPromise) {
+    return poolConnectPromise;
+  }
+
+  poolConnectPromise = (async () => {
+    let lastErr;
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const pool = new sql.ConnectionPool(sqlConfig);
+      try {
+        await pool.connect();
+        pool.on('error', (err) => {
+          logger.warn(`[sql] Pool error; clearing cached pool: ${err?.message || err}`);
+          if (cachedSqlPool === pool) {
+            cachedSqlPool = null;
+          }
+        });
+        cachedSqlPool = pool;
+        return pool;
+      } catch (err) {
+        lastErr = err;
+        logger.warn(`[sql] Connect attempt ${attempt}/${maxAttempts} failed: ${err?.message || err}`);
+        try {
+          await pool.close();
+        } catch (_) {
+          // Best-effort cleanup.
+        }
+        if (!isTransientSqlConnectionError(err) || attempt === maxAttempts) {
+          throw err;
+        }
+        await delay(400 * attempt);
+      }
+    }
+    throw lastErr;
+  })();
+
+  try {
+    return await poolConnectPromise;
+  } finally {
+    poolConnectPromise = null;
+  }
 }
 
 async function ensureResponseEvaluationsTable(pool) {
@@ -390,6 +661,8 @@ function getDateRangeSqlCondition(range, fieldName) {
       return `${fieldName} >= DATEADD(day, -365, SYSUTCDATETIME())`;
     case 'ytd':
       return `${fieldName} >= DATEFROMPARTS(YEAR(GETUTCDATE()), 1, 1)`;
+    case 'all':
+      return '';
     default:
       return '';
   }
@@ -403,6 +676,8 @@ function getDateRangeKql(range) {
     case '60d': return '60d';
     case 'year': return '365d';
     case 'ytd': return '365d';
+    /* Log Analytics retention is typically ≤730d; use max practical window for "all" */
+    case 'all': return '730d';
     default: return '60d';
   }
 }
@@ -462,8 +737,85 @@ function dashboardPayloadFromMcp(username, data) {
     message: `Welcome ${username}!`,
     outstandingCount: Number(data.outstanding_quotes_count ?? 0),
     outstandingTotal: `$${amt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-    unavailableItems: Number(data.out_of_stock_count ?? 0),
-    totalQuotes: 0, // MCP endpoint does not expose grand total; default to 0
+    unavailableItems: Number(data.unavailable_requested_count ?? data.out_of_stock_count ?? 0),
+    totalQuotes: Number(data.total_quotes_count ?? 0),
+  };
+}
+
+async function fetchUnavailableRequestedItemsFromSql(pool, topN = 20, quoteStatus = 'active') {
+  const boundedTopN = Number.isInteger(topN) && topN > 0 ? topN : null;
+  const topClause = boundedTopN ? `TOP (${boundedTopN})` : '';
+  const req = pool.request()
+    .input('quoteStatus', sql.NVarChar(20), quoteStatus);
+  const rows = await req.query(`
+    WITH requested AS (
+      SELECT qi.product_id, SUM(qi.quantity) AS requested_qty
+      FROM QuoteItems qi
+      JOIN Quotes q ON q.quote_id = qi.quote_id
+      WHERE q.status = @quoteStatus
+        AND qi.product_id IS NOT NULL
+      GROUP BY qi.product_id
+    ),
+    latest AS (
+      SELECT
+        i.product_id,
+        i.quantity_in_stock,
+        ROW_NUMBER() OVER (PARTITION BY i.product_id ORDER BY i.inventory_id DESC) AS rn
+      FROM Inventory i
+    ),
+    inv AS (
+      SELECT
+        p.product_id,
+        p.name AS product_name,
+        COALESCE(l.quantity_in_stock, 0) AS in_stock_qty
+      FROM Products p
+      LEFT JOIN latest l ON l.product_id = p.product_id AND l.rn = 1
+    ),
+    joined AS (
+      SELECT
+        r.product_id,
+        inv.product_name,
+        r.requested_qty,
+        inv.in_stock_qty,
+        CASE WHEN r.requested_qty - inv.in_stock_qty > 0 THEN r.requested_qty - inv.in_stock_qty ELSE 0 END AS shortfall_qty
+      FROM requested r
+      JOIN inv ON inv.product_id = r.product_id
+      WHERE (r.requested_qty - inv.in_stock_qty) > 0
+    )
+    SELECT ${topClause} *
+    FROM joined
+    ORDER BY shortfall_qty DESC, requested_qty DESC;
+  `);
+  const countReq = pool.request().input('quoteStatus', sql.NVarChar(20), quoteStatus);
+  const countRows = await countReq.query(`
+    WITH requested AS (
+      SELECT qi.product_id, SUM(qi.quantity) AS requested_qty
+      FROM QuoteItems qi
+      JOIN Quotes q ON q.quote_id = qi.quote_id
+      WHERE q.status = @quoteStatus
+        AND qi.product_id IS NOT NULL
+      GROUP BY qi.product_id
+    ),
+    latest AS (
+      SELECT
+        i.product_id,
+        i.quantity_in_stock,
+        ROW_NUMBER() OVER (PARTITION BY i.product_id ORDER BY i.inventory_id DESC) AS rn
+      FROM Inventory i
+    ),
+    inv AS (
+      SELECT p.product_id, COALESCE(l.quantity_in_stock, 0) AS in_stock_qty
+      FROM Products p
+      LEFT JOIN latest l ON l.product_id = p.product_id AND l.rn = 1
+    )
+    SELECT COUNT(*) AS cnt
+    FROM requested r
+    JOIN inv ON inv.product_id = r.product_id
+    WHERE (r.requested_qty - inv.in_stock_qty) > 0;
+  `);
+  return {
+    count: Number(countRows.recordset?.[0]?.cnt ?? 0),
+    items: rows.recordset || [],
   };
 }
 
@@ -499,32 +851,23 @@ app.get('/admin/dashboard', authenticateToken, async (req, res) => {
   const sqlConfig = buildSqlConfig();
   if (sqlConfig) {
     try {
-      const pool = await sql.connect(sqlConfig);
+      const pool = await getSqlPool(sqlConfig);
       // Single query: outstanding stats + grand total — avoids two round-trips
       const metrics = await pool.request().query(
         `SELECT
-           SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END)                         AS outstanding_quotes_count,
+           COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0)                         AS outstanding_quotes_count,
            COALESCE(SUM(CASE WHEN status = 'active' THEN total_amount ELSE 0 END), 0)  AS outstanding_total_amount,
            COUNT(*)                                                                     AS total_quotes_count
          FROM Quotes`
       );
-      // Count DISTINCT products customers actually requested (via active quotes)
-      // that are currently out of stock — matches requirement:
-      // "items requested by customers that are currently unavailable"
-      const oos = await pool.request().query(
-        `SELECT COUNT(DISTINCT qi.product_id) AS cnt
-         FROM QuoteItems qi
-         JOIN Inventory i ON qi.product_id = i.product_id
-         JOIN Quotes q    ON qi.quote_id    = q.quote_id
-         WHERE i.quantity_in_stock = 0
-           AND q.status = 'active'`
-      );
+      const unavailable = await fetchUnavailableRequestedItemsFromSql(pool, 20, 'active');
+      const row = metrics.recordset[0];
       return res.json({
         message: welcome,
-        outstandingCount: metrics.recordset[0].outstanding_quotes_count,
-        outstandingTotal: `$${Number(metrics.recordset[0].outstanding_total_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        unavailableItems: oos.recordset[0].cnt,
-        totalQuotes: metrics.recordset[0].total_quotes_count,
+        outstandingCount: Number(row.outstanding_quotes_count ?? 0),
+        outstandingTotal: `$${Number(row.outstanding_total_amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        unavailableItems: unavailable.count,
+        totalQuotes: Number(row.total_quotes_count ?? 0),
       });
     } catch (err) {
       logger.warn(`Dashboard direct SQL failed, trying MCP: ${err.message}`);
@@ -586,7 +929,7 @@ app.get('/admin/response-logs', authenticateToken, async (req, res) => {
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
 
     // Total count matching current filter (drives the "Showing X of Y" UI counter)
     const countResult = await pool.request().query(`
@@ -647,7 +990,7 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
   const customerEmail = String(req.query.customer_email || '').trim();
 
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
     await ensureResponseEvaluationsTable(pool);
 
     const conditions = [];
@@ -667,7 +1010,16 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
 
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const result = await request.query(`
-      WITH Evals AS (
+      WITH LatestEval AS (
+        SELECT
+          re.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY re.response_log_id, COALESCE(re.customer_email, '')
+            ORDER BY re.id DESC
+          ) AS rn
+        FROM dbo.response_evaluations re
+      ),
+      Evals AS (
         SELECT
           re.id,
           el.id                                               AS response_log_id,
@@ -697,9 +1049,10 @@ app.get('/admin/response-evaluations', authenticateToken, async (req, res) => {
         FROM EmailLogs el
         LEFT JOIN BusinessAccounts ba
           ON ba.email = el.customer_email
-        LEFT JOIN dbo.response_evaluations re
-          ON  re.customer_email = el.customer_email
-          AND re.response_log_id = el.id
+        LEFT JOIN LatestEval re
+          ON  re.response_log_id = el.id
+          AND COALESCE(re.customer_email, '') = COALESCE(el.customer_email, '')
+          AND re.rn = 1
       )
       SELECT TOP 500 *
       FROM Evals
@@ -731,7 +1084,7 @@ app.get('/admin/quote-evaluations', authenticateToken, async (req, res) => {
   const customerEmail  = String(req.query.customer_email  || '').trim();
 
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
     await ensureResponseEvaluationsTable(pool);
 
     const conditions = [];
@@ -752,6 +1105,15 @@ app.get('/admin/quote-evaluations', authenticateToken, async (req, res) => {
     const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await request.query(`
+      WITH LatestEval AS (
+        SELECT
+          re.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY re.response_log_id, COALESCE(re.customer_email, '')
+            ORDER BY re.id DESC
+          ) AS rn
+        FROM dbo.response_evaluations re
+      )
       SELECT TOP 500
         re.id,
         q.quote_id                                          AS response_log_id,
@@ -769,9 +1131,10 @@ app.get('/admin/quote-evaluations', authenticateToken, async (req, res) => {
         q.created_at                                        AS quote_created_at
       FROM Quotes q
       JOIN BusinessAccounts ba ON q.account_id = ba.account_id
-      LEFT JOIN dbo.response_evaluations re
-        ON  re.customer_email = ba.email
-        AND re.response_log_id = q.quote_id
+      LEFT JOIN LatestEval re
+        ON  re.response_log_id = q.quote_id
+        AND COALESCE(re.customer_email, '') = COALESCE(ba.email, '')
+        AND re.rn = 1
       ${whereClause}
       ORDER BY q.created_at DESC
     `);
@@ -798,7 +1161,7 @@ app.post('/admin/response-evaluations', authenticateToken, async (req, res) => {
   }
 
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
     await ensureResponseEvaluationsTable(pool);
     const request = pool.request()
       .input('response_log_id', sql.Int, body.response_log_id || null)
@@ -817,39 +1180,93 @@ app.post('/admin/response-evaluations', authenticateToken, async (req, res) => {
       .input('reviewed_by', sql.NVarChar(100), body.reviewed_by || null);
 
     const result = await request.query(`
-      IF COL_LENGTH('dbo.response_evaluations', 'system_response') IS NOT NULL
+      DECLARE @existingId INT = (
+        SELECT TOP 1 id
+        FROM dbo.response_evaluations
+        WHERE response_log_id = @response_log_id
+          AND COALESCE(customer_email, '') = COALESCE(@customer_email, '')
+        ORDER BY id DESC
+      );
+
+      IF @existingId IS NOT NULL
       BEGIN
-        INSERT INTO dbo.response_evaluations (
-          response_log_id, customer_email, customer_subject, customer_email_body,
-          final_system_response, system_response, agent_name, classification, confidence_score,
-          evaluator_source, expected_behavior, true_label, predicted_label,
-          review_notes, reviewed_by, reviewed_at
-        )
-        OUTPUT INSERTED.*
-        VALUES (
-          @response_log_id, @customer_email, @customer_subject, @customer_email_body,
-          @final_system_response, @final_system_response, @agent_name, @classification, @confidence_score,
-          @evaluator_source, @expected_behavior, @true_label, @predicted_label,
-          @review_notes, @reviewed_by,
-          CASE WHEN @classification IS NULL OR @classification = '' THEN NULL ELSE SYSUTCDATETIME() END
-        )
+        IF COL_LENGTH('dbo.response_evaluations', 'system_response') IS NOT NULL
+        BEGIN
+          UPDATE dbo.response_evaluations
+          SET
+            customer_subject      = @customer_subject,
+            customer_email_body   = @customer_email_body,
+            final_system_response = @final_system_response,
+            system_response       = @final_system_response,
+            agent_name            = @agent_name,
+            classification        = @classification,
+            confidence_score      = @confidence_score,
+            evaluator_source      = @evaluator_source,
+            expected_behavior     = @expected_behavior,
+            true_label            = @true_label,
+            predicted_label       = @predicted_label,
+            review_notes          = @review_notes,
+            reviewed_by           = @reviewed_by,
+            reviewed_at           = CASE WHEN @classification IS NULL OR @classification = '' THEN NULL ELSE SYSUTCDATETIME() END
+          WHERE id = @existingId;
+        END
+        ELSE
+        BEGIN
+          UPDATE dbo.response_evaluations
+          SET
+            customer_subject      = @customer_subject,
+            customer_email_body   = @customer_email_body,
+            final_system_response = @final_system_response,
+            agent_name            = @agent_name,
+            classification        = @classification,
+            confidence_score      = @confidence_score,
+            evaluator_source      = @evaluator_source,
+            expected_behavior     = @expected_behavior,
+            true_label            = @true_label,
+            predicted_label       = @predicted_label,
+            review_notes          = @review_notes,
+            reviewed_by           = @reviewed_by,
+            reviewed_at           = CASE WHEN @classification IS NULL OR @classification = '' THEN NULL ELSE SYSUTCDATETIME() END
+          WHERE id = @existingId;
+        END
+        SELECT * FROM dbo.response_evaluations WHERE id = @existingId;
       END
       ELSE
       BEGIN
-        INSERT INTO dbo.response_evaluations (
-          response_log_id, customer_email, customer_subject, customer_email_body,
-          final_system_response, agent_name, classification, confidence_score,
-          evaluator_source, expected_behavior, true_label, predicted_label,
-          review_notes, reviewed_by, reviewed_at
-        )
-        OUTPUT INSERTED.*
-        VALUES (
-          @response_log_id, @customer_email, @customer_subject, @customer_email_body,
-          @final_system_response, @agent_name, @classification, @confidence_score,
-          @evaluator_source, @expected_behavior, @true_label, @predicted_label,
-          @review_notes, @reviewed_by,
-          CASE WHEN @classification IS NULL OR @classification = '' THEN NULL ELSE SYSUTCDATETIME() END
-        )
+        IF COL_LENGTH('dbo.response_evaluations', 'system_response') IS NOT NULL
+        BEGIN
+          INSERT INTO dbo.response_evaluations (
+            response_log_id, customer_email, customer_subject, customer_email_body,
+            final_system_response, system_response, agent_name, classification, confidence_score,
+            evaluator_source, expected_behavior, true_label, predicted_label,
+            review_notes, reviewed_by, reviewed_at
+          )
+          OUTPUT INSERTED.*
+          VALUES (
+            @response_log_id, @customer_email, @customer_subject, @customer_email_body,
+            @final_system_response, @final_system_response, @agent_name, @classification, @confidence_score,
+            @evaluator_source, @expected_behavior, @true_label, @predicted_label,
+            @review_notes, @reviewed_by,
+            CASE WHEN @classification IS NULL OR @classification = '' THEN NULL ELSE SYSUTCDATETIME() END
+          )
+        END
+        ELSE
+        BEGIN
+          INSERT INTO dbo.response_evaluations (
+            response_log_id, customer_email, customer_subject, customer_email_body,
+            final_system_response, agent_name, classification, confidence_score,
+            evaluator_source, expected_behavior, true_label, predicted_label,
+            review_notes, reviewed_by, reviewed_at
+          )
+          OUTPUT INSERTED.*
+          VALUES (
+            @response_log_id, @customer_email, @customer_subject, @customer_email_body,
+            @final_system_response, @agent_name, @classification, @confidence_score,
+            @evaluator_source, @expected_behavior, @true_label, @predicted_label,
+            @review_notes, @reviewed_by,
+            CASE WHEN @classification IS NULL OR @classification = '' THEN NULL ELSE SYSUTCDATETIME() END
+          )
+        END
       END
     `);
     return res.status(201).json({ success: true, evaluation: result.recordset[0] });
@@ -863,7 +1280,7 @@ app.post('/admin/response-evaluations/seed-from-logs', authenticateToken, async 
   const sqlConfig = buildSqlConfig();
   if (!sqlConfig) return res.status(503).json({ success: false, error: 'AZURE_SQL_* is not configured.' });
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
     await ensureResponseEvaluationsTable(pool);
     const result = await pool.request().query(`
       IF COL_LENGTH('dbo.response_evaluations', 'system_response') IS NOT NULL
@@ -931,7 +1348,7 @@ app.patch('/admin/response-evaluations/:id', authenticateToken, async (req, res)
 
   const body = req.body || {};
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
     await ensureResponseEvaluationsTable(pool);
     const request = pool.request()
       .input('id', sql.Int, id)
@@ -972,7 +1389,7 @@ app.delete('/admin/clear-all-quotes', authenticateToken, async (req, res) => {
   const sqlConfig = buildSqlConfig();
   if (!sqlConfig) return res.status(503).json({ success: false, error: 'AZURE_SQL_* is not configured.' });
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
     await pool.request().query(`DELETE FROM dbo.response_evaluations`);
     await pool.request().query(`DELETE FROM QuoteItems`);
     const result = await pool.request().query(`DELETE FROM Quotes`);
@@ -999,9 +1416,18 @@ app.get('/admin/evaluation-summary', authenticateToken, async (req, res) => {
   const where = getDateRangeSqlCondition(range, 'quote_created_at');
   const whereClause = where ? `WHERE ${where}` : '';
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
     await ensureResponseEvaluationsTable(pool);
     const result = await pool.request().query(`
+      WITH LatestEval AS (
+        SELECT
+          re.*,
+          ROW_NUMBER() OVER (
+            PARTITION BY re.response_log_id, COALESCE(re.customer_email, '')
+            ORDER BY re.id DESC
+          ) AS rn
+        FROM dbo.response_evaluations re
+      )
       SELECT
         COUNT(*) AS total_responses,
         SUM(CASE WHEN re.classification IN ('Correct','Incorrect','Fallback') THEN 1 ELSE 0 END) AS total_evaluated,
@@ -1011,9 +1437,10 @@ app.get('/admin/evaluation-summary', authenticateToken, async (req, res) => {
         SUM(CASE WHEN re.classification = 'Fallback' THEN 1 ELSE 0 END) AS fallback_count,
         AVG(CASE WHEN re.confidence_score IS NOT NULL THEN re.confidence_score END) AS average_confidence
       FROM EmailLogs el
-      LEFT JOIN dbo.response_evaluations re
-        ON  re.customer_email = el.customer_email
-        AND re.response_log_id = el.id
+      LEFT JOIN LatestEval re
+        ON  re.response_log_id = el.id
+        AND COALESCE(re.customer_email, '') = COALESCE(el.customer_email, '')
+        AND re.rn = 1
       ${whereClause.replace('quote_created_at', 'el.created_at')}
     `);
     const r = result.recordset[0] || {};
@@ -1027,7 +1454,7 @@ app.get('/admin/evaluation-summary', authenticateToken, async (req, res) => {
       correct_count: correct,
       incorrect_count: Number(r.incorrect_count || 0),
       fallback_count: fallback,
-      accuracy_percent: totalEvaluated ? (correct / totalEvaluated) * 100 : 0,
+      accuracy_percent: totalEvaluated ? ((correct + fallback) / totalEvaluated) * 100 : 0,
       fallback_rate_percent: totalEvaluated ? (fallback / totalEvaluated) * 100 : 0,
       average_confidence: r.average_confidence == null ? null : Number(r.average_confidence),
     });
@@ -1050,7 +1477,7 @@ app.get('/admin/confusion-matrix', authenticateToken, async (req, res) => {
   const whereDate = getDateRangeSqlCondition(range, 'quote_created_at');
   const whereClause = whereDate ? `WHERE ${whereDate} AND true_label IS NOT NULL AND predicted_label IS NOT NULL` : `WHERE true_label IS NOT NULL AND predicted_label IS NOT NULL`;
   try {
-    const pool = await sql.connect(sqlConfig);
+    const pool = await getSqlPool(sqlConfig);
     await ensureResponseEvaluationsTable(pool);
     const result = await pool.request().query(`
       SELECT
@@ -1092,13 +1519,22 @@ app.get('/admin/confusion-matrix', authenticateToken, async (req, res) => {
   }
 });
 
+/** App Insights time window; optional APPINSIGHTS_TELEMETRY_NOT_BEFORE ISO filter for mixed old/new pipelines */
+function appInsightsTelemetryTimeClause(lookback) {
+  const notBefore = (process.env.APPINSIGHTS_TELEMETRY_NOT_BEFORE || '').trim();
+  if (!notBefore) {
+    return `| where TimeGenerated > ago(${lookback})`;
+  }
+  return `| where TimeGenerated > ago(${lookback}) and TimeGenerated > datetime('${notBefore.replace(/'/g, "''")}')`;
+}
+
 app.get('/admin/agent-performance', authenticateToken, async (req, res) => {
   const range = normalizeDateRange(req.query.range);
   const lookback = getDateRangeKql(range);
-  const TELEMETRY_CUTOFF = '2026-04-28T22:15:00Z';
+  const timeClause = appInsightsTelemetryTimeClause(lookback);
   const kql = `
 AppDependencies
-| where TimeGenerated > ago(${lookback}) and TimeGenerated > datetime('${TELEMETRY_CUTOFF}')
+${timeClause}
 | where Name startswith "invoke_agent"
 | extend agent = extract(@"invoke_agent\\s([a-zA-Z0-9_]+)", 1, Name)
 | where agent in ("userOrchestrator", "email", "userQuote", "userPurchaseOrder", "userOnboarding", "adminOrchestrator")
@@ -1112,15 +1548,15 @@ AppDependencies
 app.get('/admin/user-orchestrator-traces', authenticateToken, async (req, res) => {
   const range = normalizeDateRange(req.query.range);
   const lookback = getDateRangeKql(range);
-  const TELEMETRY_CUTOFF = '2026-04-28T22:15:00Z';
+  const timeClause = appInsightsTelemetryTimeClause(lookback);
   const kql = `
 AppDependencies
-| where TimeGenerated > ago(${lookback}) and TimeGenerated > datetime('${TELEMETRY_CUTOFF}')
+${timeClause}
 | where Name startswith "invoke_agent"
 | where Name contains "userOrchestrator"
 | project timestamp=TimeGenerated, operation_Id=OperationId, id=Id, name=Name, success=Success, duration=DurationMs, resultCode=ResultCode, data=Data, target=Target, customDimensions=Properties
 | order by timestamp desc
-| take 200
+| take 500
 `;
   const result = await queryAppInsights(kql);
   return res.json({ traces: result.rows, ...(result.warning ? { warning: result.warning } : {}) });
@@ -1129,16 +1565,16 @@ AppDependencies
 app.get('/admin/agent-traces', authenticateToken, async (req, res) => {
   const range = normalizeDateRange(req.query.range);
   const lookback = getDateRangeKql(range);
-  const TELEMETRY_CUTOFF = '2026-04-28T22:15:00Z';
+  const timeClause = appInsightsTelemetryTimeClause(lookback);
   const kql = `
 AppDependencies
-| where TimeGenerated > ago(${lookback}) and TimeGenerated > datetime('${TELEMETRY_CUTOFF}')
+${timeClause}
 | where Name startswith "invoke_agent"
 | extend agent = extract(@"invoke_agent\\s([a-zA-Z0-9_]+)", 1, Name)
 | where agent in ("userOrchestrator", "email", "userQuote", "userPurchaseOrder", "userOnboarding", "adminOrchestrator")
 | project timestamp=TimeGenerated, operation_Id=OperationId, id=Id, agent, name=Name, success=Success, duration=DurationMs, resultCode=ResultCode, data=Data, target=Target
 | order by timestamp desc
-| take 200
+| take 500
 `;
   const result = await queryAppInsights(kql);
   return res.json({ traces: result.rows, ...(result.warning ? { warning: result.warning } : {}) });
@@ -1349,29 +1785,27 @@ app.post('/admin/chat/tools', authenticateToken, async (req, res) => {
       });
     }
 
-    // Out of stock
+    // Requested-unavailable (includes zero stock and partial shortfall)
     if (
       lower.includes('out of stock') ||
       lower.includes('unavailable') ||
       lower.includes('oos')
     ) {
-      const resp = await fetch(`${quotesApiBase}/quotes/admin/out-of-stock`, {
-        headers: mcpApiKey ? { 'x-api-key': mcpApiKey } : {}
-      });
-
-      if (!resp.ok) {
-        const txt = await resp.text();
-        return res.status(502).json({
-          request_type: 'out_of_stock',
-          error: `Out-of-stock failed: ${resp.status} ${txt}`,
+      const sqlConfig = buildSqlConfig();
+      if (!sqlConfig) {
+        return res.status(503).json({
+          request_type: 'requested_unavailable',
+          error: 'AZURE_SQL_* is not configured. Cannot compute requested unavailable items.',
           results: []
         });
       }
-
-      const data = await resp.json();
+      const pool = await getSqlPool(sqlConfig);
+      const data = await fetchUnavailableRequestedItemsFromSql(pool, 50, 'active');
       return res.json({
-        request_type: 'out_of_stock',
-        results: data
+        request_type: 'requested_unavailable',
+        results: data.items,
+        total_unavailable_requested_items: data.count,
+        quote_status: 'active',
       });
     }
 
