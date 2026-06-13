@@ -31,7 +31,7 @@ click==8.3.1
     #   uvicorn
 colorama==0.4.6 ; sys_platform == 'win32'
     # via click
-cryptography==46.0.5
+cryptography==46.0.7
     # via pyjwt
 fastapi==0.129.0
     # via llm-automated-inventory-management
@@ -108,7 +108,7 @@ shellingham==1.5.4
     # via typer
 sse-starlette==3.3.2
     # via mcp
-starlette==0.52.1
+starlette==1.0.0
     # via
     #   fastapi
     #   mcp

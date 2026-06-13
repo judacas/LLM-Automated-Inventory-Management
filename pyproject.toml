@@ -19,7 +19,7 @@ dependencies = [
     "pyodbc>=5.3.0",
     "python-dotenv>=1.2.1",
     "requests>=2.28.0",
-    "starlette>=0.52.1",
+    "starlette>=1.0.0",
     "typing-extensions>=4.15.0",
     "uvicorn>=0.41.0",
 ]
