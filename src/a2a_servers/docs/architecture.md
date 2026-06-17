@@ -41,10 +41,21 @@ Responsibilities:
 
 - load `.env`
 - resolve runtime settings
-- load agent definitions from disk
+- load agent definitions from disk or a downloaded archive
 - construct the app
 - log published URLs and startup metadata
 - start `uvicorn`
+
+### `config_loader.py`
+
+Resolves where agent configs come from.
+
+Responsibilities:
+
+- prefer `A2A_AGENT_CONFIG_URL` (or the CLI equivalent) if set
+- download a `.zip` archive of agent configs over HTTP/HTTPS or `file://`
+- extract the archive to a temp folder and return the folder that contains `*_agent.toml`
+- fall back to `A2A_AGENT_CONFIG_DIR` or the bundled `agents/`
 
 ### `agent_definition.py`
 
@@ -52,7 +63,7 @@ Loads and validates `*_agent.toml` files. Sample files such as `*_agent.sample.t
 
 Responsibilities:
 
-- discover agent configs from `A2A_AGENT_CONFIG_DIR` or the default `agents/`
+- discover agent configs from `A2A_AGENT_CONFIG_DIR` or the default `agents/` (after any archive download handled by `config_loader`)
 - validate required `[a2a]`, `[foundry]`, `[[skills]]`, and optional `[smoke_tests]`
 - derive or normalize the route slug
 - reject duplicate slugs

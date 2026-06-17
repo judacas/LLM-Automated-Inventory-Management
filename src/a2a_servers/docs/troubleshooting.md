@@ -24,12 +24,27 @@ Cause:
 
 - `A2A_AGENT_CONFIG_DIR` points to the wrong folder
 - the folder exists but contains no matching files
+- `A2A_AGENT_CONFIG_URL` pointed at an archive without any `*_agent.toml` files
 
 Fix:
 
+- if using `A2A_AGENT_CONFIG_URL`, confirm the URL ends with `.zip`, is reachable, and the archive contains the expected files
 - point `A2A_AGENT_CONFIG_DIR` at the correct directory
 - verify live agent config file names end with `_agent.toml`
 - files ending in `.sample.toml` are ignored on purpose
+
+## Startup Fails When Using A2A_AGENT_CONFIG_URL
+
+Symptom:
+
+- startup raises an exception about downloading or extracting the archive
+
+Fix:
+
+- confirm the URL scheme is `http`, `https`, or `file`
+- confirm the URL ends with `.zip`
+- if using SAS, verify the token has not expired and allows read access
+- try curling the URL from the same environment to verify reachability
 
 ## Startup Fails Due To Duplicate Slugs
 

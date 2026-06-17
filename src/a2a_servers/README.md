@@ -23,6 +23,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - Azure AI Foundry integration: [docs/foundry-integration.md](docs/foundry-integration.md)
 - Agent definition contract: [docs/agent-definition-reference.md](docs/agent-definition-reference.md)
 - Troubleshooting and known gaps: [docs/troubleshooting.md](docs/troubleshooting.md)
+- Host agent configs separately: [docs/agent-config-hosting.md](docs/agent-config-hosting.md)
 
 - All together: [/docs](../../docs)
 
@@ -43,7 +44,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - The published agent card URL changes based on `A2A_URL_MODE`.
 - Duplicate slugs or duplicate Foundry agent names fail startup.
 - The A2A server process does not create Foundry agents for you; it expects them to already exist.
-- adding or changing an agent in production requires a redeploy
+- Setting `A2A_AGENT_CONFIG_URL` lets you swap agent definitions by replacing a zipped archive instead of redeploying code.
 
 ## Current Limitations
 
@@ -53,7 +54,7 @@ In this branch, `src/a2a_servers` is primarily infrastructure for exposing Found
 - There is no checked-in Azure IaC for this package in the current branch.
 - There is no built-in authentication or network restriction layer in this package itself; deployment must provide that boundary.
 - The server assumes Foundry agents already exist and are correctly configured in Azure AI Foundry.
-- Adding or changing mounted agents in production requires a redeploy.
+- If you are not using `A2A_AGENT_CONFIG_URL`, adding or changing mounted agents in production requires a redeploy.
 
 ## What To Extend Next
 
@@ -64,3 +65,4 @@ The most natural future extension points are:
 - stronger auth and ingress controls
 - richer health checks that validate Foundry connectivity
 - better process for adding and removing agents, potentially with a gui
+- more automation around hosting the agent config archive

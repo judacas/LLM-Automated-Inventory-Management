@@ -33,12 +33,12 @@ Complete [developer-setup.md](./developer-setup.md) first.
 
 Before starting the server, verify that each discovered config points to a real Foundry agent.
 
-Current examples:
+Current examples (when using the bundled configs):
 
 - `agents/quote_agent.toml` -> Foundry agent name `quote-agent`
 - `agents/math_agent.sample.toml` -> sample config for Foundry agent name `Math-Agent`
 
-If the name in TOML does not exist in the configured Foundry project, startup or first use will fail.
+If the name in TOML does not exist in the configured Foundry project, startup or first use will fail. If you are pulling configs from `A2A_AGENT_CONFIG_URL`, confirm the archive contains the correct mappings.
 
 ## Start The Server
 
@@ -53,6 +53,7 @@ Optional overrides:
 ```bash
 uv run python __main__.py --host 0.0.0.0 --port 10007
 uv run python __main__.py --agent-config-dir custom_agents
+uv run python __main__.py --agent-config-url http://localhost:8000/agents.zip
 uv run python __main__.py --url-mode forwarded --forwarded-base-url https://example.com
 ```
 
@@ -107,6 +108,15 @@ This is useful when:
 - testing experimental agents without changing the checked-in `agents/`
 - running a reduced set of agents for a demo
 - isolating one teammate's agent definitions from another's
+
+You can also load a zipped bundle hosted elsewhere (or served locally) without copying files into the repo:
+
+```bash
+python -m http.server 8000  # from the directory containing agents.zip
+uv run python __main__.py --agent-config-url http://localhost:8000/agents.zip
+```
+
+`A2A_AGENT_CONFIG_URL` takes precedence over `A2A_AGENT_CONFIG_DIR`.
 
 ## Operational Checks
 
